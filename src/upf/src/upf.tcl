@@ -50,18 +50,38 @@ proc write_upf { args } {
   upf::write_upf_cmd [lindex $args 0]
 }
 
+# Retrieves the version of UPF being used to interpret
+# Arguments: 
+#
+# - version: The UPF version for which subsequent commands are written
+
+sta::define_cmd_args "upf_version" { [version] }
+
+proc upf_version { args } {
+  if { [llength $args] > 0 } {
+    set version [lindex $args 0]
+
+    if { $version != "2.1" } {
+      utl::warn UPF 58 "OpenROAD only supports IEEE 1801-2013 - UPF '2.1'"
+    }
+  }
+
+  return "2.1"
+}
+
 # Creates a power domain
 #
 # Arguments:
 #
 # - elements: list of module paths that belong to this domain OR '.' for top domain
+# - include_scope: Adds the top domain to the elements list. Same as '-elements {.}'.
 # - name: domain name
-sta::define_cmd_args "create_power_domain" { [-elements elements] name }
+sta::define_cmd_args "create_power_domain" { [-elements elements] [-include_scope] name }
 proc create_power_domain { args } {
   upf::check_block_exists
 
   sta::parse_key_args "create_power_domain" args \
-    keys {-elements} flags {}
+    keys {-elements} flags {-include_scope}
 
   sta::check_argc_eq1 "create_power_domain" $args
 
@@ -70,6 +90,12 @@ proc create_power_domain { args } {
 
   if { [info exists keys(-elements)] } {
     set elements $keys(-elements)
+  }
+
+  if { [info exists flags(-include_scope)] } {
+    if { [lsearch -exact $elements "."] < 0 } {
+      lappend elements "."
+    }
   }
 
   upf::create_power_domain_cmd $domain_name

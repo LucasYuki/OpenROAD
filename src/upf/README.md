@@ -39,6 +39,20 @@ write_upf file_name
 | ----- | ----- |
 | `file_name` | Filename argument. |
 
+### UPF Version
+
+Retrieves the version of UPF being used to interpret.
+
+```tcl
+upf_version [version]
+```
+
+#### Options
+
+| Switch Name | Description |
+| ----- | ----- |
+| `version` | The UPF version for which subsequent commands are written. |
+
 ### Create Power Domain
 
 This command creates power domain for a group of modules.
@@ -46,6 +60,7 @@ This command creates power domain for a group of modules.
 ```tcl
 create_power_domain
     [-elements elements]
+    [-include_scope]
     name 
 ```
 
@@ -54,6 +69,7 @@ create_power_domain
 | Switch Name | Description | 
 | ----- | ----- |
 | `-elements` | List of module paths that belong this this domain OR `.` for top domain. |
+| `-include_scope` | Adds the top domain to the elements list. Same as `-elements {.}`. |
 | `name` | Domain name. |
 
 ### Create Logic Port

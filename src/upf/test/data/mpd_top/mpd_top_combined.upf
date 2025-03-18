@@ -1,5 +1,5 @@
 create_power_domain PD_TOP \
-  -elements {.}  \
+  -include_scope \
 
 create_power_domain PD_AES_1 \
   -elements {u_aes_1} \

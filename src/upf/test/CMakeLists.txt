@@ -4,6 +4,7 @@ or_integration_tests(
     levelshifter
     write
     isolation
+    upf_version
 )
 
 # Skipped
