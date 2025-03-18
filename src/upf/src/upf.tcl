@@ -51,6 +51,7 @@ proc write_upf { args } {
 }
 
 # Retrieves the version of UPF being used to interpret
+#
 # Arguments: 
 #
 # - version: The UPF version for which subsequent commands are written
@@ -58,6 +59,8 @@ proc write_upf { args } {
 sta::define_cmd_args "upf_version" { version }
 
 proc upf_version { args } {
+  sta::parse_key_args "upf_version" args keys {} flags {}
+
   if { [llength $args] > 0 } {
     set version [lindex $args 0]
 
@@ -652,20 +655,40 @@ proc set_level_shifter_cell { args } {
 }
 
 # State related methods are parsed and ignored as they are not relevant to PnR.
+#
+# Arguments:
+#
 sta::define_cmd_args "add_port_state" {}
-proc add_port_state { args } {}
+proc add_port_state { args } {
+  sta::parse_key_args "add_port_state" args keys {} flags {}
+}
 
 # State related methods are parsed and ignored as they are not relevant to PnR.
+#
+# Arguments:
+#
 sta::define_cmd_args "create_pst" {}
-proc create_pst { args } {}
+proc create_pst { args } {
+  sta::parse_key_args "create_pst" args keys {} flags {}
+}
 
 # State related methods are parsed and ignored as they are not relevant to PnR.
+#
+# Arguments:
+#
 sta::define_cmd_args "add_pst_state" {}
-proc add_pst_state { args } {}
+proc add_pst_state { args } {
+  sta::parse_key_args "add_pst_state" args keys {} flags {}
+}
 
 # State related methods are parsed and ignored as they are not relevant to PnR.
+#
+# Arguments:
+#
 sta::define_cmd_args "add_power_state" {}
-proc add_power_state { args } {}
+proc add_power_state { args } {
+  sta::parse_key_args "add_power_state" args keys {} flags {}
+}
 
 namespace eval upf {
 proc process_list_arg { args max_len } {
