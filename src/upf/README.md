@@ -296,6 +296,38 @@ set_level_shifter_cell
 | `-input_port` | KIV. |
 | `-output_port` | KIV. |
 
+### Add Port State
+
+State related methods are parsed and ignored as they are not relevant to PnR.
+
+```tcl
+add_port_state
+```
+
+### Create Pst
+
+State related methods are parsed and ignored as they are not relevant to PnR.
+
+```tcl
+create_pst
+```
+
+### Add Pst State
+
+State related methods are parsed and ignored as they are not relevant to PnR.
+
+```tcl
+add_pst_state
+```
+
+### Add Power State
+
+State related methods are parsed and ignored as they are not relevant to PnR.
+
+```tcl
+add_power_state
+```
+
 ## Example scripts
 
 Example script demonstrating how to run `upf` related commands can be found here:

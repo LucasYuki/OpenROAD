@@ -55,7 +55,7 @@ proc write_upf { args } {
 #
 # - version: The UPF version for which subsequent commands are written
 
-sta::define_cmd_args "upf_version" { [version] }
+sta::define_cmd_args "upf_version" { version }
 
 proc upf_version { args } {
   if { [llength $args] > 0 } {
@@ -650,6 +650,22 @@ proc set_level_shifter_cell { args } {
 
   upf::set_level_shifter_cell_cmd $level_shifter $cell_name $input_port $output_port
 }
+
+# State related methods are parsed and ignored as they are not relevant to PnR.
+sta::define_cmd_args "add_port_state" {}
+proc add_port_state { args } {}
+
+# State related methods are parsed and ignored as they are not relevant to PnR.
+sta::define_cmd_args "create_pst" {}
+proc create_pst { args } {}
+
+# State related methods are parsed and ignored as they are not relevant to PnR.
+sta::define_cmd_args "add_pst_state" {}
+proc add_pst_state { args } {}
+
+# State related methods are parsed and ignored as they are not relevant to PnR.
+sta::define_cmd_args "add_power_state" {}
+proc add_power_state { args } {}
 
 namespace eval upf {
 proc process_list_arg { args max_len } {
