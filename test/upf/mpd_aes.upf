@@ -23,6 +23,15 @@ create_power_switch psw_aes_2 \
   -control_port {sleep power_down_aes_2} \
   -on_state {ON vin {!sleep}}
 
+map_power_switch psw_aes_1 \
+  -lib_cells POWER_SWITCH \
+  -port_map {{vout VPWR} {vin VDDG} {sleep SLEEP} {acknowledge SLEEP_OUT} {ground VGND}}
+map_power_switch psw_aes_2 \
+  -lib_cells POWER_SWITCH \
+  -port_map {{vout VPWR} {vin VDDG} {sleep SLEEP} {acknowledge SLEEP_OUT} {ground VGND}}
+
+
+
 create_logic_port isolation_sig_aes1
 create_logic_port isolation_sig_aes2
 
@@ -79,3 +88,6 @@ use_interface_cell iso_aes_2\
     sky130_fd_sc_hd__lpflow_inputiso0p_1
     sky130_fd_sc_hd__lpflow_inputiso1p_1
   }
+
+set_domain_area PD_AES_1 -area {30   30 1600 1390}
+set_domain_area PD_AES_2 -area {30 1410 1600 2770}

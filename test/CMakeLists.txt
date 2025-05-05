@@ -1,6 +1,7 @@
 or_integration_tests(
   "openroad"
   TESTS
+    aes_sky130hd
     error1
     get_core_die_areas
     place_inst

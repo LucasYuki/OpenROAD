@@ -39,6 +39,12 @@ read_verilog $synth_verilog
 link_design $top_module
 read_sdc $sdc_file
 
+
+if { [info exists upf_file] } {
+  puts "loading upf file"
+  read_upf -file $upf_file
+}
+
 set_thread_count [cpu_count]
 # Temporarily disable sta's threading due to random failures
 sta::set_thread_count 1
@@ -89,14 +95,14 @@ set_routing_layers -signal $global_routing_layers \
   -clock $global_routing_clock_layers
 set_macro_extension 2
 
-global_placement -routability_driven -density $global_place_density \
+global_placement -density $global_place_density \
   -pad_left $global_place_pad -pad_right $global_place_pad
 
 # IO Placement
 place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
 
 # checkpoint
-set global_place_db [make_result_file ${design}_${platform}_global_place.db]
+set global_place_db [make_result_file ${design}_${platform}_global_place.odb]
 write_db $global_place_db
 
 ################################################################
@@ -146,7 +152,7 @@ repair_clock_nets
 detailed_placement
 
 # checkpoint
-set cts_db [make_result_file ${design}_${platform}_cts.db]
+set cts_db [make_result_file ${design}_${platform}_cts.odb]
 write_db $cts_db
 
 ################################################################
@@ -188,7 +194,7 @@ utl::metric "DPL::utilization" [format %.1f [expr [rsz::utilization] * 100]]
 utl::metric "DPL::design_area" [sta::format_area [rsz::design_area] 0]
 
 # checkpoint
-set dpl_db [make_result_file ${design}_${platform}_dpl.db]
+set dpl_db [make_result_file ${design}_${platform}_dpl.odb]
 write_db $dpl_db
 
 set verilog_file [make_result_file ${design}_${platform}.v]
@@ -236,7 +242,7 @@ write_guides [make_result_file "${design}_${platform}_output_guide.mod"]
 set drv_count [detailed_route_num_drvs]
 utl::metric "DRT::drv" $drv_count
 
-set routed_db [make_result_file ${design}_${platform}_route.db]
+set routed_db [make_result_file ${design}_${platform}_route.odb]
 write_db $routed_db
 
 set routed_def [make_result_file ${design}_${platform}_route.def]
@@ -282,7 +288,7 @@ filler_placement $filler_cells
 check_placement -verbose
 
 # checkpoint
-set fill_db [make_result_file ${design}_${platform}_fill.db]
+set fill_db [make_result_file ${design}_${platform}_fill.odb]
 write_db $fill_db
 
 ################################################################
