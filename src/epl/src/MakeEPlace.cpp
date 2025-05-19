@@ -30,25 +30,24 @@ namespace epl {
 extern const char *epl_tcl_inits[];
 
 
-epl::EPlace *
-makeEPlace()
+epl::EPlace* makeEPlace()
 {
   return new epl::EPlace;
 }
 
-void
-deleteEPlace(epl::EPlace *eplace)
+void deleteEPlace(epl::EPlace *eplace)
 {
   delete eplace;
 }
 
-void
-initEPlace(epl::EPlace* eplace, Tcl_Interp *tcl_interp,
-  odb::dbDatabase *db)
+void initEPlace(epl::EPlace* eplace,
+  odb::dbDatabase *db,
+  utl::Logger *logger,
+  Tcl_Interp *tcl_interp)
 {
   EPlace_Init(tcl_interp);
   utl::evalTclInit(tcl_interp, epl::epl_tcl_inits);
-  eplace->init(tcl_interp, db);
+  eplace->init(db, logger);
 }
 
 }

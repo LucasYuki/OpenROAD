@@ -33,11 +33,10 @@ EPlace::EPlace()
 }
 
 
-void
-EPlace::init(Tcl_Interp *tcl_interp,
-	   odb::dbDatabase *db)
+void EPlace::init(odb::dbDatabase *db, utl::Logger* logger)
 {
   db_ = db;
+  log_ = logger;
 }
 
 }

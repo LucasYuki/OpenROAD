@@ -16,6 +16,11 @@
 
 include("openroad")
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+find_package(Eigen3 REQUIRED)
+find_package(OpenMP REQUIRED)
+
 project(epl)
 
 swig_lib(NAME      epl
@@ -30,6 +35,10 @@ target_sources(epl
   src/EPlace.cpp
 )
 
+messages(
+  TARGET epl
+)
+
 target_include_directories(epl
   PUBLIC
     include
@@ -38,8 +47,11 @@ target_include_directories(epl
 target_link_libraries(epl
     OpenSTA
     odb
+    Eigen3::Eigen
+    Threads::Threads
+    OpenMP::OpenMP_CXX
 )
 
-messages(
-  TARGET epl
-)
+if(ENABLE_TESTS)
+  add_subdirectory(test)
+endif()

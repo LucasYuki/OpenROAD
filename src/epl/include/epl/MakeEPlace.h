@@ -28,15 +28,14 @@ class EPlace;
 
 class OpenRoad;
 
-epl::EPlace *
-makeEPlace();
+epl::EPlace* makeEPlace();
 
-void
-deleteEPlace(epl::EPlace *eplace);
+void deleteEPlace(epl::EPlace *eplace);
 
-void
-initEPlace(epl::EPlace* eplace, Tcl_Interp *tcl_interp,
-    odb::dbDatabase *db);
+void initEPlace(epl::EPlace* eplace,
+                odb::dbDatabase *db,
+                utl::Logger* logger,
+                Tcl_Interp *tcl_interp);
 
 } // namespace
 #endif

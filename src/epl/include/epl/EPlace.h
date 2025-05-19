@@ -18,27 +18,24 @@
 #include <vector>
 
 #include "odb/db.h"
-#include "epl/Cell.h"
-#include "epl/FlipFlop.h"
+#include "epl/GridDensity.h"
 
 namespace epl {
-class FlipFlop;
-class Cell;
+template <typename TArea, typename TDensity>
+class GridDensity;
 
 class EPlace
 {
 public:
   EPlace();
   ~EPlace() = default;
-  void init(Tcl_Interp *tcl_interp,
-	    odb::dbDatabase *db);
-  void orderFlops();
-  void clusterFlops();
+  void init(odb::dbDatabase *db,
+            utl::Logger* logger);
 
 private:
   odb::dbDatabase *db_;
-  std::vector<FlipFlop> flipflops_;
-  std::vector<Cell> cells_;
+  utl::Logger* log_;
+  GridDensity<> *density_;
 };
 
 }
