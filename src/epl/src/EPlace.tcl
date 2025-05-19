@@ -20,8 +20,9 @@ sta::define_cmd_args "run_epl" {[-key1 key1] [-flag1] pos_arg1}
 # too users in the global namespace.
 namespace eval epl {
 
-proc epl_helper { } {
-  puts "Helping 23/6"
+sta::define_cmd_args "test_epl" {}
+proc test_epl { args } {
+  puts "EPL working"
 }
 
 }

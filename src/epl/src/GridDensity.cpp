@@ -1,14 +1,16 @@
 #pragma once
 
+#include "GridDensity.h"
+
 #include <vector>
 
 #include "odb/db.h"
-#include "epl/GridDensity.h"
 
 namespace epl {
 
-void GridDensity::init() {
-    
+template <typename TArea, typename TDensity>
+void GridDensity::init()
+{
 }
 
-}
+}  // namespace epl
