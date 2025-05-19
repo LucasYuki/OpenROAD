@@ -185,6 +185,13 @@ getSteinerTreeBuilder()
   return openroad->getSteinerTreeBuilder();
 }
 
+epl::EPlace*
+getEPlace()
+{
+  OpenRoad *openroad = getOpenRoad();
+  return openroad->getEPlace();
+}
+
 } // namespace ord
 
 namespace sta {

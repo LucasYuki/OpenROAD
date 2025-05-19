@@ -25,7 +25,7 @@ extern const char *eplace_tcl_inits[];
 namespace epl {
 
 extern "C" {
-extern int EPlace_Init(Tcl_Interp *interp);
+extern int Epl_Init(Tcl_Interp *interp);
 }
 
 EPlace::EPlace()

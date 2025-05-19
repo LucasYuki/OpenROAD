@@ -21,7 +21,7 @@
 
 
 extern "C" {
-extern int EPlace_Init(Tcl_Interp *interp);
+extern int Epl_Init(Tcl_Interp *interp);
 }
   
 namespace epl {
@@ -45,7 +45,7 @@ void initEPlace(epl::EPlace* eplace,
   utl::Logger *logger,
   Tcl_Interp *tcl_interp)
 {
-  EPlace_Init(tcl_interp);
+  Epl_Init(tcl_interp);
   utl::evalTclInit(tcl_interp, epl::epl_tcl_inits);
   eplace->init(db, logger);
 }
