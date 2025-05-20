@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#pragma once
 #include <tcl.h>
 
 #include <vector>
@@ -21,21 +22,21 @@
 #include "odb/db.h"
 
 namespace epl {
-template <typename TArea, typename TDensity>
 class EDensity;
+
 // class Nesterov;
 
 class EPlace
 {
  public:
   EPlace();
-  ~EPlace() = default;
+  ~EPlace();
   void init(odb::dbDatabase* db, utl::Logger* logger);
 
  private:
   odb::dbDatabase* db_;
   utl::Logger* log_;
-  EDensity<u_int64_t, double>* e_density_;
+  EDensity* e_density_;
 };
 
 }  // namespace epl

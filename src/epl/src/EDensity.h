@@ -4,14 +4,12 @@
 #include "odb/db.h"
 
 namespace epl {
-template <typename TArea, typename TDensity>
 class GridDensity;
 
-template <typename TArea, typename TDensity>
 class EDensity
 {
  public:
-  EDensity(odb::dbDatabase* db) : db_(db) {}
+  EDensity(odb::dbDatabase* db, utl::Logger* logger);
 
   ~EDensity() = default;
 
@@ -19,6 +17,7 @@ class EDensity
 
  private:
   odb::dbDatabase* db_;
-  GridDensity<TArea, TDensity>* grid_density_;
+  utl::Logger* log_;
+  GridDensity grid_density_;
 };
 }  // namespace epl

@@ -6,19 +6,19 @@
 
 namespace epl {
 
-template <typename TArea = u_int64_t, typename TDensity = double>
 class GridDensity
 {
  public:
-  GridDensity(odb::dbDatabase* db) : db_(db) {}
+  GridDensity() = default;
 
-  ~GridDensity() = default;
-
-  void init();
+  void init(odb::Rect coreRect, int n_rows, int n_columns);
 
  private:
-  odb::dbDatabase* db_;
-  Eigen::Matrix<TArea, Eigen::Dynamic, Eigen::Dynamic> fixed_area_, bin_area_;
-  Eigen::Matrix<TDensity, Eigen::Dynamic, Eigen::Dynamic> density_;
+  odb::Rect coreRect_;
+  int n_rows_;
+  int n_columns_;
+
+  Eigen::Matrix<int64_t, Eigen::Dynamic, Eigen::Dynamic> fixed_area_, bin_area_;
+  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> density_;
 };
 }  // namespace epl

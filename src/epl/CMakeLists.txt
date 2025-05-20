@@ -31,17 +31,19 @@ swig_lib(NAME      epl
 
 target_sources(epl
   PRIVATE
-  src/MakeEPlace.cpp
-  src/EPlace.cpp
+    src/MakeEPlace.cpp
+    src/EPlace.cpp
+    src/EDensity.cpp
+    src/GridDensity.cpp
 )
 
-messages(
-  TARGET epl
-)
+messages(TARGET epl)
 
 target_include_directories(epl
   PUBLIC
     include
+  PRIVATE
+    src
 )
 
 target_link_libraries(epl
