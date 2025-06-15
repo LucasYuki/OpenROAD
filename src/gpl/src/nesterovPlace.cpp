@@ -15,7 +15,7 @@
 #include "graphics.h"
 #include "nesterovBase.h"
 #include "odb/db.h"
-#include "placerBase.h"
+#include "gpl/placerBase.h"
 #include "routeBase.h"
 #include "timingBase.h"
 #include "utl/Logger.h"

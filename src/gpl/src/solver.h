@@ -9,7 +9,7 @@
 
 #include "graphics.h"
 #include "odb/db.h"
-#include "placerBase.h"
+#include "gpl/placerBase.h"
 #include "utl/Logger.h"
 
 namespace utl {

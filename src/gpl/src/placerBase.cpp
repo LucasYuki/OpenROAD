@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2018-2025, The OpenROAD Authors
 
-#include "placerBase.h"
+#include "gpl/placerBase.h"
 
 #include <algorithm>
 #include <iostream>
