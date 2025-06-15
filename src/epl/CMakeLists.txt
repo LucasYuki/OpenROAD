@@ -49,6 +49,7 @@ target_include_directories(epl
 target_link_libraries(epl
     OpenSTA
     odb
+    gpl
     Eigen3::Eigen
     Threads::Threads
     OpenMP::OpenMP_CXX

@@ -12,6 +12,7 @@ class GridDensity
   GridDensity() = default;
 
   void init(odb::Rect coreRect, int n_rows, int n_columns);
+  void clear();
 
  private:
   odb::Rect coreRect_;

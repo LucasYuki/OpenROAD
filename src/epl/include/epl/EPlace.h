@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "odb/db.h"
+#include "gpl/Replace.h"
 
 namespace epl {
 class EDensity;
@@ -31,12 +32,18 @@ class EPlace
  public:
   EPlace();
   ~EPlace();
-  void init(odb::dbDatabase* db, utl::Logger* logger);
+  
+  void clear();
+  bool init(odb::dbDatabase* db, utl::Logger* logger);
 
  private:
+
   odb::dbDatabase* db_;
   utl::Logger* log_;
-  EDensity* e_density_;
+  std::vector<std::shared_ptr<EDensity>> e_density_vec_;
+
+  std::shared_ptr<gpl::PlacerBaseCommon> pbc_;
+  std::vector<std::shared_ptr<gpl::PlacerBase>> pbVec_;
 };
 
 }  // namespace epl

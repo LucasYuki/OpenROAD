@@ -13,4 +13,9 @@ void GridDensity::init(odb::Rect coreRect, int n_rows, int n_columns)
   n_columns_ = n_columns;
 }
 
+void GridDensity::clear()
+{
+
+}
+
 }  // namespace epl
