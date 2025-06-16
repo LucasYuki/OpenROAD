@@ -74,6 +74,12 @@ void EPlace::clear()
 
 void EPlace::random_place(int threads)
 {
+  debugPrint(log_,
+             EPL,
+             "random_place",
+             2,
+             "random_place: number of threads {}",
+             threads);
   if (!init_placer()) {
     return;
   }
@@ -81,18 +87,19 @@ void EPlace::random_place(int threads)
   odb::dbBlock* block = db_->getChip()->getBlock();
   odb::Rect coreRect = block->getCoreArea();
 
+  auto insts = pbc_->placeInsts();
+  int n_inst = insts.size();
   std::default_random_engine generator(42);
   std::uniform_int_distribution<int> distrib_x(coreRect.xMin(), coreRect.xMax());
   std::uniform_int_distribution<int> distrib_y(coreRect.yMin(), coreRect.yMax());
-//#pragma omp parallel for num_threads(threads)
-  for (auto inst: pbc_->placeInsts()) {
-    if (!inst->isPlaceInstance()) {
-      continue;
-    }
+  std::vector<int> pos_x(n_inst), pos_y(n_inst); 
+  std::generate(pos_x.begin(), pos_x.end(), [&](){ return distrib_x(generator); });
+  std::generate(pos_y.begin(), pos_y.end(), [&](){ return distrib_y(generator); });
 
-    int x = distrib_x(generator);
-    int y = distrib_y(generator);
-    inst->dbSetLocation(x, y);
+#pragma omp parallel for num_threads(threads)
+  for (int i = 0; i < n_inst; i++) {
+    auto inst = insts[i];
+    inst->dbSetLocation(pos_x[i], pos_y[i]);
     inst->dbSetPlaced();
   }
 }
