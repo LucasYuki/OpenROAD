@@ -93,6 +93,7 @@ void EPlace::random_place(int threads)
     int x = distrib_x(generator);
     int y = distrib_y(generator);
     inst->dbSetLocation(x, y);
+    inst->dbSetPlaced();
   }
 }
 

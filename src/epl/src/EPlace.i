@@ -15,8 +15,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 %{
-#include "epl/EPlace.h"
 #include "ord/OpenRoad.hh"
+#include "epl/EPlace.h"
 #include "odb/db.h"
 
 namespace ord {

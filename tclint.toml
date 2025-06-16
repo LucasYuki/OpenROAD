@@ -31,6 +31,7 @@
     "src/tap/test/",
     "src/upf/test/",
     "src/utl/test/"
+    "src/epl/test/"
 ]
 
 ignore = [

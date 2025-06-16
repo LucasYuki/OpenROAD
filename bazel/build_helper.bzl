@@ -136,6 +136,8 @@ OPENROAD_LIBRARY_HDRS_INCLUDE = [
     #upf
     "src/upf/include/upf/*.h",
     "src/upf/src/*.h",
+    #epl
+    "src/epl/include/epl/*.h",
 ]
 
 # Once we properly include headers relative to project-root,
@@ -215,6 +217,8 @@ OPENROAD_LIBRARY_INCLUDES = [
     "src/dft/src/stitch",
     #upf
     "src/upf/include",
+    #epl
+    "src/epl/include/epl",
 ]
 
 OPENROAD_LIBRARY_SRCS_EXCLUDE = [
@@ -281,4 +285,7 @@ OPENROAD_LIBRARY_SRCS_INCLUDE = [
     #dft
     "src/dft/src/**/*.cpp",
     "src/dft/src/**/*.hh",
+    #epl
+    "src/epl/src/*.cpp",
+    "src/epl/src/*.h",
 ]

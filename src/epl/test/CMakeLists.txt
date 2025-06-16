@@ -1,5 +1,5 @@
 or_integration_tests(
   "epl"
   TESTS
-    toolize1
+    simple01-random
 )

@@ -26,6 +26,9 @@ project(epl)
 swig_lib(NAME      epl
          NAMESPACE epl
          I_FILE    src/EPlace.i
+         SWIG_INCLUDES ${ODB_HOME}/src/swig/common
+                       ${ODB_HOME}/src/swig/tcl
+                       ${ODB_HOME}/include
          SCRIPTS   src/EPlace.tcl
 )
 
@@ -55,31 +58,31 @@ target_link_libraries(epl
     OpenMP::OpenMP_CXX
 )
 
-if (Python3_FOUND AND BUILD_PYTHON)
-  swig_lib(NAME          epl_py
-           NAMESPACE     epl
-           LANGUAGE      python
-           I_FILE        src/EPlace-py.i
-           SWIG_INCLUDES ${PROJECT_SOURCE_DIR}/include/epl
-           SCRIPTS       ${CMAKE_CURRENT_BINARY_DIR}/epl_py.py
-  )
-
-  target_include_directories(epl_py
-    PUBLIC
-      include
-      
-  )
-
-  target_link_libraries(epl_py
-    PUBLIC
-      utl_lib
-      Eigen3::Eigen
-      gpl
-      odb
-      OpenSTA
-  )
-
-endif()
+#if (Python3_FOUND AND BUILD_PYTHON)
+#  swig_lib(NAME          epl_py
+#           NAMESPACE     epl
+#           LANGUAGE      python
+#           I_FILE        src/EPlace-py.i
+#           SWIG_INCLUDES ${PROJECT_SOURCE_DIR}/include/epl
+#           SCRIPTS       ${CMAKE_CURRENT_BINARY_DIR}/epl_py.py
+#  )
+#
+#  target_include_directories(epl_py
+#    PUBLIC
+#      include
+#      
+#  )
+#
+#  target_link_libraries(epl_py
+#    PUBLIC
+#      utl_lib
+#      Eigen3::Eigen
+#      gpl
+#      odb
+#      OpenSTA
+#  )
+#
+#endif()
 
 if(ENABLE_TESTS)
   add_subdirectory(test)
