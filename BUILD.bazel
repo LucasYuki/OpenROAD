@@ -389,6 +389,15 @@ tcl_encode(
     namespace = "dft",
 )
 
+tcl_encode(
+    name = "eplace_tcl",
+    srcs = [
+        "src/epl/src/EPace.tcl",
+    ],
+    char_array_name = "epl_tcl_inits",
+    namespace = "epl",
+)
+
 tcl_wrap_cc(
     name = "dst_swig",
     srcs = [
@@ -630,6 +639,23 @@ tcl_wrap_cc(
     root_swig_src = "src/dft/src/dft.i",
     swig_includes = [
         "src/dft/src",
+    ],
+)
+
+tcl_wrap_cc(
+    name = "eplace_swig",
+    srcs = [
+        "src/epl/src/EPlace.i",
+        ":error_swig",
+        "//src/odb:swig_imports",
+    ],
+    module = "epl",
+    namespace_prefix = "epl",
+    root_swig_src = "src/epl/src/EPlace.i",
+    swig_includes = [
+        "src/epl/src",
+        "src/odb/src/swig/common",
+        "src/odb/src/swig/tcl",
     ],
 )
 

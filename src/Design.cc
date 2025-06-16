@@ -328,6 +328,11 @@ rsz::Resizer* Design::getResizer()
   return getOpenRoad()->getResizer();
 }
 
+epl::EPlace* Design::getEPlace()
+{
+  return getOpenRoad()->getEPlace();
+}
+
 /* static */
 odb::dbDatabase* Design::createDetachedDb()
 {

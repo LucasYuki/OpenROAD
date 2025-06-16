@@ -34,7 +34,9 @@ class EPlace
   ~EPlace();
   
   void clear();
-  bool init(odb::dbDatabase* db, utl::Logger* logger);
+  void init(odb::dbDatabase* db, utl::Logger* logger);
+  bool init_placer();
+  void random_place(int threads);
 
  private:
 

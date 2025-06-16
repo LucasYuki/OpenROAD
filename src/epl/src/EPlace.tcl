@@ -14,11 +14,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-sta::define_cmd_args "run_epl" {[-key1 key1] [-flag1] pos_arg1}
 
 # Put helper functions in a separate namespace so they are not visible
 # too users in the global namespace.
 namespace eval epl {
+
+sta::define_cmd_args "eplace_random_placement" {}
+proc eplace_random_placement { args } {
+  epl::eplace_random_placement_cmd
+}
 
 sta::define_cmd_args "test_epl" {}
 proc test_epl { args } {

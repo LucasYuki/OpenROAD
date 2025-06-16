@@ -108,6 +108,10 @@ class dbSta;
 class LibertyCell;
 }  // namespace sta
 
+namespace epl{
+class EPlace;
+}
+
 namespace ord {
 
 class OpenRoad;
@@ -173,6 +177,7 @@ class Design
   rsz::Resizer* getResizer();
   stt::SteinerTreeBuilder* getSteinerTreeBuilder();
   tap::Tapcell* getTapcell();
+  epl::EPlace* getEPlace();
 
   // Needed by standalone startup, not for general use.
   ord::OpenRoad* getOpenRoad();

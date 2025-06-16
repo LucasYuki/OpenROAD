@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Regents of the University of California
+// Copyright (c) 2021, The Regents of the Federal University of Santa Catarina
 // All rights reserved.
 // 
 // This program is free software: you can redistribute it and/or modify
@@ -14,21 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-%module epl
-
 %{
-
 #include "epl/EPlace.h"
 #include "ord/OpenRoad.hh"
+#include "odb/db.h"
 
-epl::EPlace *
-getEPlace()
-{
-  return ord::OpenRoad::openRoad()->getEPlace();
+namespace ord {
+OpenRoad*
+getOpenRoad();
+
+epl::EPlace*
+getEPlace();
 }
+
+using ord::getOpenRoad;
+using ord::getEPlace;
+using epl::EPlace;
 
 %}
 
 %inline %{
+
+void
+eplace_random_placement_cmd()
+{
+  EPlace* eplace = getEPlace();
+  int threads = ord::OpenRoad::openRoad()->getThreadCount();
+  eplace->random_place(threads);
+}
 
 %} // inline
