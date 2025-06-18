@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "graphics.h"
-#include "nesterovBase.h"
+#include "gpl/nesterovBase.h"
 #include "odb/db.h"
 #include "gpl/placerBase.h"
-#include "routeBase.h"
+#include "gpl/routeBase.h"
 #include "timingBase.h"
 #include "utl/Logger.h"
 

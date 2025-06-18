@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "nesterovBase.h"
+#include "gpl/nesterovBase.h"
 #include "gpl/placerBase.h"
 #include "rsz/Resizer.hh"
 #include "sta/Fuzzy.hh"

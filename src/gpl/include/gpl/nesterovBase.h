@@ -14,8 +14,8 @@
 #include "gpl/Replace.h"
 #include "odb/db.h"
 #include "gpl/placerBase.h"
-#include "point.h"
-#include "routeBase.h"
+#include "gpl/point.h"
+#include "gpl/routeBase.h"
 
 namespace odb {
 class dbInst;
