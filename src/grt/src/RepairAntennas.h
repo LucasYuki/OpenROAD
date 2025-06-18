@@ -123,7 +123,8 @@ class RepairAntennas
   bool hasNewViolations() { return has_new_violations_; }
   void jumperInsertion(NetRouteMap& routing,
                        const int& tile_size,
-                       const int& max_routing_layer);
+                       const int& max_routing_layer,
+                       std::vector<odb::dbNet*>& modified_nets);
 
  private:
   using coord_type = int;
@@ -226,9 +227,10 @@ class RepairAntennas
   odb::Rect getInstRect(odb::dbInst* inst, odb::dbITerm* iterm);
   bool diodeInRow(odb::Rect diode_rect);
   odb::dbOrientType getRowOrient(const odb::Point& point);
-  odb::dbWire* makeNetWire(odb::dbNet* db_net,
-                           GRoute& route,
-                           std::map<int, odb::dbTechVia*>& default_vias);
+  odb::dbWire* makeNetWire(
+      odb::dbNet* db_net,
+      GRoute& route,
+      std::map<odb::dbTechLayer*, odb::dbTechVia*>& default_vias);
   RoutePtPinsMap findRoutePtPins(Net* net);
   void addWireTerms(Net* net,
                     GRoute& route,
@@ -238,7 +240,7 @@ class RepairAntennas
                     odb::dbTechLayer* tech_layer,
                     RoutePtPinsMap& route_pt_pins,
                     odb::dbWireEncoder& wire_encoder,
-                    std::map<int, odb::dbTechVia*>& default_vias,
+                    std::map<odb::dbTechLayer*, odb::dbTechVia*>& default_vias,
                     bool connect_to_segment);
   void makeWire(odb::dbWireEncoder& wire_encoder,
                 odb::dbTechLayer* layer,

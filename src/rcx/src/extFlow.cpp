@@ -4,10 +4,10 @@
 #include <map>
 #include <vector>
 
-#include "grids.h"
 #include "gseq.h"
 #include "rcx/dbUtil.h"
 #include "rcx/extRCap.h"
+#include "rcx/grids.h"
 #include "utl/Logger.h"
 
 namespace rcx {
@@ -1052,7 +1052,7 @@ uint extMain::couplingFlow(Rect& extRect,
     pitchTable[ii] = 0;
     widthTable[ii] = 0;
   }
-  uint dirTable[16];
+  uint dirTable[32];
   int baseX[32];
   int baseY[32];
   uint layerCnt = initSearchForNets(

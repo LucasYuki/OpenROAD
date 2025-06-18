@@ -14,6 +14,9 @@ common --incompatible_disallow_empty_glob
 
 build --cxxopt "-std=c++17"        --host_cxxopt "-std=c++17"
 build --cxxopt "-xc++"             --host_cxxopt "-xc++"
+
+# Needed for floating point stability in FFT (fft_test will check this).
+# See also https://kristerw.github.io/2021/11/09/fp-contract/
 build --cxxopt "-ffp-contract=off" --host_cxxopt "-ffp-contract=off"
 
 # allow exceptions.
@@ -38,6 +41,8 @@ build --copt "-Wno-nullability-extension" --host_copt "-Wno-nullability-extensio
 build --copt "-Wno-unused-private-field"  --host_copt "-Wno-unused-private-field"
 build --copt "-Wno-cast-function-type-mismatch"  --host_copt "-Wno-cast-function-type-mismatch"
 build --copt "-Wno-unused-but-set-variable"  --host_copt "-Wno-unused-but-set-variable"
+build --copt "-Wno-deprecated-copy"  --host_copt "-Wno-deprecated-copy"
+build --copt "-Wno-deprecated-copy-with-user-provided-copy"  --host_copt "-Wno-deprecated-copy-with-user-provided-copy"
 
 # For 3rd party code: Disable warnings entirely.
 # They are not actionable and just create noise.
@@ -61,6 +66,8 @@ build:profile --copt -fno-omit-frame-pointer
 
 # TODO: document
 build --incompatible_strict_action_env
+
+test --build_tests_only
 
 # TODO: setup a new cache for OpenROAD
 # Read only remote cache, updated by OpenROAD team members and CI.

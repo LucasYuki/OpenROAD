@@ -149,7 +149,7 @@ class GlobalRouter : public ant::GlobalRouteSource
   void readGuides(const char* file_name);
   void loadGuidesFromDB();
   void saveGuidesFromFile(std::unordered_map<odb::dbNet*, Guides>& guides);
-  void saveGuides();
+  void saveGuides(const std::vector<odb::dbNet*>& nets);
   void writeSegments(const char* file_name);
   void readSegments(const char* file_name);
   bool netIsCovered(odb::dbNet* db_net, std::string& pins_not_covered);
@@ -419,7 +419,6 @@ class GlobalRouter : public ant::GlobalRouteSource
                            const odb::Rect& die_area,
                            odb::dbNet* db_net);
   int computeMaxRoutingLayer();
-  std::map<int, odb::dbTechVia*> getDefaultVias(int max_routing_layer);
   void makeItermPins(Net* net, odb::dbNet* db_net, const odb::Rect& die_area);
   void makeBtermPins(Net* net, odb::dbNet* db_net, const odb::Rect& die_area);
   void initClockNets();
