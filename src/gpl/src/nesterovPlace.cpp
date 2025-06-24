@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "graphics.h"
+#include "gpl/graphics.h"
 #include "gpl/nesterovBase.h"
 #include "odb/db.h"
 #include "gpl/placerBase.h"

@@ -16,7 +16,7 @@
 
 #include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
-#include "graphics.h"
+#include "gpl/graphics.h"
 #include "odb/dbTransform.h"
 #include "ortools/linear_solver/linear_solver.h"
 #include "ortools/sat/cp_model.h"
