@@ -864,7 +864,7 @@ class NesterovBaseCommon
   int64_t getNewGcellsCount() { return new_gcells_count_; }
   void resetNewGcellsCount() { new_gcells_count_ = 0; }
 
- private:
+ protected:
   NesterovBaseVars nbVars_;
   std::shared_ptr<PlacerBaseCommon> pbc_;
   utl::Logger* log_ = nullptr;
@@ -1080,7 +1080,7 @@ class NesterovBase
   // including parallel vectors.
   void updateGCellState(float wlCoeffX, float wlCoeffY);
 
- private:
+ protected:
   NesterovBaseVars nbVars_;
   std::shared_ptr<PlacerBase> pb_;
   std::shared_ptr<NesterovBaseCommon> nbc_;

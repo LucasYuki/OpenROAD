@@ -1,31 +1,34 @@
 #pragma once
 
-#include "GridDensity.h"
-#include "odb/db.h"
+#include "gpl/nesterovBase.h"
 #include "gpl/placerBase.h"
+#include "odb/db.h"
+#include "WAwirelength.h"
 
 namespace gpl {
 class PlacerBase;
 class PlacerBaseCommon;
 class PlacerBaseVars;
 class Instance;
-}
+class NesterovBase;
+}  // namespace gpl
 
 namespace epl {
+class WAwirelength;
 
-class EDensity
+class EDensity : gpl::NesterovBase
 {
  public:
-  EDensity(odb::dbDatabase* db, utl::Logger* logger, std::shared_ptr<gpl::PlacerBase> pb);
+  EDensity(gpl::NesterovBaseVars nbVars,
+           std::shared_ptr<gpl::PlacerBase> pb,
+           std::shared_ptr<WAwirelength> nbc,
+           utl::Logger* log);
   ~EDensity() = default;
 
   void clear();
   void init();
 
  private:
-  odb::dbDatabase* db_;
-  utl::Logger* log_;
-  std::shared_ptr<gpl::PlacerBase> pb_;
-  GridDensity grid_density_;
+  std::shared_ptr<WAwirelength> wa_wirelength_;
 };
 }  // namespace epl

@@ -69,6 +69,8 @@ OPENROAD_LIBRARY_INCLUDES = [
     "src/dft/src/stitch",
     #upf
     "src/upf/include",
+    #epl
+    "src/epl/include/epl",
 ]
 
 OPENROAD_LIBRARY_SRCS_EXCLUDE = [

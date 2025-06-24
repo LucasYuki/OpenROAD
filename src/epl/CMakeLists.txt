@@ -37,7 +37,7 @@ target_sources(epl
     src/MakeEPlace.cpp
     src/EPlace.cpp
     src/EDensity.cpp
-    src/GridDensity.cpp
+    src/WAwirelength.cpp
 )
 
 messages(TARGET epl)

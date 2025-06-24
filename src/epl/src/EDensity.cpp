@@ -2,31 +2,37 @@
 
 #include <cmath>
 
-#include "GridDensity.h"
-
 namespace epl {
 
-EDensity::EDensity(odb::dbDatabase* db, utl::Logger* logger, std::shared_ptr<gpl::PlacerBase> pb)
-    : db_(db), log_(logger), pb_(pb)
+EDensity::EDensity(gpl::NesterovBaseVars nbVars,
+                   std::shared_ptr<gpl::PlacerBase> pb,
+                   std::shared_ptr<WAwirelength> nbc,
+                   utl::Logger* log)
+    : gpl::NesterovBase(
+          nbVars,
+          pb,
+          std::dynamic_pointer_cast<gpl::NesterovBaseCommon>(nbc),
+          log),
+      wa_wirelength_(std::move(nbc))
 {
   init();
 }
 
 void EDensity::clear()
 {
-  grid_density_.clear();
+  return;
 }
 
 void EDensity::init()
 {
   clear();
 
-  odb::dbBlock* block = db_->getChip()->getBlock();
-  odb::Rect coreRect = block->getCoreArea();
+  //odb::dbBlock* block = pb_->db()->getChip()->getBlock();
+  //odb::Rect coreRect = block->getCoreArea();
 
   int n_intances = pb_->insts().size();
   int m = std::sqrt(n_intances);
-  grid_density_.init(coreRect, m, m);
+  n_intances = m;
 }
 
 }  // namespace epl

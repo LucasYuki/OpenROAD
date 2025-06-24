@@ -16,37 +16,34 @@
 
 #pragma once
 
-#include <vector>
+#include <unordered_map>
 
+#include "gpl/nesterovBase.h"
+#include "gpl/placerBase.h"
 #include "odb/db.h"
-#include "gpl/Replace.h"
+
+namespace gpl {
+class PlacerBaseCommon;
+class NesterovBaseCommon;
+class NesterovBaseVars;
+}  // namespace gpl
 
 namespace epl {
-class EDensity;
-class WAwirelength;
 
-// class Nesterov;
-
-class EPlace
+class WAwirelength : public gpl::NesterovBaseCommon
 {
  public:
-  EPlace();
-  ~EPlace();
-  
-  void clear();
-  void init(odb::dbDatabase* db, utl::Logger* logger);
-  bool init_placer();
-  void random_place(int threads);
+  WAwirelength(gpl::NesterovBaseVars nbVars,
+               std::shared_ptr<gpl::PlacerBaseCommon> pb,
+               utl::Logger* log,
+               int num_threads,
+               const gpl::Clusters& clusters)
+      : gpl::NesterovBaseCommon(nbVars, pb, log, num_threads, clusters){};
 
- private:
-
-  odb::dbDatabase* db_;
-  utl::Logger* log_;
-  std::shared_ptr<WAwirelength> wa_wirelength_;
-  std::vector<std::shared_ptr<EDensity>> e_density_vec_;
-
-  std::shared_ptr<gpl::PlacerBaseCommon> pbc_;
-  std::vector<std::shared_ptr<gpl::PlacerBase>> pbVec_;
+  /*
+    void clear();
+    void update(int threads);
+  */
 };
 
 }  // namespace epl
