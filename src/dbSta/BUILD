@@ -12,7 +12,6 @@ package(
 cc_library(
     name = "dbSta",
     srcs = [
-        "src/MakeDbSta.cc",
         "src/SpefWriter.cc",
         "src/dbNetwork.cc",
         "src/dbReadVerilog.cc",
@@ -21,7 +20,6 @@ cc_library(
         "src/dbSta.cc",
     ],
     hdrs = [
-        "include/db_sta/MakeDbSta.hh",
         "include/db_sta/SpefWriter.hh",
         "include/db_sta/dbNetwork.hh",
         "include/db_sta/dbReadVerilog.hh",
@@ -29,35 +27,66 @@ cc_library(
     ],
     includes = [
         "include",
-        "include/db_sta",
     ],
     deps = [
-        "//:opensta_lib",
-        "//:ord",
         "//src/odb",
+        "//src/sta:opensta_lib",
         "//src/utl",
         "@boost.json",
         "@tk_tcl//:tcl",
     ],
 )
 
+cc_library(
+    name = "ui",
+    srcs = [
+        "src/MakeDbSta.cc",
+        ":swig",
+        ":tcl",
+        "//src/sta:StaConfig",
+    ],
+    hdrs = [
+        "include/db_sta/MakeDbSta.hh",
+        "include/db_sta/SpefWriter.hh",
+        "include/db_sta/dbNetwork.hh",
+        "include/db_sta/dbReadVerilog.hh",
+        "include/db_sta/dbSta.hh",
+    ],
+    copts = [
+        "-Isrc/dbSta/src",
+        "-Wno-missing-braces",  # from TCL swigging
+    ],
+    includes = [
+        "include",
+    ],
+    deps = [
+        "//:ord",
+        "//src/odb",
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@boost.json",
+        "@boost.stacktrace",
+        "@tk_tcl//:tcl",
+    ],
+)
+
 tcl_encode(
-    name = "db_sta_tcl",
+    name = "tcl",
     srcs = [
         "src/dbReadVerilog.tcl",
         "src/dbSta.tcl",
-        "//:tcl_scripts",
+        "//src/sta:tcl_scripts",
     ],
     char_array_name = "dbSta_tcl_inits",
     namespace = "sta",
 )
 
 tcl_wrap_cc(
-    name = "dbsta_swig",
+    name = "swig",
     srcs = [
         "src/dbSta.i",
         "//:error_swig",
-        "//:sta_swig_files",
+        "//src/sta:sta_swig_files",
     ],
     module = "dbSta",
     namespace_prefix = "sta",

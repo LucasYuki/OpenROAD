@@ -9,12 +9,14 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "chartsWidget.h"
 #include "clockWidget.h"
 #include "displayControls.h"
 #include "drcWidget.h"
+#include "gif.h"
 #include "heatMapPinDensity.h"
 #include "heatMapPlacementDensity.h"
 #include "helpWidget.h"
@@ -112,7 +114,7 @@ StringToDBU Descriptor::Property::convert_string;
 // Heatmap / Spectrum colors
 // https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html
 // https://gist.github.com/mikhailov-work/6a308c20e494d9e0ccc29036b28faa7a
-const unsigned char SpectrumGenerator::spectrum_[256][3]
+const unsigned char SpectrumGenerator::kSpectrum[256][3]
     = {{48, 18, 59},   {50, 21, 67},   {51, 24, 74},    {52, 27, 81},
        {53, 30, 88},   {54, 33, 95},   {55, 36, 102},   {56, 39, 109},
        {57, 42, 115},  {58, 45, 121},  {59, 47, 128},   {60, 50, 134},
@@ -319,23 +321,22 @@ bool Gui::anyObjectInSet(bool selection_set, odb::dbObjectType obj_type) const
 
 void Gui::selectHighlightConnectedInsts(bool select_flag, int highlight_group)
 {
-  return main_window->selectHighlightConnectedInsts(select_flag,
-                                                    highlight_group);
+  main_window->selectHighlightConnectedInsts(select_flag, highlight_group);
 }
 void Gui::selectHighlightConnectedNets(bool select_flag,
                                        bool output,
                                        bool input,
                                        int highlight_group)
 {
-  return main_window->selectHighlightConnectedNets(
+  main_window->selectHighlightConnectedNets(
       select_flag, output, input, highlight_group);
 }
 
 void Gui::selectHighlightConnectedBufferTrees(bool select_flag,
                                               int highlight_group)
 {
-  return main_window->selectHighlightConnectedBufferTrees(select_flag,
-                                                          highlight_group);
+  main_window->selectHighlightConnectedBufferTrees(select_flag,
+                                                   highlight_group);
 }
 
 void Gui::addInstToHighlightSet(const char* name, int highlight_group)
@@ -390,6 +391,23 @@ int Gui::selectPrevious()
 void Gui::animateSelection(int repeat)
 {
   main_window->getLayoutViewer()->selectionAnimation(repeat);
+}
+
+std::string Gui::addLabel(int x,
+                          int y,
+                          const std::string& text,
+                          std::optional<Painter::Color> color,
+                          std::optional<int> size,
+                          std::optional<Painter::Anchor> anchor,
+                          const std::optional<std::string>& name)
+{
+  return main_window->addLabel(
+      x, y, text, color, size, anchor, std::move(name));
+}
+
+void Gui::deleteLabel(const std::string& name)
+{
+  main_window->deleteLabel(name);
 }
 
 std::string Gui::addRuler(int x0,
@@ -530,6 +548,11 @@ void Gui::clearSelections()
 void Gui::clearHighlights(int highlight_group)
 {
   main_window->clearHighlighted(highlight_group);
+}
+
+void Gui::clearLabels()
+{
+  main_window->clearLabels();
 }
 
 void Gui::clearRulers()
@@ -1043,9 +1066,10 @@ void Renderer::setDisplayControl(const std::string& name, bool value)
   const std::string& group_name = getDisplayControlGroupName();
 
   if (group_name.empty()) {
-    return Gui::get()->setDisplayControlsVisible(name, value);
+    Gui::get()->setDisplayControlsVisible(name, value);
+  } else {
+    Gui::get()->setDisplayControlsVisible(group_name + "/" + name, value);
   }
-  return Gui::get()->setDisplayControlsVisible(group_name + "/" + name, value);
 }
 
 void Renderer::addDisplayControl(
@@ -1099,7 +1123,7 @@ Painter::Color SpectrumGenerator::getColor(double value, int alpha) const
   }
 
   return Painter::Color(
-      spectrum_[index][0], spectrum_[index][1], spectrum_[index][2], alpha);
+      kSpectrum[index][0], kSpectrum[index][1], kSpectrum[index][2], alpha);
 }
 
 void SpectrumGenerator::drawLegend(
@@ -1115,7 +1139,7 @@ void SpectrumGenerator::drawLegend(
   const int legend_top = bounds.yMax() - legend_offset;
   const int legend_right = bounds.xMax() - legend_offset;
   const int legend_left = legend_right - legend_width;
-  const Painter::Anchor key_anchor = Painter::Anchor::RIGHT_CENTER;
+  const Painter::Anchor key_anchor = Painter::Anchor::kRightCenter;
 
   odb::Rect legend_bounds(
       legend_left, legend_top, legend_right + text_offset, legend_top);
@@ -1137,8 +1161,8 @@ void SpectrumGenerator::drawLegend(
   }
 
   // draw background
-  painter.setPen(Painter::dark_gray, true);
-  painter.setBrush(Painter::dark_gray);
+  painter.setPen(Painter::kDarkGray, true);
+  painter.setBrush(Painter::kDarkGray);
   painter.drawRect(legend_bounds, 10, 10);
 
   // draw color map
@@ -1153,8 +1177,8 @@ void SpectrumGenerator::drawLegend(
   }
 
   // draw key values
-  painter.setPen(Painter::black, true);
-  painter.setBrush(Painter::transparent);
+  painter.setPen(Painter::kBlack, true);
+  painter.setBrush(Painter::kTransparent);
   for (const auto& [pt, text] : legend_key_points) {
     painter.drawString(pt.x(), pt.y(), key_anchor, text);
   }
@@ -1193,12 +1217,12 @@ const Selected& Gui::getInspectorSelection()
   return main_window->getInspector()->getSelection();
 }
 
-void Gui::timingCone(odbTerm term, bool fanin, bool fanout)
+void Gui::timingCone(Term term, bool fanin, bool fanout)
 {
   main_window->timingCone(term, fanin, fanout);
 }
 
-void Gui::timingPathsThrough(const std::set<odbTerm>& terms)
+void Gui::timingPathsThrough(const std::set<Term>& terms)
 {
   main_window->timingPathsThrough(terms);
 }
@@ -1354,6 +1378,112 @@ bool Gui::TypeInfoComparator::operator()(const std::type_index& a,
 #else
   return strcmp(a.name(), b.name()) == 0;
 #endif
+}
+
+void Gui::gifStart(const std::string& filename)
+{
+  if (!enabled()) {
+    logger_->error(utl::GUI, 49, "Cannot generate GIF without GUI enabled");
+  }
+
+  gif_ = std::make_unique<GIF>();
+  gif_->filename = filename;
+  gif_->writer = nullptr;
+}
+
+void Gui::gifAddFrame(const odb::Rect& region,
+                      int width_px,
+                      double dbu_per_pixel,
+                      std::optional<int> delay)
+{
+  if (gif_ == nullptr) {
+    logger_->warn(utl::GUI, 51, "GIF not active");
+    return;
+  }
+
+  if (db_ == nullptr) {
+    logger_->error(utl::GUI, 50, "No design loaded.");
+  }
+  odb::Rect save_region = region;
+  const bool use_die_area = region.dx() == 0 || region.dy() == 0;
+  const bool is_offscreen
+      = main_window == nullptr
+        || main_window->testAttribute(
+            Qt::WA_DontShowOnScreen); /* if not interactive this will be set */
+  if (is_offscreen
+      && use_die_area) {  // if gui is active and interactive the visible are of
+                          // the layout viewer will be used.
+    auto* chip = db_->getChip();
+    if (chip == nullptr) {
+      logger_->error(utl::GUI, 79, "No design loaded.");
+    }
+
+    auto* block = chip->getBlock();
+    if (block == nullptr) {
+      logger_->error(utl::GUI, 80, "No design loaded.");
+    }
+
+    save_region
+        = block->getBBox()
+              ->getBox();  // get die area since screen area is not reliable
+    const double bloat_by = 0.05;  // 5%
+    const int bloat = std::min(save_region.dx(), save_region.dy()) * bloat_by;
+
+    save_region.bloat(bloat, save_region);
+  }
+
+  QImage img = main_window->getLayoutViewer()->createImage(
+      save_region, width_px, dbu_per_pixel);
+
+  if (gif_->writer == nullptr) {
+    gif_->writer = std::make_unique<GifWriter>();
+    gif_->width = img.width();
+    gif_->height = img.height();
+    GifBegin(gif_->writer.get(),
+             gif_->filename.c_str(),
+             gif_->width,
+             gif_->height,
+             delay.value_or(kDefaultGifDelay));
+  } else {
+    // scale IMG if not matched
+    img = img.scaled(gif_->width, gif_->height, Qt::KeepAspectRatio);
+  }
+
+  std::vector<uint8_t> frame(gif_->width * gif_->height * 4, 0);
+  for (int x = 0; x < img.width(); x++) {
+    if (x >= gif_->width) {
+      continue;
+    }
+    for (int y = 0; y < img.height(); y++) {
+      if (y >= gif_->height) {
+        continue;
+      }
+
+      const QRgb pixel = img.pixel(x, y);
+      const int frame_offset = (y * gif_->width + x) * 4;
+      frame[frame_offset + 0] = qRed(pixel);
+      frame[frame_offset + 1] = qGreen(pixel);
+      frame[frame_offset + 2] = qBlue(pixel);
+      frame[frame_offset + 3] = qAlpha(pixel);
+    }
+  }
+
+  GifWriteFrame(gif_->writer.get(),
+                frame.data(),
+                gif_->width,
+                gif_->height,
+                delay.value_or(kDefaultGifDelay));
+}
+
+void Gui::gifEnd()
+{
+  if (gif_ == nullptr) {
+    logger_->warn(utl::GUI, 58, "GIF not active");
+    return;
+  }
+
+  GifEnd(gif_->writer.get());
+  gif_ = nullptr;
 }
 
 class SafeApplication : public QApplication
@@ -1554,7 +1684,7 @@ void Selected::highlight(Painter& painter,
   painter.setPen(pen, true, pen_width);
   painter.setBrush(brush, brush_style);
 
-  return descriptor_->highlight(object_, painter);
+  descriptor_->highlight(object_, painter);
 }
 
 Descriptor::Properties Selected::getProperties() const

@@ -16,6 +16,7 @@ COMPULSORY_TESTS = [
     "ta_pin_aligned",
     "top_level_term",
     "top_level_term2",
+    "via_access_layer"
 ]
 
 # Disabled in CMakeLists.txt
@@ -79,7 +80,7 @@ filegroup(
 [
     filegroup(
         name = test_name + "_resources",
-        data = [":regression_resources"] + glob(
+        srcs = [":regression_resources"] + glob(
             [
                 test_name + ".*",
             ],

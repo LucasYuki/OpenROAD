@@ -15,7 +15,6 @@ cc_library(
         "src/CheckPlacement.cpp",
         "src/DecapPlacement.cpp",
         "src/FillerPlacement.cpp",
-        "src/MakeOpendp.cpp",
         "src/Opendp.cpp",
         "src/OptMirror.cpp",
         "src/Optdp.cpp",
@@ -24,8 +23,6 @@ cc_library(
         "src/PlacementDRC.h",
         "src/dbToOpendp.cpp",
         "src/graphics/DplObserver.h",
-        "src/graphics/Graphics.cpp",
-        "src/graphics/Graphics.h",
         "src/infrastructure/Coordinates.h",
         "src/infrastructure/DecapObjects.h",
         "src/infrastructure/Grid.cpp",
@@ -78,14 +75,13 @@ cc_library(
         "include/dpl/Opendp.h",
         "include/dpl/OptMirror.h",
     ],
+    copts = [
+        "-Isrc/dpl/src",
+    ],
     includes = [
         "include",
-        "include/dpl",
-        "src",
     ],
     deps = [
-        "//:ord",
-        "//src/gui",
         "//src/odb",
         "//src/utl",
         "@boost.format",
@@ -100,8 +96,45 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "ui",
+    srcs = [
+        "src/MakeOpendp.cpp",
+        "src/graphics/DplObserver.h",
+        "src/graphics/Graphics.cpp",
+        "src/graphics/Graphics.h",
+        "src/infrastructure/Coordinates.h",
+        "src/infrastructure/Grid.h",
+        "src/infrastructure/Objects.h",
+        "src/infrastructure/architecture.h",
+        "src/infrastructure/network.h",
+        ":swig",
+        ":tcl",
+    ],
+    hdrs = [
+        "include/dpl/MakeOpendp.h",
+        "include/dpl/Opendp.h",
+        "include/dpl/OptMirror.h",
+    ],
+    includes = [
+        "include",
+        "src",
+    ],
+    deps = [
+        "//:ord",
+        "//src/gui",
+        "//src/odb",
+        "//src/utl",
+        "@boost.geometry",
+        "@boost.polygon",
+        "@boost.stacktrace",
+        "@boost.utility",
+        "@tk_tcl//:tcl",
+    ],
+)
+
 tcl_encode(
-    name = "opendp_tcl",
+    name = "tcl",
     srcs = [
         "src/Opendp.tcl",
     ],
@@ -110,7 +143,7 @@ tcl_encode(
 )
 
 tcl_wrap_cc(
-    name = "opendp_swig",
+    name = "swig",
     srcs = [
         "src/Opendp.i",
         "//:error_swig",
@@ -120,5 +153,8 @@ tcl_wrap_cc(
     root_swig_src = "src/Opendp.i",
     swig_includes = [
         "src/dpl/src",
+    ],
+    deps = [
+        "//src/odb:swig",
     ],
 )

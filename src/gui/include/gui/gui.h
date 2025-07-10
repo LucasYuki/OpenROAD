@@ -10,6 +10,7 @@
 #include <initializer_list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -24,6 +25,7 @@
 #include "odb/db.h"
 
 struct Tcl_Interp;
+struct GifWriter;
 
 namespace sta {
 class dbSta;
@@ -42,12 +44,20 @@ class Painter;
 class Selected;
 class Options;
 
+struct GIF
+{
+  std::string filename;
+  std::unique_ptr<GifWriter> writer;
+  int height = -1;
+  int width = -1;
+};
+
 // A collection of selected objects
 
 // Only a finite set of highlight color is supported for now
-constexpr int num_highlight_set = 16;
+constexpr int kNumHighlightSet = 16;
 using SelectionSet = std::set<Selected>;
-using HighlightSet = std::array<SelectionSet, num_highlight_set>;
+using HighlightSet = std::array<SelectionSet, kNumHighlightSet>;
 
 using DBUToString = std::function<std::string(int, bool)>;
 using StringToDBU = std::function<int(const std::string&, bool*)>;
@@ -59,6 +69,19 @@ using StringToDBU = std::function<int(const std::string&, bool*)>;
 class Painter
 {
  public:
+  struct Font
+  {
+    Font(const std::string& name, int size) : name(name), size(size) {}
+
+    std::string name;
+    int size;
+
+    bool operator==(const Font& other) const
+    {
+      return (name == other.name) && (size == other.size);
+    }
+  };
+
   struct Color
   {
     constexpr Color() : r(0), g(0), b(0), a(255) {}
@@ -82,54 +105,58 @@ class Painter
     }
   };
 
-  static inline const Color black{0x00, 0x00, 0x00, 0xff};
-  static inline const Color white{0xff, 0xff, 0xff, 0xff};
-  static inline const Color dark_gray{0x80, 0x80, 0x80, 0xff};
-  static inline const Color gray{0xa0, 0xa0, 0xa4, 0xff};
-  static inline const Color light_gray{0xc0, 0xc0, 0xc0, 0xff};
-  static inline const Color red{0xff, 0x00, 0x00, 0xff};
-  static inline const Color green{0x00, 0xff, 0x00, 0xff};
-  static inline const Color blue{0x00, 0x00, 0xff, 0xff};
-  static inline const Color cyan{0x00, 0xff, 0xff, 0xff};
-  static inline const Color magenta{0xff, 0x00, 0xff, 0xff};
-  static inline const Color yellow{0xff, 0xff, 0x00, 0xff};
-  static inline const Color dark_red{0x80, 0x00, 0x00, 0xff};
-  static inline const Color dark_green{0x00, 0x80, 0x00, 0xff};
-  static inline const Color dark_blue{0x00, 0x00, 0x80, 0xff};
-  static inline const Color dark_cyan{0x00, 0x80, 0x80, 0xff};
-  static inline const Color dark_magenta{0x80, 0x00, 0x80, 0xff};
-  static inline const Color dark_yellow{0x80, 0x80, 0x00, 0xff};
-  static inline const Color orange{0xff, 0xa5, 0x00, 0xff};
-  static inline const Color purple{0x80, 0x00, 0x80, 0xff};
-  static inline const Color lime{0xbf, 0xff, 0x00, 0xff};
-  static inline const Color teal{0x00, 0x80, 0x80, 0xff};
-  static inline const Color pink{0xff, 0xc0, 0xcb, 0xff};
-  static inline const Color brown{0x8b, 0x45, 0x13, 0xff};
-  static inline const Color indigo{0x4b, 0x00, 0x82, 0xff};
-  static inline const Color turquoise{0x40, 0xe0, 0xd0, 0xff};
-  static inline const Color transparent{0x00, 0x00, 0x00, 0x00};
+  static inline const Color kBlack{0x00, 0x00, 0x00, 0xff};
+  static inline const Color kWhite{0xff, 0xff, 0xff, 0xff};
+  static inline const Color kDarkGray{0x80, 0x80, 0x80, 0xff};
+  static inline const Color kGray{0xa0, 0xa0, 0xa4, 0xff};
+  static inline const Color kLightGray{0xc0, 0xc0, 0xc0, 0xff};
+  static inline const Color kRed{0xff, 0x00, 0x00, 0xff};
+  static inline const Color kGreen{0x00, 0xff, 0x00, 0xff};
+  static inline const Color kBlue{0x00, 0x00, 0xff, 0xff};
+  static inline const Color kCyan{0x00, 0xff, 0xff, 0xff};
+  static inline const Color kMagenta{0xff, 0x00, 0xff, 0xff};
+  static inline const Color kYellow{0xff, 0xff, 0x00, 0xff};
+  static inline const Color kDarkRed{0x80, 0x00, 0x00, 0xff};
+  static inline const Color kDarkGreen{0x00, 0x80, 0x00, 0xff};
+  static inline const Color kDarkBlue{0x00, 0x00, 0x80, 0xff};
+  static inline const Color kDarkCyan{0x00, 0x80, 0x80, 0xff};
+  static inline const Color kDarkMagenta{0x80, 0x00, 0x80, 0xff};
+  static inline const Color kDarkYellow{0x80, 0x80, 0x00, 0xff};
+  static inline const Color kOrange{0xff, 0xa5, 0x00, 0xff};
+  static inline const Color kPurple{0x80, 0x00, 0x80, 0xff};
+  static inline const Color kLime{0xbf, 0xff, 0x00, 0xff};
+  static inline const Color kTeal{0x00, 0x80, 0x80, 0xff};
+  static inline const Color kPink{0xff, 0xc0, 0xcb, 0xff};
+  static inline const Color kBrown{0x8b, 0x45, 0x13, 0xff};
+  static inline const Color kIndigo{0x4b, 0x00, 0x82, 0xff};
+  static inline const Color kTurquoise{0x40, 0xe0, 0xd0, 0xff};
+  static inline const Color kTransparent{0x00, 0x00, 0x00, 0x00};
 
-  static inline const std::array<Painter::Color, num_highlight_set>
-      highlightColors{Color(Painter::green, 100),
-                      Color(Painter::yellow, 100),
-                      Color(Painter::cyan, 100),
-                      Color(Painter::magenta, 100),
-                      Color(Painter::red, 100),
-                      Color(Painter::dark_green, 100),
-                      Color(Painter::dark_magenta, 100),
-                      Color(Painter::blue, 100),
-                      Color(Painter::orange, 100),
-                      Color(Painter::purple, 100),
-                      Color(Painter::lime, 100),
-                      Color(Painter::teal, 100),
-                      Color(Painter::pink, 100),
-                      Color(Painter::brown, 100),
-                      Color(Painter::indigo, 100),
-                      Color(Painter::turquoise, 100)};
+  static std::map<std::string, Color> colors();
+  static Color stringToColor(const std::string& color, utl::Logger* logger);
+  static std::string colorToString(const Color& color);
+
+  static inline const std::array<Painter::Color, kNumHighlightSet>
+      kHighlightColors{Color(Painter::kGreen, 100),
+                       Color(Painter::kYellow, 100),
+                       Color(Painter::kCyan, 100),
+                       Color(Painter::kMagenta, 100),
+                       Color(Painter::kRed, 100),
+                       Color(Painter::kDarkGreen, 100),
+                       Color(Painter::kDarkMagenta, 100),
+                       Color(Painter::kBlue, 100),
+                       Color(Painter::kOrange, 100),
+                       Color(Painter::kPurple, 100),
+                       Color(Painter::kLime, 100),
+                       Color(Painter::kTeal, 100),
+                       Color(Painter::kPink, 100),
+                       Color(Painter::kBrown, 100),
+                       Color(Painter::kIndigo, 100),
+                       Color(Painter::kTurquoise, 100)};
 
   // The color to highlight in
-  static inline const Color highlight = yellow;
-  static inline const Color persistHighlight = yellow;
+  static inline const Color kHighlight = kYellow;
+  static inline const Color kPersistHighlight = kYellow;
 
   Painter(Options* options, const odb::Rect& bounds, double pixels_per_dbu)
       : options_(options), bounds_(bounds), pixels_per_dbu_(pixels_per_dbu)
@@ -155,18 +182,20 @@ class Painter
   // Set the brush to whatever the user has chosen for this layer
   enum Brush
   {
-    NONE,
-    SOLID,
-    DIAGONAL,
-    CROSS,
-    DOTS
+    kNone,
+    kSolid,
+    kDiagonal,
+    kCross,
+    kDots
   };
-  virtual void setBrush(const Color& color, const Brush& style = SOLID) = 0;
+  virtual void setBrush(const Color& color, const Brush& style = kSolid) = 0;
+
+  virtual void setFont(const Font& font) = 0;
 
   // Set the pen to an RGBA value and the brush
   void setPenAndBrush(const Color& color,
                       bool cosmetic = false,
-                      const Brush& style = SOLID,
+                      const Brush& style = kSolid,
                       int width = 1)
   {
     setPen(color, cosmetic, width);
@@ -184,8 +213,10 @@ class Painter
 
   // Draw a rect with coordinates in DBU with the current pen/brush; draws a
   // round rect if roundX > 0 or roundY > 0
-  virtual void drawRect(const odb::Rect& rect, int roundX = 0, int roundY = 0)
-      = 0;
+  virtual void drawRect(const odb::Rect& rect, int round_x, int round_y) = 0;
+
+  // Draw a rect with coordinates in DBU with the current pen/brush
+  void drawRect(const odb::Rect& rect) { drawRect(rect, 0, 0); }
 
   // Draw a line with coordinates in DBU with the current pen
   virtual void drawLine(const odb::Point& p1, const odb::Point& p2) = 0;
@@ -204,18 +235,21 @@ class Painter
   enum Anchor
   {
     // four corners
-    BOTTOM_LEFT,
-    BOTTOM_RIGHT,
-    TOP_LEFT,
-    TOP_RIGHT,
+    kBottomLeft,
+    kBottomRight,
+    kTopLeft,
+    kTopRight,
 
     // centers
-    CENTER,
-    BOTTOM_CENTER,
-    TOP_CENTER,
-    LEFT_CENTER,
-    RIGHT_CENTER
+    kCenter,
+    kBottomCenter,
+    kTopCenter,
+    kLeftCenter,
+    kRightCenter
   };
+  static std::map<std::string, Anchor> anchors();
+  static Anchor stringToAnchor(const std::string& anchor, utl::Logger* logger);
+  static std::string anchorToString(const Anchor& anchor);
   virtual void drawString(int x,
                           int y,
                           Anchor anchor,
@@ -242,9 +276,9 @@ class Painter
     drawLine(odb::Point(xl, yl), odb::Point(xh, yh));
   }
 
-  inline double getPixelsPerDBU() { return pixels_per_dbu_; }
-  inline Options* getOptions() { return options_; }
-  inline const odb::Rect& getBounds() { return bounds_; }
+  double getPixelsPerDBU() { return pixels_per_dbu_; }
+  Options* getOptions() { return options_; }
+  const odb::Rect& getBounds() { return bounds_; }
 
  private:
   Options* options_;
@@ -301,7 +335,7 @@ class Descriptor
     ActionCallback callback;
   };
   using Actions = std::vector<Action>;
-  static constexpr std::string_view deselect_action_ = "deselect";
+  static constexpr std::string_view kDeselectAction = "deselect";
 
   // An editor is a callback function and a list of possible values (this can be
   // empty), the name of the editor should match the property it modifies the
@@ -327,12 +361,12 @@ class Descriptor
 
   virtual bool lessThan(std::any l, std::any r) const = 0;
 
-  static const Editor makeEditor(const EditorCallback& func,
-                                 const std::vector<EditorOption>& options)
+  static Editor makeEditor(const EditorCallback& func,
+                           const std::vector<EditorOption>& options)
   {
     return {func, options};
   }
-  static const Editor makeEditor(const EditorCallback& func)
+  static Editor makeEditor(const EditorCallback& func)
   {
     return makeEditor(func, {});
   }
@@ -381,11 +415,11 @@ class Selected
   // Highlight shapes are persistent which will not get removed from
   // highlightSet, if the user clicks on layout view as in case of selectionSet
   void highlight(Painter& painter,
-                 const Painter::Color& pen = Painter::persistHighlight,
+                 const Painter::Color& pen = Painter::kPersistHighlight,
                  int pen_width = 0,
-                 const Painter::Color& brush = Painter::transparent,
+                 const Painter::Color& brush = Painter::kTransparent,
                  const Painter::Brush& brush_style
-                 = Painter::Brush::SOLID) const;
+                 = Painter::Brush::kSolid) const;
   bool isSlowHighlight() const { return descriptor_->isSlowHighlight(object_); }
 
   Descriptor::Properties getProperties() const;
@@ -526,7 +560,7 @@ class SpectrumGenerator
       const std::vector<std::pair<int, std::string>>& legend_key) const;
 
  private:
-  static const unsigned char spectrum_[256][3];
+  static const unsigned char kSpectrum[256][3];
   double scale_;
 };
 
@@ -582,6 +616,16 @@ class Gui
   int selectPrevious();
   void animateSelection(int repeat = 0);
 
+  std::string addLabel(int x,
+                       int y,
+                       const std::string& text,
+                       std::optional<Painter::Color> color = {},
+                       std::optional<int> size = {},
+                       std::optional<Painter::Anchor> anchor = {},
+                       const std::optional<std::string>& name = {});
+  void deleteLabel(const std::string& name);
+  void clearLabels();
+
   std::string addRuler(int x0,
                        int y0,
                        int x1,
@@ -590,10 +634,10 @@ class Gui
                        const std::string& name = "",
                        bool euclidian = true);
   void deleteRuler(const std::string& name);
+  void clearRulers();
 
   void clearSelections();
   void clearHighlights(int highlight_group = 0);
-  void clearRulers();
 
   int select(const std::string& type,
              const std::string& name_filter = "",
@@ -685,9 +729,9 @@ class Gui
   std::string requestUserInput(const std::string& title,
                                const std::string& question);
 
-  using odbTerm = std::variant<odb::dbITerm*, odb::dbBTerm*>;
-  void timingCone(odbTerm term, bool fanin, bool fanout);
-  void timingPathsThrough(const std::set<odbTerm>& terms);
+  using Term = std::variant<odb::dbITerm*, odb::dbBTerm*>;
+  void timingCone(Term term, bool fanin, bool fanout);
+  void timingPathsThrough(const std::set<Term>& terms);
 
   // open markers
   void selectMarkers(odb::dbMarkerCategory* markers);
@@ -729,6 +773,14 @@ class Gui
   void clearContinueAfterClose() { continue_after_close_ = false; }
 
   const Selected& getInspectorSelection();
+
+  // GIF API
+  void gifStart(const std::string& filename);
+  void gifAddFrame(const odb::Rect& region = odb::Rect(),
+                   int width_px = 0,
+                   double dbu_per_pixel = 0,
+                   std::optional<int> delay = {});
+  void gifEnd();
 
   void setHeatMapSetting(const std::string& name,
                          const std::string& option,
@@ -845,6 +897,9 @@ class Gui
   std::unique_ptr<PinDensityDataSource> pin_density_heat_map_;
   std::unique_ptr<PlacementDensityDataSource> placement_density_heat_map_;
   std::unique_ptr<PowerDensityDataSource> power_density_heat_map_;
+
+  std::unique_ptr<GIF> gif_;
+  static constexpr int kDefaultGifDelay = 250;
 
   static Gui* singleton_;
 
