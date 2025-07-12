@@ -2,7 +2,6 @@
 
 #include <random>
 
-#include "EDensity.h"
 #include "gpl/placerBase.h"
 #include "sta/StaMain.hh"
 
@@ -43,9 +42,6 @@ bool EPlace::initPlacer()
   }
   // Init PlacerBaseCommon
   gpl::PlacerBaseVars pbVars;
-  // pbVars.padLeft = padLeft_;
-  // pbVars.padRight = padRight_;
-  // pbVars.skipIoMode = skipIoMode_;
   pbc_ = std::make_shared<gpl::PlacerBaseCommon>(db_, pbVars, log_);
   if (pbc_->placeInsts().size() == 0) {
     log_->warn(EPL, 1, "No placeable instances - skipping placement.");
@@ -63,36 +59,9 @@ bool EPlace::initPlacer()
   return true;
 }
 
-bool EPlace::initEPlace()
-{
-  if (wa_wirelength_) {
-    log_->warn(EPL, 3, "EPlacer already initialized.");
-    return true;
-  }
-
-  if (!initPlacer()) {
-    return false;
-  }
-
-  // Init wa_wirelength_
-  gpl::NesterovBaseVars nesterov_base_vars;
-  int threads = 1;
-  wa_wirelength_ = std::make_shared<WAwirelength>(
-      nesterov_base_vars, pbc_, log_, threads, gpl::Clusters());
-
-  // Init e_density
-  for (auto pb : pbVec_) {
-    e_density_vec_.push_back(std::make_shared<EDensity>(
-        nesterov_base_vars, pb, wa_wirelength_, log_));
-  }
-  return true;
-}
-
 void EPlace::clear()
 {
   // clear instances
-  wa_wirelength_.reset();
-  e_density_vec_.clear();
   pbc_.reset();
   pbVec_.clear();
 }
@@ -125,7 +94,51 @@ void EPlace::randomPlace(int threads)
   std::generate(
       pos_y.begin(), pos_y.end(), [&]() { return distrib_y(generator); });
 
-#pragma omp parallel for num_threads(threads)
+  #pragma omp parallel for num_threads(threads)
+  for (int i = 0; i < n_inst; i++) {
+    auto inst = insts[i];
+    inst->dbSetLocation(pos_x[i], pos_y[i]);
+    inst->dbSetPlaced();
+  }
+}
+
+void EPlace::simulatedAnnealing(int threads)
+{
+  debugPrint(log_,
+             EPL,
+             "random_place",
+             2,
+             "random_place: number of threads {}",
+             threads);
+  if (!initPlacer()) {
+    return;
+  }
+
+  // Initialize one PlacerBaseCommon per thread
+  gpl::PlacerBaseCommon *pbc_temp[threads];
+  #pragma omp parallel for num_threads(threads)
+  for (int i=0; i<threads; i++){
+    gpl::PlacerBaseVars pbVars;
+    pbc_temp[i] = new gpl::PlacerBaseCommon(db_, pbVars, log_);
+  }
+
+  odb::dbBlock* block = db_->getChip()->getBlock();
+  odb::Rect coreRect = block->getCoreArea();
+
+  auto insts = pbc_->placeInsts();
+  int n_inst = insts.size();
+  std::default_random_engine generator(42);
+  std::uniform_int_distribution<int> distrib_x(coreRect.xMin(),
+                                               coreRect.xMax());
+  std::uniform_int_distribution<int> distrib_y(coreRect.yMin(),
+                                               coreRect.yMax());
+  std::vector<int> pos_x(n_inst), pos_y(n_inst);
+  std::generate(
+      pos_x.begin(), pos_x.end(), [&]() { return distrib_x(generator); });
+  std::generate(
+      pos_y.begin(), pos_y.end(), [&]() { return distrib_y(generator); });
+
+  #pragma omp parallel for num_threads(threads)
   for (int i = 0; i < n_inst; i++) {
     auto inst = insts[i];
     inst->dbSetLocation(pos_x[i], pos_y[i]);

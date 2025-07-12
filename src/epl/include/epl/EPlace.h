@@ -20,14 +20,8 @@
 
 #include "odb/db.h"
 #include "gpl/Replace.h"
-#include "Nesterov.h"
 
 namespace epl {
-class EDensity;
-class WAwirelength;
-class NesterovOptimizer;
-
-// class Nesterov;
 
 class EPlace
 {
@@ -40,18 +34,15 @@ class EPlace
   bool initPlacer();
   bool initEPlace();
   void randomPlace(int threads);
+  void simulatedAnnealing(int threads);
 
  private:
 
   odb::dbDatabase* db_;
   utl::Logger* log_;
-  std::shared_ptr<WAwirelength> wa_wirelength_;
-  std::vector<std::shared_ptr<EDensity>> e_density_vec_;
 
   std::shared_ptr<gpl::PlacerBaseCommon> pbc_;
   std::vector<std::shared_ptr<gpl::PlacerBase>> pbVec_;
-
-  std::shared_ptr<NesterovOptimizer> nesterov;
 };
 
 }  // namespace epl

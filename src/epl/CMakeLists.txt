@@ -36,8 +36,6 @@ target_sources(epl
   PRIVATE
     src/MakeEPlace.cpp
     src/EPlace.cpp
-    src/EDensity.cpp
-    src/WAwirelength.cpp
 )
 
 messages(TARGET epl)
