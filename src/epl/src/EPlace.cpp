@@ -35,8 +35,12 @@ void EPlace::init(odb::dbDatabase* db, utl::Logger* logger)
   log_ = logger;
 }
 
-bool EPlace::init_placer()
+bool EPlace::initPlacer()
 {
+  if (pbc_) {
+    log_->warn(EPL, 2, "Placer already initialized.");
+    return true;
+  }
   // Init PlacerBaseCommon
   gpl::PlacerBaseVars pbVars;
   // pbVars.padLeft = padLeft_;
@@ -55,6 +59,19 @@ bool EPlace::init_placer()
       pbVec_.push_back(
           std::make_shared<gpl::PlacerBase>(db_, pbc_, log_, pd->getGroup()));
     }
+  }
+  return true;
+}
+
+bool EPlace::initEPlace()
+{
+  if (wa_wirelength_) {
+    log_->warn(EPL, 3, "EPlacer already initialized.");
+    return true;
+  }
+
+  if (!initPlacer()) {
+    return false;
   }
 
   // Init wa_wirelength_
@@ -80,7 +97,7 @@ void EPlace::clear()
   pbVec_.clear();
 }
 
-void EPlace::random_place(int threads)
+void EPlace::randomPlace(int threads)
 {
   debugPrint(log_,
              EPL,
@@ -88,7 +105,7 @@ void EPlace::random_place(int threads)
              2,
              "random_place: number of threads {}",
              threads);
-  if (!init_placer()) {
+  if (!initPlacer()) {
     return;
   }
 
