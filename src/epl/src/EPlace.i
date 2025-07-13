@@ -51,4 +51,12 @@ eplace_simulated_annealing_simple_cmd(int wait_iterations, double initial_T, dou
   eplace->simulatedAnnealingSimple(threads, wait_iterations, initial_T, alpha);
 }
 
+void
+eplace_simulated_annealing_density_cmd(int wait_iterations, double initial_T, double alpha, double density)
+{
+  EPlace* eplace = getEPlace();
+  int threads = ord::OpenRoad::openRoad()->getThreadCount();
+  eplace->simulatedAnnealingDensity(threads, wait_iterations, initial_T, alpha, density);
+}
+
 %} // inline

@@ -838,6 +838,7 @@ void BinGrid::initBins()
 
 void BinGrid::updateBinsNonPlaceArea()
 {
+#pragma omp parallel for num_threads(num_threads_)
   for (auto& bin : bins_) {
     bin.setNonPlaceArea(0);
     bin.setNonPlaceAreaUnscaled(0);

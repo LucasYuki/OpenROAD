@@ -661,6 +661,7 @@ class BinGrid
   void setTargetDensity(float density);
   void updateBinsGCellDensityArea(const std::vector<GCellHandle>& cells);
   void setNumThreads(int num_threads) { num_threads_ = num_threads; }
+  int getNumThreads() {return num_threads_;}
 
   void initBins();
 
@@ -681,6 +682,8 @@ class BinGrid
 
   int64_t overflowArea() const;
   int64_t overflowAreaUnscaled() const;
+  void setoverflowArea(int64_t area) {sumOverflowArea_ = area;};
+  void setoverflowAreaUnscaled(int64_t area) {sumOverflowAreaUnscaled_ = area;};
 
   // return bins_ index with given gcell
   std::pair<int, int> getDensityMinMaxIdxX(const GCell* gcell) const;

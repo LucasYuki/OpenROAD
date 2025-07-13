@@ -28,11 +28,12 @@ sta::define_cmd_args "eplace_simulated_anealing" {\
     [-wait_iterations number]\
     [-initial_T temperature]\
     [-alpha alpha]\
+    [-density density]
     [-simple] \
 }
 proc eplace_simulated_anealing { args } {
   sta::parse_key_args "global_placement" args \
-    keys {-wait_iterations -initial_T -alpha} flags {-simple}
+    keys {-wait_iterations -initial_T -alpha -density} flags {-simple}
 
   set wait_iterations 5
   if { [info exists keys(-wait_iterations)]} {
@@ -56,6 +57,13 @@ proc eplace_simulated_anealing { args } {
 
   if { [info exists flags(-simple)]} {
     epl::eplace_simulated_annealing_simple_cmd $wait_iterations $initial_T $alpha
+  } else {
+    set density 0.7
+    if { [info exists keys(-density)]} {
+      set density $keys(-density)
+      sta::check_positive_float "-density" $density
+    }
+    epl::eplace_simulated_annealing_density_cmd $wait_iterations $initial_T $alpha $density
   }
 }
 
