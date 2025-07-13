@@ -43,4 +43,12 @@ eplace_random_placement_cmd()
   eplace->randomPlace(threads);
 }
 
+void
+eplace_simulated_annealing_simple_cmd(int wait_iterations, double initial_T, double alpha)
+{
+  EPlace* eplace = getEPlace();
+  int threads = ord::OpenRoad::openRoad()->getThreadCount();
+  eplace->simulatedAnnealingSimple(threads, wait_iterations, initial_T, alpha);
+}
+
 %} // inline

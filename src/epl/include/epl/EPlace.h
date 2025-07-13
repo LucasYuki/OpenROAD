@@ -34,7 +34,7 @@ class EPlace
   bool initPlacer();
   bool initEPlace();
   void randomPlace(int threads);
-  void simulatedAnnealing(int threads);
+  void simulatedAnnealingSimple(int threads, int wait_iterations, double initial_T, double alpha);
 
  private:
 

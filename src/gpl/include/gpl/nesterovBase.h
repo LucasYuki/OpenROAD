@@ -864,6 +864,8 @@ class NesterovBaseCommon
   int64_t getNewGcellsCount() { return new_gcells_count_; }
   void resetNewGcellsCount() { new_gcells_count_ = 0; }
 
+  std::shared_ptr<PlacerBaseCommon> getpbc() { return pbc_; }
+
  protected:
   NesterovBaseVars nbVars_;
   std::shared_ptr<PlacerBaseCommon> pbc_;

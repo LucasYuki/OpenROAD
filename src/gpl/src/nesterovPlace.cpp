@@ -329,6 +329,9 @@ int NesterovPlace::doNesterovPlace(int start_iter)
   int timing_driven_count = 0;
   bool final_routability_image_saved = false;
 
+
+  log_->report("hpwl before: {}", pbc_->hpwl());
+
   // Core Nesterov Loop
   int iter = start_iter;
   for (; iter < npVars_.maxNesterovIter; iter++) {
@@ -842,6 +845,7 @@ int NesterovPlace::doNesterovPlace(int start_iter)
   // in all case including diverge,
   // db should be updated.
   updateDb();
+  log_->report("hpwl after: {}", pbc_->hpwl());
 
   if (num_region_diverged_ > 0) {
     log_->error(GPL, divergeCode_, divergeMsg_);
