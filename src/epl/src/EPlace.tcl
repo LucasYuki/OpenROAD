@@ -28,12 +28,14 @@ sta::define_cmd_args "eplace_simulated_anealing" {\
     [-wait_iterations number]\
     [-initial_T temperature]\
     [-alpha alpha]\
-    [-density density]
+    [-density density]\
+    [-print_period iterations]\
+    [-swap_chance chance]\
     [-simple] \
 }
 proc eplace_simulated_anealing { args } {
   sta::parse_key_args "global_placement" args \
-    keys {-wait_iterations -initial_T -alpha -density} flags {-simple}
+    keys {-wait_iterations -initial_T -alpha -density -print_period -swap_chance} flags {-simple}
 
   set wait_iterations 5
   if { [info exists keys(-wait_iterations)]} {
@@ -55,6 +57,22 @@ proc eplace_simulated_anealing { args } {
     } 
   }
 
+  set print_period 100
+  if { [info exists keys(-print_period)]} {
+    set print_period $keys(-print_period)
+    if { $print_period < 1 } {
+      utl::error EPL 9 "print_period must be >= 1"
+    } 
+  }
+
+  set swap_chance 0.2
+  if { [info exists keys(-swap_chance)]} {
+    set swap_chance $keys(-swap_chance)
+    if { $swap_chance < 0.0 || $swap_chance > 1.0 } {
+      utl::error EPL 10 "swap_chance must be >=0 and <=1."
+    } 
+  }
+
   if { [info exists flags(-simple)]} {
     epl::eplace_simulated_annealing_simple_cmd $wait_iterations $initial_T $alpha
   } else {
@@ -63,7 +81,7 @@ proc eplace_simulated_anealing { args } {
       set density $keys(-density)
       sta::check_positive_float "-density" $density
     }
-    epl::eplace_simulated_annealing_density_cmd $wait_iterations $initial_T $alpha $density
+    epl::eplace_simulated_annealing_density_cmd $wait_iterations $initial_T $alpha $density $print_period $swap_chance
   }
 }
 

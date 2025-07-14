@@ -234,7 +234,7 @@ void EPlace::simulatedAnnealingSimple(int threads, int wait_iterations, double i
   }
 }
 
-void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double initial_T, double alpha, double density)
+void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double initial_T, double alpha, double density, int print_period, float swap_chance)
 {
   debugPrint(log_,
              EPL,
@@ -255,14 +255,19 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
   std::uniform_real_distribution<double> real(0, 1);
 
   // init density grid
+  double max_density = std::min(1.0, density*2);
+  double current_density = max_density;
+  int max_divisions = 10;
+  int n_divisions = max_divisions;
+
   gpl::BinGrid density_grid(&(pbVec_[0]->die()));
   density_grid.setLogger(log_);
   density_grid.setPlacerBase(pbVec_[0]);
-  density_grid.setTargetDensity(density);
+  density_grid.setTargetDensity(current_density);
   density_grid.setNumThreads(threads);
   density_grid.initBins();
   initBinsInstDensityArea(density_grid, insts);
-
+  
   int64_t last_overflow = density_grid.overflowAreaUnscaled();
   int64_t last_cost_overflow = density_grid.overflowArea();
   int64_t current_overflow = 0;
@@ -270,8 +275,9 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
 
   // init hpwl
   odb::Rect coreRect = block->getCoreArea();
-  double max_disp_x = coreRect.dx();
-  double max_disp_y = coreRect.dy();
+  double initial_max_disp_x = coreRect.dx()/2;
+  double max_disp_x = initial_max_disp_x;
+  double max_disp_y = coreRect.dy()/2;
 
   int64_t last_hpwl = pbc_->hpwl();
   int64_t current_hpwl = 0;
@@ -290,9 +296,16 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
   int64_t current_cost = 0;
 
   int print_count = 0;
+  int swap_count = 0;
   while (current_iter++-last_change <= wait_iterations) {
     // generate new placement
-    auto inst = insts[distrib(generator) % n_inst];
+    
+    gpl::Instance *inst = insts[distrib(generator) % n_inst];
+    gpl::Instance *inst2 = nullptr;
+    if (real(generator) < swap_chance) {
+      inst2 = insts[distrib(generator) % n_inst];
+      if (inst2 == inst) {inst2 = nullptr;}
+    }
 
     // remove from hpwl only the nets that will change
     current_hpwl = last_hpwl;
@@ -303,19 +316,81 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
 
     // remove instance from desity grid 
     binsAddRemoveInst(density_grid, inst, true);
-    
-    // move the inst
-    int m_disp_x = max_disp_x;
-    int m_disp_y = max_disp_y;
-    int orig_x = inst->lx(), orig_y = inst->ly();
-    int min_x = std::max(inst->lx()-m_disp_x, coreRect.xMin());
-    int max_x = std::min(inst->lx()+m_disp_x, coreRect.xMax()-inst->dx());
-    int min_y = std::max(inst->ly()-m_disp_y, coreRect.yMin());
-    int max_y = std::min(inst->ly()+m_disp_y, coreRect.yMax()-inst->dy());
 
-    int new_x = min_x + distrib(generator) % (max_x-min_x);
-    int new_y = min_y + distrib(generator) % (max_y-min_y);
-    inst->dbSetLocation(new_x, new_y);
+    int orig_x = inst->lx(), orig_y = inst->ly();
+    int orig2_x = 0, orig2_y = 0;
+    if (inst2 != nullptr) { // swap
+      // snap inside the core
+      int new_pos_x = inst2->cx()-inst->dx()/2;
+      int new_pos_y = inst2->cy()-inst->dy()/2;
+      int new_pos2_x = inst->cx()-inst2->dx()/2;
+      int new_pos2_y = inst->cy()-inst2->dy()/2;
+      if (abs(new_pos_x-new_pos2_x) < max_disp_x and abs(new_pos_y-new_pos2_y) < max_disp_y) {
+        swap_count++;
+        // remove instance from desity grid 
+        binsAddRemoveInst(density_grid, inst2, true);
+
+        // save positions
+        orig2_x = inst2->lx();
+        orig2_y = inst2->ly();
+
+        if (new_pos_x+inst->dx() > coreRect.xMax()) {
+          new_pos_x = coreRect.xMax() - inst->dx();
+        }
+        if (new_pos_y+inst->dy() > coreRect.yMax()) {
+          new_pos_x = coreRect.yMax() - inst->dy();
+        }
+        if (new_pos_x < coreRect.xMin()) {
+          new_pos_x = coreRect.xMin();
+        }
+        if (new_pos_y < coreRect.yMin()) {
+          new_pos_y = coreRect.yMin();
+        }
+
+        if (new_pos2_x+inst2->dx() > coreRect.xMax()) {
+          new_pos2_x = coreRect.xMax() - inst2->dx();
+        }
+        if (new_pos2_y+inst->dy() > coreRect.yMax()) {
+          new_pos2_x = coreRect.yMax() - inst2->dy();
+        }
+        if (new_pos2_x < coreRect.xMin()) {
+          new_pos2_x = coreRect.xMin();
+        }
+        if (new_pos2_y < coreRect.yMin()) {
+          new_pos2_y = coreRect.yMin();
+        }
+        
+
+        inst->dbSetLocation(new_pos_x, new_pos_y);
+        inst2->dbSetLocation(new_pos2_x, new_pos2_y);
+
+        // add back the changed nets to the hpwl
+        #pragma omp parallel for num_threads(threads)
+        for (auto &pin : inst2->pins()) {
+          auto net = pin->net();
+          net->updateBox(pbc_->skipIoMode());
+          current_hpwl += net->hpwl();
+        }
+
+        // put back the instance to the desity grid 
+        binsAddRemoveInst(density_grid, inst2, false);
+      } else {
+        inst2 = nullptr;
+      }
+    }
+
+    if (inst2 == nullptr) { // move the inst
+      int m_disp_x = max_disp_x;
+      int m_disp_y = max_disp_y;
+      int min_x = std::max(inst->lx()-m_disp_x, coreRect.xMin());
+      int max_x = std::min(inst->lx()+m_disp_x, coreRect.xMax()-inst->dx());
+      int min_y = std::max(inst->ly()-m_disp_y, coreRect.yMin());
+      int max_y = std::min(inst->ly()+m_disp_y, coreRect.yMax()-inst->dy());
+
+      int new_x = min_x + distrib(generator) % (max_x-min_x);
+      int new_y = min_y + distrib(generator) % (max_y-min_y);
+      inst->dbSetLocation(new_x, new_y);
+    }
 
     // add back the changed nets to the hpwl
     #pragma omp parallel for num_threads(threads)
@@ -331,6 +406,7 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
     current_cost_overflow = density_grid.overflowArea();
 
     // debug
+    /*
     initBinsInstDensityArea(density_grid, insts);
     if (current_overflow != density_grid.overflowAreaUnscaled()) {
       //log_->report("is macro {} name inst {}", inst->isMacro(), inst->dbInst()->getName());
@@ -339,6 +415,7 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
     if (current_cost_overflow != density_grid.overflowArea()) {
       log_->report("iter {} | current_cost_overflow {} != density_grid.overflowArea() {}", current_iter, current_cost_overflow, density_grid.overflowArea());
     }
+    */
     
     current_cost = current_hpwl+current_overflow;
     double diff = current_cost-last_cost;
@@ -356,6 +433,17 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
       }
     } else {
       // movement rejected (put instace back)
+      if (inst2 !=nullptr) {
+        binsAddRemoveInst(density_grid, inst2, true);
+        inst2->dbSetLocation(orig2_x, orig2_y);
+        #pragma omp parallel for num_threads(threads)
+        for (auto &pin : inst2->pins()) {
+          auto net = pin->net();
+          net->updateBox(pbc_->skipIoMode());
+        }
+        binsAddRemoveInst(density_grid, inst2, false);
+      }
+      
       binsAddRemoveInst(density_grid, inst, true);
       inst->dbSetLocation(orig_x, orig_y);
       #pragma omp parallel for num_threads(threads)
@@ -366,12 +454,17 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
       binsAddRemoveInst(density_grid, inst, false);
     }
 
-    if (++print_count == 100) {
-      log_->report("Iter {} best_cost: {} max_disp_x {} max_disp_y {} T {} hpwl {} cost_overflow {} overflow {}", current_iter, best_cost, max_disp_x, max_disp_y, T, best_hpwl, current_overflow, block->dbuAreaToMicrons(best_overflow));
+    if (++print_count == print_period) {
+      log_->report("Iter {} best_cost: {} max_disp_x {:.1f}\tmax_disp_y {:.1f}\tT {:.1f}\thpwl {}\tcost_overflow {}\toverflow {}", current_iter, best_cost, max_disp_x, max_disp_y, T, best_hpwl, current_overflow, block->dbuAreaToMicrons(best_overflow));
       print_count = 0;
     }
-
+    
     float new_T = T*alpha;
+    /*
+    if (T > 5000 or T < 100) {
+      new_T *= 0.9;
+    }
+    */
     if (new_T <= 1) {
       log_->info(EPL, 7, "temperature is equal or less than 1 max_disp_x {} max_disp_y {}", max_disp_x, max_disp_y); 
       break;
@@ -379,18 +472,31 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
     T = new_T;
     float log_new_T = log(new_T);
     if (log_T < 1e-4) {
-      log_->warn(EPL, 8, "log_T < 1e-4 | Iter {} best HPWL: {} max_disp_x {} max_disp_y {} T {}", current_iter, block->dbuToMicrons(best_hpwl), max_disp_x, max_disp_y, T);
+      log_->warn(EPL, 8, "log_T < 1e-4 | Iter {} best HPWL: {} max_disp_x {:.1f} max_disp_y {:.1f} T {:.1f}", current_iter, block->dbuToMicrons(best_hpwl), max_disp_x, max_disp_y, T);
       break;
     }
     float adjust_disp = log_new_T/log_T;
     max_disp_x = std::max(max_disp_x*adjust_disp, 1.0);
     max_disp_y = std::max(max_disp_y*adjust_disp, 1.0);
+
+    if (max_disp_x < initial_max_disp_x*0.8 and n_divisions>0) {
+      current_density = density + (max_density-density)*--n_divisions/max_divisions;
+      log_->report("Update density to {} in iter {}", current_density, current_iter);
+      density_grid.setTargetDensity(current_density);
+      #pragma omp parallel for num_threads(threads)
+      for (auto& bin: density_grid.bins()) {
+        bin.setDensity(current_density);
+      }
+      initBinsInstDensityArea(density_grid, insts);
+      initial_max_disp_x = initial_max_disp_x*0.8;
+    }
+  
     log_T = log_new_T;
 
     last_cost = current_cost;
   }
   odb::WireLengthEvaluator eval(block);
-
+  log_->report("N of iterations: {} | N of swaps tried {} ({:.1f}%)", current_iter, swap_count, 100.0*swap_count/current_iter);
   log_->report("Final HPWL: {} {}", block->dbuToMicrons(pbc_->hpwl()), block->dbuToMicrons(eval.hpwl()));
 #pragma omp parallel for num_threads(threads)
   for (int i = 0; i < n_inst; i++) {
