@@ -404,24 +404,12 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
     binsAddRemoveInst(density_grid, inst, false);
     current_overflow = density_grid.overflowAreaUnscaled();
     current_cost_overflow = density_grid.overflowArea();
-
-    // debug
-    /*
-    initBinsInstDensityArea(density_grid, insts);
-    if (current_overflow != density_grid.overflowAreaUnscaled()) {
-      //log_->report("is macro {} name inst {}", inst->isMacro(), inst->dbInst()->getName());
-      log_->report("iter {} | current_overflow {} != density_grid.overflowAreaUnscaled() {} {}", current_iter, current_overflow, density_grid.overflowAreaUnscaled(), current_overflow-density_grid.overflowAreaUnscaled());
-    }
-    if (current_cost_overflow != density_grid.overflowArea()) {
-      log_->report("iter {} | current_cost_overflow {} != density_grid.overflowArea() {}", current_iter, current_cost_overflow, density_grid.overflowArea());
-    }
-    */
     
+    // update costs
     current_cost = current_hpwl+current_overflow;
     double diff = current_cost-last_cost;
     if (last_cost > current_cost or exp(-(diff*diff)/T)> real(generator)) {
       // movement accepted
-      //log_->report("Iter {} melhora", current_iter);
       best_cost = current_cost;
 
       best_hpwl = current_hpwl;
@@ -460,16 +448,12 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
     }
     
     float new_T = T*alpha;
-    /*
-    if (T > 5000 or T < 100) {
-      new_T *= 0.9;
-    }
-    */
     if (new_T <= 1) {
       log_->info(EPL, 7, "temperature is equal or less than 1 max_disp_x {} max_disp_y {}", max_disp_x, max_disp_y); 
       break;
     }
     T = new_T;
+
     float log_new_T = log(new_T);
     if (log_T < 1e-4) {
       log_->warn(EPL, 8, "log_T < 1e-4 | Iter {} best HPWL: {} max_disp_x {:.1f} max_disp_y {:.1f} T {:.1f}", current_iter, block->dbuToMicrons(best_hpwl), max_disp_x, max_disp_y, T);
@@ -478,6 +462,7 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
     float adjust_disp = log_new_T/log_T;
     max_disp_x = std::max(max_disp_x*adjust_disp, 1.0);
     max_disp_y = std::max(max_disp_y*adjust_disp, 1.0);
+    log_T = log_new_T;
 
     if (max_disp_x < initial_max_disp_x*0.8 and n_divisions>0) {
       current_density = density + (max_density-density)*--n_divisions/max_divisions;
@@ -490,14 +475,13 @@ void EPlace::simulatedAnnealingDensity(int threads, int wait_iterations, double 
       initBinsInstDensityArea(density_grid, insts);
       initial_max_disp_x = initial_max_disp_x*0.8;
     }
-  
-    log_T = log_new_T;
-
     last_cost = current_cost;
   }
+  
   odb::WireLengthEvaluator eval(block);
   log_->report("N of iterations: {} | N of swaps tried {} ({:.1f}%)", current_iter, swap_count, 100.0*swap_count/current_iter);
   log_->report("Final HPWL: {} {}", block->dbuToMicrons(pbc_->hpwl()), block->dbuToMicrons(eval.hpwl()));
+
 #pragma omp parallel for num_threads(threads)
   for (int i = 0; i < n_inst; i++) {
     insts[i]->dbSetPlaced();
