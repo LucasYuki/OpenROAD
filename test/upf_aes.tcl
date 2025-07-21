@@ -15,8 +15,9 @@ set sdc_file "aes_sky130hd.sdc"
 set die_area {0 0 2800 2800}
 set core_area {30 30 2770 2770}
 
-set slew_margin 20
-set global_place_density 0.15
+set global_place_density uniform 
+set global_place_overflow 0.05
+set global_routing_layer_adjustments {{met1 0.10} {met2 0.10} {met3 0.15} {met4 0.25} {met5 0.25}}
 
 set upf_file "upf/mpd_aes.upf"
 

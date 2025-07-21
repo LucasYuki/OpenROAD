@@ -55,7 +55,8 @@ utl::metric "IFP::instance_count" [sta::network_instance_count]
 
 initialize_floorplan -site $site \
   -die_area $die_area \
-  -core_area $core_area
+  -core_area $core_area \
+  -additional_site unithddbl
 
 source $tracks_file
 
@@ -96,7 +97,7 @@ set_routing_layers -signal $global_routing_layers \
 set_macro_extension 2
 
 global_placement -density $global_place_density \
-  -pad_left $global_place_pad -pad_right $global_place_pad
+  -pad_left $global_place_pad -pad_right $global_place_pad -overflow $global_place_overflow
 
 # IO Placement
 place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
@@ -105,89 +106,12 @@ place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
 set global_place_db [make_result_file ${design}_${platform}_global_place.odb]
 write_db $global_place_db
 
-################################################################
-# Repair max slew/cap/fanout violations and normalize slews
-source $layer_rc_file
-set_wire_rc -signal -layer $wire_rc_layer
-set_wire_rc -clock -layer $wire_rc_layer_clk
-set_dont_use $dont_use
-
-estimate_parasitics -placement
-
-repair_design -slew_margin $slew_margin -cap_margin $cap_margin
-
-repair_tie_fanout -separation $tie_separation $tielo_port
-repair_tie_fanout -separation $tie_separation $tiehi_port
-
-set_placement_padding -global -left $detail_place_pad -right $detail_place_pad
-detailed_placement
-
-# post resize timing report (ideal clocks)
-report_worst_slack -min -digits 3
-report_worst_slack -max -digits 3
-report_tns -digits 3
-# Check slew repair
-report_check_types -max_slew -max_capacitance -max_fanout -violators
-
-utl::metric "RSZ::repair_design_buffer_count" [rsz::repair_design_buffer_count]
-utl::metric "RSZ::max_slew_slack" [expr [sta::max_slew_check_slack_limit] * 100]
-utl::metric "RSZ::max_fanout_slack" [expr [sta::max_fanout_check_slack_limit] * 100]
-utl::metric "RSZ::max_capacitance_slack" [expr [sta::max_capacitance_check_slack_limit] * 100]
-
-################################################################
-# Clock Tree Synthesis
-
-# Clone clock tree inverters next to register loads
-# so cts does not try to buffer the inverted clocks.
-repair_clock_inverters
-
-clock_tree_synthesis -root_buf $cts_buffer -buf_list $cts_buffer \
-  -sink_clustering_enable \
-  -sink_clustering_max_diameter $cts_cluster_diameter
-
-# CTS leaves a long wire from the pad to the clock tree root.
-repair_clock_nets
-
-# place clock buffers
-detailed_placement
-
-# checkpoint
-set cts_db [make_result_file ${design}_${platform}_cts.odb]
-write_db $cts_db
-
-################################################################
-# Setup/hold timing repair
-
-set_propagated_clock [all_clocks]
-
-# Global routing is fast enough for the flow regressions.
-# It is NOT FAST ENOUGH FOR PRODUCTION USE.
-set repair_timing_use_grt_parasitics 0
-if { $repair_timing_use_grt_parasitics } {
-  # Global route for parasitics - no guide file requied
-  global_route -congestion_iterations 100
-  estimate_parasitics -global_routing
-} else {
-  estimate_parasitics -placement
-}
-
-repair_timing -skip_gate_cloning
-
-# Post timing repair.
-report_worst_slack -min -digits 3
-report_worst_slack -max -digits 3
-report_tns -digits 3
-report_check_types -max_slew -max_capacitance -max_fanout -violators -digits 3
-
-utl::metric "RSZ::worst_slack_min" [sta::worst_slack -min]
-utl::metric "RSZ::worst_slack_max" [sta::worst_slack -max]
-utl::metric "RSZ::tns_max" [sta::total_negative_slack -max]
-utl::metric "RSZ::hold_buffer_count" [rsz::hold_buffer_count]
+#gui::show
 
 ################################################################
 # Detailed Placement
 
-detailed_placement
+detailed_placement -max_displacement 1000
 
 # Capture utilization before fillers make it 100%
 utl::metric "DPL::utilization" [format %.1f [expr [rsz::utilization] * 100]]
@@ -213,15 +137,6 @@ global_route -guide_file $route_guide \
 set verilog_file [make_result_file ${design}_${platform}.v]
 write_verilog -remove_cells $filler_cells $verilog_file
 
-################################################################
-# Repair antennas post-GRT
-
-utl::set_metrics_stage "grt__{}"
-repair_antennas -iterations 5
-
-check_antennas
-utl::clear_metrics_stage
-utl::metric "GRT::ANT::errors" [ant::antenna_violation_count]
 
 ################################################################
 # Detailed routing
@@ -247,37 +162,6 @@ write_db $routed_db
 set routed_def [make_result_file ${design}_${platform}_route.def]
 write_def $routed_def
 
-################################################################
-# Repair antennas post-DRT
-
-set repair_antennas_iters 0
-utl::set_metrics_stage "drt__repair_antennas__pre_repair__{}"
-while { [check_antennas] && $repair_antennas_iters < 5 } {
-  utl::set_metrics_stage "drt__repair_antennas__iter_${repair_antennas_iters}__{}"
-
-  repair_antennas
-
-  detailed_route -output_drc [make_result_file "${design}_${platform}_ant_fix_drc.rpt"] \
-    -output_maze [make_result_file "${design}_${platform}_ant_fix_maze.log"] \
-    -bottom_routing_layer $min_routing_layer \
-    -top_routing_layer $max_routing_layer \
-    -verbose 0
-
-  incr repair_antennas_iters
-}
-
-utl::set_metrics_stage "drt__{}"
-check_antennas
-
-utl::clear_metrics_stage
-utl::metric "DRT::ANT::errors" [ant::antenna_violation_count]
-
-if { ![design_is_routed] } {
-  error "Design has unrouted nets."
-}
-
-set repair_antennas_db [make_result_file ${design}_${platform}_repaired_route.odb]
-write_db $repair_antennas_db
 
 ################################################################
 # Filler placement

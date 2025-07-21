@@ -1248,6 +1248,7 @@ void PlacerBase::reset()
 void PlacerBase::printInfo() const
 {
   dbBlock* block = db_->getChip()->getBlock();
+  log_->info(GPL, 22, "Group: {}", group_ ? group_->getName() : "top");
   log_->info(GPL,
              6,
              format_label_int,

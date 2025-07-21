@@ -223,6 +223,9 @@ class _dbBlock : public _dbObject
   dbTable<_dbPowerSwitch>* _powerswitch_tbl;
   dbTable<_dbIsolation>* _isolation_tbl;
   dbTable<_dbLevelShifter>* _levelshifter_tbl;
+  // dbTable<>* _supply_port_tbl;
+  // dbTable<>* _supply_net_tbl;
+  // dbTable<>* _supply_set_tbl;
   dbTable<_dbModInst>* _modinst_tbl;
   dbTable<_dbGroup>* _group_tbl;
   dbTable<_dbAccessPoint>* ap_tbl_;

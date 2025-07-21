@@ -603,6 +603,125 @@ proc set_level_shifter_cell { args } {
   upf::set_level_shifter_cell_cmd $level_shifter $cell_name $input_port $output_port
 }
 
+# Create a supply port on a instance
+#
+# Arguments:
+#
+# - domain: The domain where this port defines a supply net connection point.
+# - direction:  <in | out | inout> The direction of the port. The default is in.
+# - port_name: A simple name.
+
+sta::define_cmd_args "create_supply_port" { \
+    [-domain domain_name] \
+    [-direction direction] \
+    port_name
+}
+
+proc create_supply_port { args } {
+  upf::check_block_exists
+
+  sta::parse_key_args "create_supply_port" args \
+    keys {-domain -direction} flags {}
+
+  sta::check_argc_eq1 "create_supply_port" $args
+
+  set port_name [lindex $args 0]
+
+  set domain_name "."
+  set direction "in"
+
+  if { [info exists keys(-domain_name)] } {
+    set domain_name $keys(-domain_name)
+  }
+
+  if { [info exists keys(-direction)] } {
+    set direction $keys(-direction)
+  }
+
+  
+}
+
+# Create a supply net
+#
+# Arguments:
+#
+# - domain: The domain in whose scope the supply net is to be created.
+# - reuse: Extend availability of a supply net previously defined for another domain into this domain.
+# - net_name: A simple name.
+
+sta::define_cmd_args "create_supply_net" { \
+    [-domain domain_name] \
+    [-reuse] \
+    net_name
+}
+
+proc create_supply_net { args } {
+  upf::check_block_exists
+
+  sta::parse_key_args "create_supply_net" args \
+    keys {-domain} flags {-reuse}
+
+  sta::check_argc_eq1 "create_supply_net" $args
+
+  set net_name [lindex $args 0]
+
+  set domain_name "."
+  set reuse 0
+
+  if { [info exists keys(-domain_name)] } {
+    set domain_name $keys(-domain_name)
+  }
+
+  if { [info exists flags(-reuse)] } {
+    set reuse 1
+  }
+
+}
+
+# Create or update a supply set, or update a supply set handle
+#
+# Arguments:
+#
+# - function: The -function option defines the function (func_name) a supply net provides for this supply set. 
+#     net_name is a rooted name of a supply net or supply port or a supply net handle. 
+#     It shall be an error if the net_name is not defined in the current scope.
+# - reference_gnd: The -reference_gnd option defines the rooted name of a supply_net
+#     that serves as the reference ground for the supply set. A supply net handle may be used.
+#     Default: if not specified, the voltages in this supply set shall be evaluated
+#     with no offset from the assumed default reference supply.
+# - update: Use -update if the set_name has already been defined.
+# - set_name: The simple name of the supply set or a supply set handle.
+
+sta::define_cmd_args "create_supply_set" { \
+    [-function {func_name net_name}] \
+    [-reference_gnd supply_net_name] \
+    [-update] \
+    set_name
+}
+
+proc create_supply_set { args } {
+  upf::check_block_exists
+
+  sta::parse_key_args "create_supply_set" args \
+    keys {-function -reference_gnd} flags {-update}
+
+  sta::check_argc_eq1 "create_supply_set" $args
+
+  set set_name [lindex $args 0]
+
+  set function {}
+  set reuse 0
+
+  if { [info exists keys(-domain_name)] } {
+    set domain_name $keys(-domain_name)
+  }
+
+  if { [info exists flags(-reuse)] } {
+    set reuse 1
+  }
+
+}
+
 namespace eval upf {
 proc process_list_arg { args max_len } {
   while { [llength $args] < $max_len } {

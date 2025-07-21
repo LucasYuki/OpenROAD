@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2019-2025, The OpenROAD Authors
 
+#include <iostream>
+
 #include "dbInst.h"
 
 #include <algorithm>
@@ -443,8 +445,11 @@ void dbInst::setLocationOrient(dbOrientType orient)
 void dbInst::getLocation(int& x, int& y) const
 {
   const _dbInst* inst = (const _dbInst*) this;
+  //std::cout << "inst: " << inst << std::endl;
   _dbBlock* block = (_dbBlock*) inst->getOwner();
+  //std::cout << "block: " <<  block << std::endl;
   _dbBox* bbox = block->_box_tbl->getPtr(inst->_bbox);
+  //std::cout << "bbox: " <<  bbox << std::endl;
   x = bbox->_shape._rect.xMin();
   y = bbox->_shape._rect.yMin();
 }
