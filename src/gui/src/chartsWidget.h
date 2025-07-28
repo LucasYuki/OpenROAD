@@ -31,7 +31,7 @@ namespace gui {
 struct SlackHistogramData
 {
   StaPins constrained_pins;
-  std::set<sta::Clock*> clocks;
+  sta::ClockSet clocks;
 };
 
 struct Buckets
@@ -54,7 +54,7 @@ class HistogramView : public QChartView
 
   void clear();
   void setData(const SlackHistogramData& data);
-  void setData(const EndPointSlackMap& data);
+  void setData(const EndPointSlackMap& data, sta::ClockSet* clocks);
 
   void save(const QString& path);
 
@@ -108,7 +108,7 @@ class HistogramView : public QChartView
   int precision_count_;  // Used to configure the x labels.
 
   // Data
-  std::set<sta::Clock*> clocks_;
+  sta::ClockSet clocks_;
   Buckets buckets_;
   std::unique_ptr<utl::Histogram<float>> histogram_;
 
@@ -161,7 +161,9 @@ class ChartsWidget : public QDockWidget
   void setSlackHistogramLayout();
   void setModeMenu();
 
-  void setData(HistogramView* view, const std::string& path_group) const;
+  void setData(HistogramView* view,
+               const std::string& path_group,
+               sta::Clock* clock);
 
   SlackHistogramData fetchSlackHistogramData() const;
   void removeUnconstrainedPinsAndSetLimits(SlackHistogramData& data) const;
@@ -179,8 +181,10 @@ class ChartsWidget : public QDockWidget
 
   std::string path_group_name_;  // Current selected filter
   std::map<int, std::string> filter_index_to_path_group_name_;
+  std::map<int, sta::Clock*> clock_index_to_clock_;
+  sta::ClockSet all_clocks_;
+  sta::Clock* clock_filter_;
 
-  int prev_filter_index_;
   bool resetting_menu_;
 
   QLabel* label_;
