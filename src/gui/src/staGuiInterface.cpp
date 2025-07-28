@@ -952,8 +952,9 @@ EndPointSlackMap STAGuiInterface::getEndPointToSlackMap(
   EndPointSlackMap end_point_to_slack;
   sta::VisitPathEnds visit_ends(sta_);
   sta::Search* search = sta_->search();
-  sta::PathGroup* path_group
-      = search->findPathGroup(path_group_name.c_str(), sta::MinMax::max());
+  sta::PathGroup* path_group = search->findPathGroup(
+      path_group_name.c_str(),
+      isUseMax() ? sta::MinMax::max() : sta::MinMax::min());
   PathGroupSlackEndVisitor path_group_visitor(path_group, sta_);
   for (sta::Vertex* vertex : *sta_->endpoints()) {
     visit_ends.visitPathEnds(vertex, &path_group_visitor);
@@ -972,7 +973,8 @@ EndPointSlackMap STAGuiInterface::getEndPointToSlackMap(const sta::Clock* clk)
   EndPointSlackMap end_point_to_slack;
   sta::VisitPathEnds visit_ends(sta_);
   sta::Search* search = sta_->search();
-  sta::PathGroup* path_group = search->findPathGroup(clk, sta::MinMax::max());
+  sta::PathGroup* path_group = search->findPathGroup(
+      clk, isUseMax() ? sta::MinMax::max() : sta::MinMax::min());
   PathGroupSlackEndVisitor path_group_visitor(path_group, sta_);
   for (sta::Vertex* vertex : *sta_->endpoints()) {
     visit_ends.visitPathEnds(vertex, &path_group_visitor);
