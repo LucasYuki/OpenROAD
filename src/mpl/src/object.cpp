@@ -4,15 +4,19 @@
 #include "object.h"
 
 #include <algorithm>
-#include <boost/random/uniform_int_distribution.hpp>
 #include <cmath>
+#include <iterator>
 #include <map>
 #include <memory>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "util.h"
+#include "boost/random/uniform_int_distribution.hpp"
+#include "mpl-util.h"
+#include "odb/db.h"
+#include "odb/dbTypes.h"
 #include "utl/Logger.h"
 
 namespace mpl {
@@ -198,6 +202,10 @@ std::string Cluster::getClusterTypeString() const
 {
   std::string cluster_type;
 
+  if (is_io_bundle_) {
+    return "IO Bundle";
+  }
+
   if (is_cluster_of_unconstrained_io_pins_) {
     return "Unconstrained IOs";
   }
@@ -208,6 +216,10 @@ std::string Cluster::getClusterTypeString() const
 
   if (is_io_pad_cluster_) {
     return "IO Pad";
+  }
+
+  if (is_fixed_macro_) {
+    return "Fixed Macro";
   }
 
   switch (type_) {
@@ -288,9 +300,21 @@ void Cluster::setAsIOPadCluster(const std::pair<float, float>& pos,
   soft_macro_ = std::make_unique<SoftMacro>(pos, name_, width, height, this);
 }
 
+void Cluster::setAsIOBundle(const Point& pos, float width, float height)
+{
+  is_io_bundle_ = true;
+  soft_macro_ = std::make_unique<SoftMacro>(pos, name_, width, height, this);
+}
+
+void Cluster::setAsFixedMacro(const HardMacro* hard_macro)
+{
+  is_fixed_macro_ = true;
+  soft_macro_ = std::make_unique<SoftMacro>(logger_, hard_macro);
+}
+
 bool Cluster::isIOCluster() const
 {
-  return is_cluster_of_unplaced_io_pins_ || is_io_pad_cluster_;
+  return is_cluster_of_unplaced_io_pins_ || is_io_pad_cluster_ || is_io_bundle_;
 }
 
 bool Cluster::isClusterOfUnconstrainedIOPins() const
@@ -305,12 +329,12 @@ bool Cluster::isClusterOfUnplacedIOPins() const
 
 void Cluster::setAsArrayOfInterconnectedMacros()
 {
-  is_array_of_interconnected_macros = true;
+  is_array_of_interconnected_macros_ = true;
 }
 
 bool Cluster::isArrayOfInterconnectedMacros() const
 {
-  return is_array_of_interconnected_macros;
+  return is_array_of_interconnected_macros_;
 }
 
 bool Cluster::isEmpty() const
@@ -354,6 +378,10 @@ int Cluster::getNumMacro() const
 
 float Cluster::getArea() const
 {
+  if (isFixedMacro()) {
+    return soft_macro_->getArea();
+  }
+
   return getStdCellArea() + getMacroArea();
 }
 
@@ -744,6 +772,13 @@ HardMacro::HardMacro(odb::dbInst* inst, float halo_width, float halo_height)
   width_ = block_->dbuToMicrons(master->getWidth()) + 2 * halo_width;
   height_ = block_->dbuToMicrons(master->getHeight()) + 2 * halo_height;
 
+  if (inst_->isFixed()) {
+    const odb::Rect& box = inst->getBBox()->getBox();
+    x_ = block_->dbuToMicrons(box.xMin()) - halo_width_;
+    y_ = block_->dbuToMicrons(box.yMin()) - halo_height_;
+    fixed_ = true;
+  }
+
   // Set the position of virtual pins
   odb::Rect bbox;
   bbox.mergeInit();
@@ -896,19 +931,6 @@ odb::dbOrientType HardMacro::getOrientation() const
   return orientation_;
 }
 
-// We do not allow rotation of macros
-// This may violate the direction of metal layers
-void HardMacro::flip(bool flip_horizontal)
-{
-  if (flip_horizontal) {
-    orientation_ = orientation_.flipX();
-    pin_y_ = height_ - pin_y_;
-  } else {
-    orientation_ = orientation_.flipY();
-    pin_x_ = width_ - pin_x_;
-  }
-}
-
 // Interfaces with OpenDB
 odb::dbInst* HardMacro::getInst() const
 {
@@ -967,6 +989,37 @@ SoftMacro::SoftMacro(const std::pair<float, float>& location,
   area_ = 0.0f;
 
   cluster_ = cluster;
+  fixed_ = true;
+}
+
+// Represent a fixed macro.
+SoftMacro::SoftMacro(utl::Logger* logger,
+                     const HardMacro* hard_macro,
+                     const Point* offset)
+{
+  if (!hard_macro->isFixed()) {
+    logger->error(
+        MPL,
+        37,
+        "Attempting to create fixed soft macro for unfixed hard macro {}.",
+        hard_macro->getName());
+  }
+
+  name_ = hard_macro->getName();
+
+  x_ = hard_macro->getX();
+  y_ = hard_macro->getY();
+
+  if (offset) {
+    x_ += offset->first;
+    y_ += offset->second;
+  }
+
+  width_ = hard_macro->getWidth();
+  height_ = hard_macro->getHeight();
+  area_ = width_ * height_;
+
+  cluster_ = hard_macro->getCluster();
   fixed_ = true;
 }
 
@@ -1307,6 +1360,10 @@ void SoftMacro::setLocationF(float x, float y)
 
 void SoftMacro::setShapeF(float width, float height)
 {
+  if (fixed_) {
+    return;
+  }
+
   width_ = width;
   height_ = height;
   area_ = width * height;

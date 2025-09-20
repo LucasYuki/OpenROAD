@@ -3,6 +3,7 @@
 
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
+load("//bazel:python_wrap_cc.bzl", "python_wrap_cc")
 
 package(
     default_visibility = ["//:__subpackages__"],
@@ -78,6 +79,7 @@ cc_library(
         "src/db/tech/frViaDef.h",
         "src/db/tech/frViaRuleGenerate.h",
     ],
+    deps = ["@boost.polygon"],
 )
 
 cc_library(
@@ -86,6 +88,7 @@ cc_library(
         "src/AbstractGraphicsFactory.h",
         "src/DesignCallBack.cpp",
         "src/DesignCallBack.h",
+        "src/PACallBack.h",
         "src/TritonRoute.cpp",
         "src/db/drObj/drAccessPattern.cpp",
         "src/db/drObj/drNet.cpp",
@@ -94,7 +97,6 @@ cc_library(
         "src/db/drObj/drVia.cpp",
         "src/db/infra/KDTree.cpp",
         "src/db/infra/frTime.cpp",
-        "src/db/infra/frTime_helper.cpp",
         "src/db/obj/frAccess.cpp",
         "src/db/obj/frInst.cpp",
         "src/db/obj/frInstTerm.cpp",
@@ -195,12 +197,6 @@ cc_library(
     ],
     copts = [
         "-Isrc/drt/src",
-        "-Isrc/drt/src/dr",
-        "-Isrc/drt/src/gc",
-        "-Isrc/drt/src/io",
-        "-Isrc/drt/src/pa",
-        "-Isrc/drt/src/rp",
-        "-Isrc/drt/src/ta",
         "-fopenmp",
     ],
     includes = [
@@ -216,6 +212,8 @@ cc_library(
         "@boost.bind",
         "@boost.container",
         "@boost.geometry",
+        "@boost.graph",
+        "@boost.icl",
         "@boost.io",
         "@boost.polygon",
         "@boost.serialization",
@@ -268,6 +266,7 @@ cc_library(
     ],
     deps = [
         ":db_hdrs",
+        ":drt",
         "//:ord",
         "//src/dst",
         "//src/gui",
@@ -278,6 +277,7 @@ cc_library(
         "@boost.geometry",
         "@boost.polygon",
         "@boost.serialization",
+        "@boost.stacktrace",
         "@tk_tcl//:tcl",
     ],
 )
@@ -305,5 +305,22 @@ tcl_wrap_cc(
     ],
     deps = [
         "//src/odb:swig",
+    ],
+)
+
+python_wrap_cc(
+    name = "swig-py",
+    srcs = [
+        "include/triton_route/TritonRoute.h",
+        "src/TritonRoute-py.i",
+        "//:error_swig-py",
+    ],
+    module = "drt_py",
+    root_swig_src = "src/TritonRoute-py.i",
+    swig_includes = [
+        "include",
+    ],
+    deps = [
+        "//src/odb:swig-py",
     ],
 )

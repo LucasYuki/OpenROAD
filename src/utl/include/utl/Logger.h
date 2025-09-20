@@ -5,12 +5,20 @@
 
 #include <array>
 #include <atomic>
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iomanip>
+#include <ios>
+#include <list>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <stack>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -37,11 +45,14 @@ class Progress;
 // Keep this sorted
 #define FOREACH_TOOL(X) \
   X(ANT)                \
+  X(CGT)                \
   X(CTS)                \
+  X(CUT)                \
   X(DFT)                \
   X(DPL)                \
   X(DRT)                \
   X(DST)                \
+  X(EST)                \
   X(EXA)                \
   X(EPL)                \
   X(FIN)                \
@@ -113,7 +124,7 @@ class Logger
   // below)
   template <typename... Args>
   void debug(ToolId tool,
-             const std::string& group,
+             const char* group,
              const std::string& message,
              const Args&... args)
   {
@@ -245,6 +256,8 @@ class Logger
   // Redirect output to a string until teeStringEnd is called.
   void teeStringBegin();
   std::string teeStringEnd();
+
+  static Logger* defaultLogger();
 
   // Progress interface
   Progress* progress() const { return progress_.get(); }

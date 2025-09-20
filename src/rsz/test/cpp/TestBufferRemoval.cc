@@ -7,22 +7,20 @@
 #include <tcl.h>
 #include <unistd.h>
 
-#include <array>
 #include <filesystem>
-#include <iostream>
-#include <map>
 #include <memory>
 #include <mutex>
-#include <set>
 
-#include "AbstractSteinerRenderer.h"
 #include "db_sta/MakeDbSta.hh"
 #include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
 #include "dpl/MakeOpendp.h"
+#include "est/EstimateParasitics.h"
 #include "gmock/gmock.h"
 #include "grt/GlobalRouter.h"
 #include "gtest/gtest.h"
+#include "odb/db.h"
+#include "odb/dbSet.h"
 #include "odb/lefin.h"
 #include "rsz/MakeResizer.hh"
 #include "rsz/Resizer.hh"
@@ -35,6 +33,7 @@
 #include "sta/Sta.hh"
 #include "sta/Units.hh"
 #include "stt/SteinerTreeBuilder.h"
+#include "utl/CallBackHandler.h"
 #include "utl/Logger.h"
 #include "utl/deleter.h"
 
@@ -71,7 +70,7 @@ class BufRemTest : public ::testing::Test
     db_network_ = sta_->getDbNetwork();
 
     // create a chain consisting of 4 buffers
-    odb::dbChip* chip = odb::dbChip::create(db_.get());
+    odb::dbChip* chip = odb::dbChip::create(db_.get(), db_->getTech());
     odb::dbBlock* block = odb::dbBlock::create(chip, "top");
     db_network_->setBlock(block);
     block->setDieArea(odb::Rect(0, 0, 1000, 1000));
@@ -215,7 +214,10 @@ TEST_F(BufRemTest, SlackImproves)
   stt::SteinerTreeBuilder* stt = new stt::SteinerTreeBuilder;
   grt::GlobalRouter* grt = new grt::GlobalRouter;
   dpl::Opendp* dp = new dpl::Opendp;
-  resizer_->init(&logger_, db_.get(), sta_.get(), stt, grt, dp, nullptr);
+  est::EstimateParasitics* ep = new est::EstimateParasitics;
+  utl::CallBackHandler* callback_handler_ = new utl::CallBackHandler(&logger_);
+  ep->init(&logger_, callback_handler_, db_.get(), sta_.get(), stt, grt);
+  resizer_->init(&logger_, db_.get(), sta_.get(), stt, grt, dp, ep);
 
   float origArrival
       = sta_->vertexArrival(outVertex_, sta::RiseFall::rise(), pathAnalysisPt_);
@@ -228,7 +230,7 @@ TEST_F(BufRemTest, SlackImproves)
   db_->setLogger(&logger_);
 
   {
-    IncrementalParasiticsGuard guard(resizer_);
+    est::IncrementalParasiticsGuard guard(ep);
 
     resizer_->journalBeginTest();
     resizer_->logger()->setDebugLevel(utl::RSZ, "journal", 1);

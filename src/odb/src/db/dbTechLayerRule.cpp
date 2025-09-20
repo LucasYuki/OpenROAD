@@ -3,7 +3,10 @@
 
 #include "dbTechLayerRule.h"
 
+#include <cassert>
+
 #include "dbBlock.h"
+#include "dbCore.h"
 #include "dbDatabase.h"
 #include "dbTable.h"
 #include "dbTable.hpp"
@@ -113,12 +116,11 @@ bool _dbTechLayerRule::operator==(const _dbTechLayerRule& rhs) const
 
 _dbTech* _dbTechLayerRule::getTech()
 {
-#if 0  // dead code generates warnings -cherry
-    if (_flags._block_rule == 0)
-        (_dbTech *) getOwner();
-#endif
+  if (_flags._block_rule == 0) {
+    return (_dbTech*) getOwner();
+  }
 
-  return (_dbTech*) getDb()->getTech();
+  return (_dbTech*) getBlock()->getTech();
 }
 
 _dbBlock* _dbTechLayerRule::getBlock()

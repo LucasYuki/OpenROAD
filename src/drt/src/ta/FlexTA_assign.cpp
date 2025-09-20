@@ -3,10 +3,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
 #include <limits>
 #include <utility>
 #include <vector>
 
+#include "db/obj/frBlockObject.h"
+#include "db/obj/frVia.h"
+#include "db/tech/frViaDef.h"
+#include "frBaseTypes.h"
 #include "ta/FlexTA.h"
 
 namespace drt {
@@ -822,8 +828,10 @@ frUInt4 FlexTAWorker::assignIroute_getDRCCost_helper(taPin* iroute,
     exit(1);
   }
   // always penalize two pitch per cut, regardless of cnts
-  return (overlap == 0) ? 0
-                        : (isCut ? pitch * 2 : std::max(pitch * 2, overlap));
+  if (overlap == 0) {
+    return 0;
+  }
+  return isCut ? pitch * 2 : std::max(pitch * 2, overlap);
 }
 
 frUInt4 FlexTAWorker::assignIroute_getDRCCost(taPin* iroute, frCoord trackLoc)
@@ -1160,7 +1168,7 @@ void FlexTAWorker::assignIroute_updateOthers(frOrderedIdSet<taPin*>& pinS)
     return;
   }
   for (auto& iroute : pinS) {
-    if (iroute->getGuide()->getNet()->isClock() && !hardIroutesMode) {
+    if (iroute->getGuide()->getNet()->isClock() && !hardIroutesMode_) {
       continue;
     }
     removeFromReassignIroutes(iroute);

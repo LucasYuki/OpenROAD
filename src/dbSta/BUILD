@@ -12,28 +12,100 @@ package(
 cc_library(
     name = "dbSta",
     srcs = [
-        "src/SpefWriter.cc",
-        "src/dbNetwork.cc",
-        "src/dbReadVerilog.cc",
-        "src/dbSdcNetwork.cc",
-        "src/dbSdcNetwork.hh",
         "src/dbSta.cc",
     ],
     hdrs = [
-        "include/db_sta/SpefWriter.hh",
-        "include/db_sta/dbNetwork.hh",
-        "include/db_sta/dbReadVerilog.hh",
         "include/db_sta/dbSta.hh",
     ],
     includes = [
         "include",
     ],
     deps = [
-        "//:opensta_lib",
+        ":dbNetwork",
+        ":dbSdcNetwork",
         "//src/odb",
+        "//src/sta:opensta_lib",
         "//src/utl",
         "@boost.json",
+        "@spdlog",
         "@tk_tcl//:tcl",
+    ],
+)
+
+cc_library(
+    name = "dbReadVerilog",
+    srcs = [
+        "src/dbReadVerilog.cc",
+    ],
+    hdrs = [
+        "include/db_sta/dbReadVerilog.hh",
+    ],
+    includes = [
+        "include",
+    ],
+    deps = [
+        ":dbNetwork",
+        ":dbSta",
+        "//src/odb",
+        "//src/sta:opensta_lib",
+        "//src/utl",
+    ],
+)
+
+cc_library(
+    name = "SpefWriter",
+    srcs = [
+        "src/SpefWriter.cc",
+    ],
+    hdrs = [
+        "include/db_sta/SpefWriter.hh",
+    ],
+    includes = [
+        "include",
+    ],
+    deps = [
+        ":dbNetwork",
+        ":dbSta",
+        "//src/odb",
+        "//src/sta:opensta_lib",
+        "//src/utl",
+    ],
+)
+
+cc_library(
+    name = "dbSdcNetwork",
+    srcs = [
+        "src/dbSdcNetwork.cc",
+    ],
+    hdrs = [
+        "src/dbSdcNetwork.hh",
+    ],
+    includes = [
+        "include",
+    ],
+    deps = [
+        "//src/sta:opensta_lib",
+        "@spdlog",
+    ],
+)
+
+cc_library(
+    name = "dbNetwork",
+    srcs = [
+        "src/dbEditHierarchy.cc",
+        "src/dbEditHierarchy.hh",
+        "src/dbNetwork.cc",
+    ],
+    hdrs = [
+        "include/db_sta/dbNetwork.hh",
+    ],
+    includes = [
+        "include",
+    ],
+    deps = [
+        "//src/odb",
+        "//src/sta:opensta_lib",
+        "//src/utl",
     ],
 )
 
@@ -43,14 +115,10 @@ cc_library(
         "src/MakeDbSta.cc",
         ":swig",
         ":tcl",
-        "//:StaConfig",
+        "//src/sta:StaConfig",
     ],
     hdrs = [
         "include/db_sta/MakeDbSta.hh",
-        "include/db_sta/SpefWriter.hh",
-        "include/db_sta/dbNetwork.hh",
-        "include/db_sta/dbReadVerilog.hh",
-        "include/db_sta/dbSta.hh",
     ],
     copts = [
         "-Isrc/dbSta/src",
@@ -60,11 +128,14 @@ cc_library(
         "include",
     ],
     deps = [
-        "//:opensta_lib",
+        ":dbNetwork",
+        ":dbSta",
         "//:ord",
         "//src/odb",
+        "//src/sta:opensta_lib",
         "//src/utl",
         "@boost.json",
+        "@boost.stacktrace",
         "@tk_tcl//:tcl",
     ],
 )
@@ -74,7 +145,7 @@ tcl_encode(
     srcs = [
         "src/dbReadVerilog.tcl",
         "src/dbSta.tcl",
-        "//:tcl_scripts",
+        "//src/sta:tcl_scripts",
     ],
     char_array_name = "dbSta_tcl_inits",
     namespace = "sta",
@@ -85,7 +156,7 @@ tcl_wrap_cc(
     srcs = [
         "src/dbSta.i",
         "//:error_swig",
-        "//:sta_swig_files",
+        "//src/sta:sta_swig_files",
     ],
     module = "dbSta",
     namespace_prefix = "sta",

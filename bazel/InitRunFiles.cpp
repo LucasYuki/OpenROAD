@@ -41,22 +41,29 @@ class BazelInitializer
     using rules_cc::cc::runfiles::Runfiles;
 
     std::string error;
-    std::unique_ptr<Runfiles> runfiles(Runfiles::Create(
-        getProgramLocation().value(), BAZEL_CURRENT_REPOSITORY, &error));
+    std::string program_location = getProgramLocation().value();
+    std::unique_ptr<Runfiles> runfiles(
+        Runfiles::Create(program_location, BAZEL_CURRENT_REPOSITORY, &error));
     if (!runfiles) {
       std::cerr << "Error initializing Bazel runfiles: " << error << std::endl;
       std::exit(1);
     }
 
     // Set the TCL_LIBRARY environment variable
-    std::string path = runfiles->Rlocation("tk_tcl/library/");
-    if (!path.empty()) {
-      setenv("TCL_LIBRARY", path.c_str(), 0);
+    const std::string tcl_path = runfiles->Rlocation("tk_tcl/library/");
+    if (!tcl_path.empty()) {
+      setenv("TCL_LIBRARY", tcl_path.c_str(), 0);
     } else {
       std::cerr << "Error: Could not locate 'tk_tcl/library/' in runfiles."
                 << std::endl;
       std::exit(1);
     }
+
+    // Setup env variables for any other libraries that use runfiles
+    std::string manifest = program_location + ".runfiles/MANIFEST";
+    std::string runfiles_dir = program_location + ".runfiles";
+    setenv("RUNFILES_MANIFEST_FILE", manifest.c_str(), /*__replace=*/true);
+    setenv("RUNFILES_DIR", runfiles_dir.c_str(), /*__replace=*/true);
   }
 };
 

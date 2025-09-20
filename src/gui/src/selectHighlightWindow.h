@@ -19,6 +19,7 @@
 #include <QToolBar>
 #include <QVariant>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "gui/gui.h"
@@ -84,8 +85,8 @@ class SelectHighlightWindow : public QDockWidget
   Q_OBJECT
 
  public:
-  explicit SelectHighlightWindow(const SelectionSet& selSet,
-                                 const HighlightSet& hltSet,
+  explicit SelectHighlightWindow(const SelectionSet& sel_set,
+                                 const HighlightSet& hlt_set,
                                  QWidget* parent = nullptr);
   ~SelectHighlightWindow() override;
 

@@ -10,14 +10,23 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <limits>
-#include <random>
+#include <map>
+#include <memory>
+#include <set>
 #include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
 #include "gpl/graphics.h"
+#include "odb/db.h"
 #include "odb/dbTransform.h"
+#include "odb/dbTypes.h"
+#include "odb/geom.h"
 #include "ortools/linear_solver/linear_solver.h"
 #include "ortools/sat/cp_model.h"
 #include "rsz/Resizer.hh"
@@ -637,9 +646,9 @@ MBFF::Mask MBFF::GetArrayMask(dbInst* inst, const bool isTray)
 
   const sta::Cell* cell = network_->dbToSta(inst->getMaster());
   const sta::LibertyCell* lib_cell = getLibertyCell(cell);
-  for (const sta::Sequential* seq : lib_cell->sequentials()) {
-    ret.func_idx = GetMatchingFunc(seq->data(), inst, isTray);
-    break;
+  const auto& seqs = lib_cell->sequentials();
+  if (!seqs.empty()) {
+    ret.func_idx = GetMatchingFunc(seqs.front()->data(), inst, isTray);
   }
 
   ret.is_scan_cell = IsScanCell(inst);
@@ -828,9 +837,13 @@ void MBFF::ModifyPinConnections(const std::vector<Flop>& flops,
         }
         if (IsSupplyPin(iterm)) {
           if (iterm->getSigType() == odb::dbSigType::GROUND) {
-            ground->connect(net);
+            if (ground) {
+              ground->connect(net);
+            }
           } else {
-            power->connect(net);
+            if (power) {
+              power->connect(net);
+            }
           }
         }
         if (IsClockPin(iterm)) {
@@ -1772,6 +1785,10 @@ float MBFF::GetKSilh(const std::vector<std::vector<Flop>>& clusters,
       a_j /= (cur_sz - 1);
       tot += ((b_j - a_j) / std::max(a_j, b_j));
     }
+  }
+
+  if (num_flops == 0) {
+    return 0.0f;
   }
   return tot / num_flops;
 }

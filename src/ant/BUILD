@@ -3,17 +3,11 @@
 
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
+load("//bazel:python_wrap_cc.bzl", "python_wrap_cc")
 
 package(
     default_visibility = ["//:__subpackages__"],
     features = ["layering_check"],
-)
-
-# Broken out due to cyclic dependency between grt and ant
-cc_library(
-    name = "types",
-    hdrs = ["include/ant/GlobalRouteSource.hh"],
-    includes = ["include"],
 )
 
 cc_library(
@@ -23,6 +17,8 @@ cc_library(
         "src/PinType.hh",
         "src/Polygon.cc",
         "src/Polygon.hh",
+        "src/WireBuilder.cc",
+        "src/WireBuilder.hh",
     ],
     hdrs = [
         "include/ant/AntennaChecker.hh",
@@ -34,7 +30,6 @@ cc_library(
         "include",
     ],
     deps = [
-        ":types",
         "//src/odb",
         "//src/utl",
         "@boost.container_hash",
@@ -52,16 +47,15 @@ cc_library(
         ":tcl",
     ],
     hdrs = [
-        "include/ant/AntennaChecker.hh",
-        "include/ant/GlobalRouteSource.hh",
         "include/ant/MakeAntennaChecker.hh",
     ],
     includes = ["include"],
     deps = [
+        ":ant",
         "//:ord",
-        "//src/grt:types",
         "//src/odb",
         "//src/utl",
+        "@boost.stacktrace",
         "@tk_tcl//:tcl",
     ],
 )
@@ -85,6 +79,24 @@ tcl_wrap_cc(
     namespace_prefix = "ant",
     root_swig_src = "src/AntennaChecker.i",
     swig_includes = [
+        "src",
+    ],
+)
+
+python_wrap_cc(
+    name = "swig-py",
+    srcs = [
+        "include/ant/AntennaChecker.hh",
+        "src/AntennaChecker.i",
+        "//:error_swig-py",
+    ],
+    deps = [
+        "//src/odb:swig-py",
+    ],
+    module = "ant_py",
+    root_swig_src = "src/AntennaChecker-py.i",
+    swig_includes = [
+        "include",
         "src",
     ],
 )

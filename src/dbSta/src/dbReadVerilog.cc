@@ -9,6 +9,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <regex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
 #include "odb/db.h"
+#include "odb/dbTypes.h"
 #include "sta/ConcreteLibrary.hh"
 #include "sta/ConcreteNetwork.hh"
 #include "sta/NetworkCmp.hh"
@@ -168,6 +170,7 @@ class Verilog2db
   void makeChildInsts(Instance* inst, dbModule* module, InstPairs& inst_pairs);
   void makeModBTerms(Cell* cell, dbModule* module);
   void makeModITerms(Instance* inst, dbModInst* modinst);
+  void registerHierModule(dbModule* module);
   dbIoType staToDb(PortDirection* dir);
   bool staToDb(dbModule* module,
                const Pin* pin,
@@ -198,15 +201,15 @@ class Verilog2db
   std::map<std::string, int> src_file_id_;
   // We have to store dont_touch instances and apply the attribute after
   // creating iterms; as iterms can't be added to a dont_touch inst
-  std::vector<dbInst*> dont_touch_insts;
+  std::vector<dbInst*> dont_touch_insts_;
   bool hierarchy_ = false;
   bool omit_filename_prop_ = false;
-  static const std::regex line_info_re;
+  static const std::regex kLineInfoRe;
   std::vector<ConcreteCell*> unused_cells_;
 };
 
 // Example: "./designs/src/gcd/gcd.v:571.3-577.6"
-const std::regex Verilog2db::line_info_re("^(.*):(\\d+)\\.\\d+-\\d+\\.\\d+$");
+const std::regex Verilog2db::kLineInfoRe("^(.*):(\\d+)\\.\\d+-\\d+\\.\\d+$");
 
 bool dbLinkDesign(const char* top_cell_name,
                   dbVerilogNetwork* verilog_network,
@@ -249,7 +252,7 @@ void Verilog2db::makeBlock()
 {
   dbChip* chip = db_->getChip();
   if (chip == nullptr) {
-    chip = dbChip::create(db_);
+    chip = dbChip::create(db_, db_->getTech());
   }
   block_ = chip->getBlock();
   if (block_) {
@@ -273,10 +276,9 @@ void Verilog2db::makeBlock()
   } else {
     const char* design
         = network_->name(network_->cell(network_->topInstance()));
-    block_ = dbBlock::create(
-        chip, design, db_->getTech(), network_->pathDivider());
+    block_ = dbBlock::create(chip, design, network_->pathDivider());
   }
-  dbTech* tech = db_->getTech();
+  dbTech* tech = chip->getTech();
   block_->setDefUnits(tech->getLefUnits());
   block_->setBusDelimiters('[', ']');
 }
@@ -291,7 +293,7 @@ void Verilog2db::makeDbNetlist()
   if (hierarchy_) {
     makeVModNets(inst_pairs);
   }
-  for (auto inst : dont_touch_insts) {
+  for (auto inst : dont_touch_insts_) {
     inst->setDoNotTouch(true);
   }
 }
@@ -332,7 +334,7 @@ void Verilog2db::storeLineInfo(const std::string& attribute, dbInst* db_inst)
 
   std::smatch match;
 
-  if (std::regex_match(attribute, match, line_info_re)) {
+  if (std::regex_match(attribute, match, kLineInfoRe)) {
     const std::string file_name = match[1];
     const auto iter = src_file_id_.find(file_name);
     int file_id;
@@ -389,6 +391,8 @@ void Verilog2db::makeDbModule(
     module = dbModule::makeUniqueDbModule(
         network_->name(cell), network_->name(inst), block_);
 
+    registerHierModule(module);
+
     std::string module_inst_name = network_->name(inst);
 
     dbModInst* modinst
@@ -396,10 +400,17 @@ void Verilog2db::makeDbModule(
 
     inst_pairs.emplace_back(inst, modinst);
 
-    std::string impl_oper = network_->getAttribute(inst, "implements_operator");
+    // Verilog attribute is on a cell not an instance
+    std::string impl_oper = network_->getAttribute(cell, "implements_operator");
     if (!impl_oper.empty()) {
       odb::dbStringProperty::create(
           modinst, "implements_operator", impl_oper.c_str());
+      debugPrint(logger_,
+                 utl::ODB,
+                 "dbReadVerilog",
+                 1,
+                 "Added implements_operator attribute to mod inst {}",
+                 module_inst_name);
     }
 
     debugPrint(logger_,
@@ -423,6 +434,14 @@ void Verilog2db::makeDbModule(
     }
   }
   makeChildInsts(inst, module, inst_pairs);
+}
+
+void Verilog2db::registerHierModule(dbModule* module)
+{
+  // Register the module as a hierarchical module in the dbNetwork.
+  dbNetwork* db_network
+      = static_cast<dbVerilogNetwork*>(network_)->getDbNetwork();
+  db_network->registerHierModule(db_network->dbToSta(module));
 }
 
 void Verilog2db::makeModBTerms(Cell* cell, dbModule* module)
@@ -575,7 +594,7 @@ void Verilog2db::makeChildInsts(Instance* inst,
       const auto dont_touch = network_->getAttribute(child, "dont_touch");
       if (!dont_touch.empty()) {
         if (std::stoi(dont_touch)) {
-          dont_touch_insts.push_back(db_inst);
+          dont_touch_insts_.push_back(db_inst);
         }
       }
 
@@ -791,9 +810,9 @@ void Verilog2db::makeVModNets(const Instance* inst, dbModInst* mod_inst)
   dbModule* parent_module = mod_inst->getParent();
   dbModule* child_module = mod_inst->getMaster();
 
-  std::unique_ptr<InstancePinIterator> pinIter{network_->pinIterator(inst)};
-  while (pinIter->hasNext()) {
-    Pin* inst_pin = pinIter->next();
+  std::unique_ptr<InstancePinIterator> pin_iter{network_->pinIterator(inst)};
+  while (pin_iter->hasNext()) {
+    Pin* inst_pin = pin_iter->next();
     Net* inst_pin_net = network_->net(inst_pin);
 
     if (!inst_pin_net) {
@@ -823,8 +842,8 @@ void Verilog2db::makeVModNets(const Instance* inst, dbModInst* mod_inst)
 
     // make sure any top level bterms are connected to this net too...
     if (parent_module == block_->getTopModule()) {
-      NetConnectedPinIterator* pin_iter
-          = network_->connectedPinIterator(inst_pin_net);
+      std::unique_ptr<NetConnectedPinIterator> pin_iter{
+          network_->connectedPinIterator(inst_pin_net)};
       while (pin_iter->hasNext()) {
         const Pin* pin = pin_iter->next();
         staToDb(parent_module, pin, bterm, iterm, mod_bterm, mod_iterm);
@@ -983,9 +1002,9 @@ dbMaster* Verilog2db::getMaster(Cell* cell)
 void Verilog2db::makeModNets(Instance* inst)
 {
   dbModule* module = block_->getTopModule();
-  std::unique_ptr<InstancePinIterator> pinIter{network_->pinIterator(inst)};
-  while (pinIter->hasNext()) {
-    Pin* inst_pin = pinIter->next();
+  std::unique_ptr<InstancePinIterator> pin_iter{network_->pinIterator(inst)};
+  while (pin_iter->hasNext()) {
+    Pin* inst_pin = pin_iter->next();
     debugPrint(logger_,
                utl::ODB,
                "dbReadVerilog",
@@ -1040,16 +1059,17 @@ void Verilog2db::processUnusedCells(const char* top_cell_name,
                                     bool link_make_black_boxes)
 {
   // Collect all unused modules
-  std::unique_ptr<sta::LibraryIterator> libraryIterator{
+  std::unique_ptr<sta::LibraryIterator> library_iterator{
       network_->libraryIterator()};
-  while (libraryIterator->hasNext()) {
+  while (library_iterator->hasNext()) {
     sta::ConcreteLibrary* lib
-        = (sta::ConcreteLibrary*) (libraryIterator->next());
+        = (sta::ConcreteLibrary*) (library_iterator->next());
     std::unique_ptr<sta::ConcreteLibraryCellIterator> lib_cell_iter{
         lib->cellIterator()};
     while (lib_cell_iter->hasNext()) {
       sta::ConcreteCell* curr_cell = lib_cell_iter->next();
-      if (!block_->findModule(curr_cell->name())
+      std::string impl_oper = curr_cell->getAttribute("implements_operator");
+      if (!impl_oper.empty() && !block_->findModule(curr_cell->name())
           && !verilog_network->isBlackBox(curr_cell)) {
         unused_cells_.emplace_back(curr_cell);
         debugPrint(logger_,
@@ -1101,14 +1121,14 @@ void Verilog2db::makeUnusedBlock(const char* name)
 {
   dbChip* chip = db_->getChip();
   if (chip == nullptr) {
-    chip = dbChip::create(db_);
+    chip = dbChip::create(db_, db_->getTech());
   }
   // Create a child block
   if (top_block_ == nullptr) {
     top_block_ = chip->getBlock();
   }
-  dbTech* tech = db_->getTech();
-  block_ = dbBlock::create(top_block_, name, tech, network_->pathDivider());
+  dbTech* tech = chip->getTech();
+  block_ = dbBlock::create(top_block_, name, network_->pathDivider());
   block_->setDefUnits(tech->getLefUnits());
   block_->setBusDelimiters('[', ']');
   debugPrint(logger_,
@@ -1138,7 +1158,7 @@ void Verilog2db::makeUnusedDbNetlist()
   if (hierarchy_) {
     makeVModNets(inst_pairs);
   }
-  for (auto inst : dont_touch_insts) {
+  for (auto inst : dont_touch_insts_) {
     inst->setDoNotTouch(true);
   }
 }

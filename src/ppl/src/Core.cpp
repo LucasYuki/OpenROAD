@@ -3,7 +3,7 @@
 
 #include "Core.h"
 
-#include <algorithm>
+#include "odb/geom.h"
 
 namespace ppl {
 
@@ -18,6 +18,11 @@ int Core::getPerimeter() const
   int y = boundary_.yMax() - boundary_.yMin();
 
   return (x + y) * 2;
+}
+
+std::vector<odb::Line> Core::getDieAreaEdges()
+{
+  return die_area_edges_;
 }
 
 odb::Point Core::getMirroredPosition(const odb::Point& position) const

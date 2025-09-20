@@ -7,34 +7,48 @@
 #include <omp.h>
 
 #include <algorithm>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/io/ios_state.hpp>
+#include <atomic>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
+#include <ios>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
+#include <queue>
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "boost/archive/text_iarchive.hpp"
+#include "boost/archive/text_oarchive.hpp"
+#include "boost/io/ios_state.hpp"
+#include "boost/polygon/polygon.hpp"
 #include "db/infra/KDTree.hpp"
 #include "db/infra/frTime.h"
+#include "db/obj/frBlockObject.h"
+#include "db/obj/frShape.h"
+#include "db/obj/frVia.h"
 #include "distributed/RoutingJobDescription.h"
 #include "distributed/frArchive.h"
 #include "dr/AbstractDRGraphics.h"
 #include "dr/FlexDR_conn.h"
 #include "dst/BalancerJobDescription.h"
 #include "dst/Distributed.h"
+#include "frBaseTypes.h"
+#include "frDesign.h"
 #include "frProfileTask.h"
 #include "gc/FlexGC.h"
 #include "io/io.h"
+#include "odb/dbTypes.h"
 #include "serialization.h"
 #include "utl/Progress.h"
 #include "utl/ScopedTemporaryFile.h"
@@ -87,7 +101,7 @@ void serializeViaData(const FlexDRViaData& viaData, std::string& serializedStr)
 
 FlexDR::FlexDR(TritonRoute* router,
                frDesign* designIn,
-               Logger* loggerIn,
+               utl::Logger* loggerIn,
                odb::dbDatabase* dbIn,
                RouterConfiguration* router_cfg)
     : router_(router),
@@ -589,7 +603,9 @@ std::unique_ptr<FlexDRWorker> FlexDR::createWorker(const int x_offset,
 }
 
 namespace {
-void printIteration(Logger* logger, const int iter, const bool stubborn_flow)
+void printIteration(utl::Logger* logger,
+                    const int iter,
+                    const bool stubborn_flow)
 {
   std::string suffix;
   if (iter == 1 || (iter > 20 && iter % 10 == 1)) {
@@ -609,7 +625,7 @@ void printIteration(Logger* logger, const int iter, const bool stubborn_flow)
                stubborn_flow ? "stubborn tiles" : "optimization");
 }
 
-void printIterationProgress(Logger* logger,
+void printIterationProgress(utl::Logger* logger,
                             FlexDR::IterationProgress& iter_prog,
                             const int num_markers,
                             const int max_perc = 90)
@@ -750,8 +766,9 @@ void FlexDR::processWorkersBatchDistributed(
   {
     ProfileTask task("DIST: SERIALIZE+SEND");
 #pragma omp parallel for schedule(dynamic)
-    for (int i = 0; i < distWorkerBatches.size(); i++)  // NOLINT
+    for (int i = 0; i < distWorkerBatches.size(); i++) {  // NOLINT
       sendWorkers(distWorkerBatches.at(i), workers_batch);
+    }
   }
   std::vector<std::pair<int, std::string>> workers;
   router_->getWorkerResults(workers);
@@ -1860,9 +1877,9 @@ int FlexDR::main()
       io::Writer writer(getDesign(), logger_);
       writer.updateDb(db_, router_cfg_, false, true);
 
-      db_->write(utl::OutStreamHandler(
-                     fmt::format("drt_iter{}.odb", iter_).c_str(), true)
-                     .getStream());
+      std::string snapshotPath = fmt::format(
+          "{}/drt_iter{}.odb", router_->getDebugSettings()->snapshotDir, iter_);
+      db_->write(utl::OutStreamHandler(snapshotPath.c_str(), true).getStream());
     }
     if (reporter->incrementProgress()) {
       break;
@@ -1902,8 +1919,8 @@ void FlexDR::sendWorkers(
   std::string remote_ip = dist_ip_;
   uint16_t remote_port = dist_port_;
   if (router_->getCloudSize() > 1) {
-    dst::JobMessage msg(dst::JobMessage::BALANCER),
-        result(dst::JobMessage::NONE);
+    dst::JobMessage msg(dst::JobMessage::kBalancer),
+        result(dst::JobMessage::kNone);
     bool ok = dist_->sendJob(msg, dist_ip_.c_str(), dist_port_, result);
     if (!ok) {
       logger_->error(utl::DRT, 7461, "Balancer failed");
@@ -1916,8 +1933,8 @@ void FlexDR::sendWorkers(
     }
   }
   {
-    dst::JobMessage msg(dst::JobMessage::ROUTING),
-        result(dst::JobMessage::NONE);
+    dst::JobMessage msg(dst::JobMessage::kRouting),
+        result(dst::JobMessage::kNone);
     std::unique_ptr<dst::JobDescription> desc
         = std::make_unique<RoutingJobDescription>();
     RoutingJobDescription* rjd

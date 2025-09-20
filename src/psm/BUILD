@@ -3,6 +3,7 @@
 
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
+load("//bazel:python_wrap_cc.bzl", "python_wrap_cc")
 
 package(
     default_visibility = ["//:__subpackages__"],
@@ -39,16 +40,18 @@ cc_library(
         "include",
     ],
     deps = [
-        "//:opensta_lib",
         "//:ord",
         "//src/dbSta",
+        "//src/dbSta:dbNetwork",
         "//src/dpl",
+        "//src/est",
         "//src/gui",
         "//src/odb",
-        "//src/rsz",
+        "//src/sta:opensta_lib",
         "//src/utl",
         "@boost.geometry",
         "@boost.polygon",
+        "@boost.stacktrace",
         "@eigen",
         "@tk_tcl//:tcl",
     ],
@@ -77,5 +80,22 @@ tcl_wrap_cc(
     ],
     deps = [
         "//src/odb:swig",
+    ],
+)
+
+python_wrap_cc(
+    name = "swig-py",
+    srcs = [
+        "include/psm/pdnsim.h",
+        "src/pdnsim-py.i",
+        "//:error_swig-py",
+    ],
+    module = "psm_py",
+    root_swig_src = "src/pdnsim-py.i",
+    swig_includes = [
+        "include",
+    ],
+    deps = [
+        "//src/odb:swig-py",
     ],
 )

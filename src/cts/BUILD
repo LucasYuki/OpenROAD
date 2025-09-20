@@ -3,6 +3,7 @@
 
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
+load("//bazel:python_wrap_cc.bzl", "python_wrap_cc")
 
 package(
     default_visibility = ["//:__subpackages__"],
@@ -24,6 +25,11 @@ cc_library(
         "src/Util.h",
     ],
     visibility = ["//visibility:private"],
+    deps = [
+        "//src/sta:opensta_lib",
+        "@boost.container_hash",
+        "@boost.unordered",
+    ],
 )
 
 cc_library(
@@ -42,14 +48,18 @@ cc_library(
     ],
     hdrs = [
         "include/cts/TritonCTS.h",
+        "src/CtsOptions.h",
+        "src/TechChar.h",
     ],
-    includes = ["include"],
+    includes = ["include", "src"],
     deps = [
         ":private_hdrs",
-        "//:opensta_lib",
         "//src/dbSta",
+        "//src/dbSta:dbNetwork",
+        "//src/est",
         "//src/odb",
         "//src/rsz",
+        "//src/sta:opensta_lib",
         "//src/stt",
         "//src/utl",
         "@boost.container_hash",
@@ -70,20 +80,22 @@ cc_library(
     ],
     hdrs = [
         "include/cts/MakeTritoncts.h",
-        "include/cts/TritonCTS.h",
     ],
     copts = [
         "-Isrc/cts/src",
     ],
     includes = ["include"],
     deps = [
+        ":cts",
         ":private_hdrs",
         "//:ord",
         "//src/dbSta",
+        "//src/est",
         "//src/gui",
         "//src/odb",
         "//src/rsz",
         "//src/utl",
+        "@boost.stacktrace",
         "@tk_tcl//:tcl",
     ],
 )
@@ -108,5 +120,20 @@ tcl_wrap_cc(
     root_swig_src = "src/TritonCTS.i",
     swig_includes = [
         "src/cts/src",
+    ],
+)
+
+python_wrap_cc(
+    name = "swig-py",
+    srcs = [
+        "include/cts/TritonCTS.h",
+        "src/CtsOptions.h",
+        "src/TritonCTS-py.i",
+        "//:error_swig-py",
+    ],
+    module = "cts_py",
+    root_swig_src = "src/TritonCTS-py.i",
+    swig_includes = [
+        "include",
     ],
 )

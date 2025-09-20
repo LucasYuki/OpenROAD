@@ -17,6 +17,7 @@ class dbDatabase;
 class dbBlock;
 class dbTech;
 class dbLib;
+class dbChip;
 class Point;
 class Rect;
 }  // namespace odb
@@ -33,6 +34,10 @@ class Resizer;
 
 namespace ppl {
 class IOPlacer;
+}
+
+namespace cgt {
+class ClockGating;
 }
 
 namespace rmp {
@@ -101,7 +106,8 @@ class ICeWall;
 
 namespace utl {
 class Logger;
-}
+class CallBackHandler;
+}  // namespace utl
 
 namespace dst {
 class Distributed;
@@ -118,9 +124,11 @@ namespace epl{
 class EPlace;
 }
 
-namespace ord {
+namespace est {
+class EstimateParasitics;
+}
 
-using std::string;
+namespace ord {
 
 class dbVerilogNetwork;
 
@@ -141,9 +149,11 @@ class OpenRoad
 
   Tcl_Interp* tclInterp() { return tcl_interp_; }
   utl::Logger* getLogger() { return logger_; }
+  utl::CallBackHandler* getCallBackHandler() { return callback_handler_; }
   odb::dbDatabase* getDb() { return db_; }
   sta::dbSta* getSta() { return sta_; }
   sta::dbNetwork* getDbNetwork();
+  cgt::ClockGating* getClockGating() { return clock_gating_; }
   rsz::Resizer* getResizer() { return resizer_; }
   rmp::Restructure* getRestructure() { return restructure_; }
   cts::TritonCTS* getTritonCts() { return tritonCts_; }
@@ -167,6 +177,10 @@ class OpenRoad
   stt::SteinerTreeBuilder* getSteinerTreeBuilder() { return stt_builder_; }
   dft::Dft* getDft() { return dft_; }
   epl::EPlace* getEPlace() { return eplace_; }
+  est::EstimateParasitics* getEstimateParasitics()
+  {
+    return estimate_parasitics_;
+  }
 
   // Return the bounding box of the db rows.
   odb::Rect getCore();
@@ -180,11 +194,10 @@ class OpenRoad
                bool make_library);
 
   void readDef(const char* filename,
-               odb::dbTech* tech,
+               odb::dbChip* chip,
                bool continue_on_errors,
                bool floorplan_init,
-               bool incremental,
-               bool child);
+               bool incremental);
 
   void writeLef(const char* filename);
 
@@ -192,13 +205,14 @@ class OpenRoad
                         int bloat_factor,
                         bool bloat_occupied_layers);
 
+  void writeDef(const char* filename, const char* version);
   void writeDef(const char* filename,
                 // major.minor (avoid including defout.h)
-                const string& version);
+                const std::string& version);
 
-  void writeCdl(const char* outFilename,
-                const std::vector<const char*>& mastersFilenames,
-                bool includeFillers);
+  void writeCdl(const char* out_filename,
+                const std::vector<const char*>& masters_filenames,
+                bool include_fillers);
 
   void readVerilog(const char* filename);
   void linkDesign(const char* design_name,
@@ -213,8 +227,8 @@ class OpenRoad
   void writeDb(std::ostream& stream);
   void writeDb(const char* filename);
 
-  void setThreadCount(int threads, bool printInfo = true);
-  void setThreadCount(const char* threads, bool printInfo = true);
+  void setThreadCount(int threads, bool print_info = true);
+  void setThreadCount(const char* threads, bool print_info = true);
   int getThreadCount();
 
   std::string getExePath() const;
@@ -246,6 +260,7 @@ class OpenRoad
   mpl::MacroPlacer* macro_placer_ = nullptr;
   exa::Example* example_ = nullptr;
   grt::GlobalRouter* global_router_ = nullptr;
+  cgt::ClockGating* clock_gating_ = nullptr;
   rmp::Restructure* restructure_ = nullptr;
   cts::TritonCTS* tritonCts_ = nullptr;
   tap::Tapcell* tapcell_ = nullptr;
@@ -261,6 +276,8 @@ class OpenRoad
   stt::SteinerTreeBuilder* stt_builder_ = nullptr;
   dft::Dft* dft_ = nullptr;
   epl::EPlace* eplace_ = nullptr;
+  est::EstimateParasitics* estimate_parasitics_ = nullptr;
+  utl::CallBackHandler* callback_handler_ = nullptr;
 
   int threads_ = 1;
 

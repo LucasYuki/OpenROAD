@@ -3,14 +3,19 @@
 
 #pragma once
 
-#include <boost/icl/interval_set.hpp>
 #include <map>
+#include <queue>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "boost/icl/interval_set.hpp"
+#include "db/obj/frBlockObject.h"
+#include "db/obj/frInstTerm.h"
 #include "db/tech/frTechObject.h"
+#include "frBaseTypes.h"
 #include "frDesign.h"
+#include "global.h"
 #include "odb/db.h"
 #include "utl/Logger.h"
 
@@ -201,8 +206,37 @@ class GuideProcessor
   // write guide
   void saveGuidesUpdates();
 
+  /**
+   * @brief Reads the GCell grid information from the database
+   * This function should be called before processing guides to ensure
+   * we have all necessary grid information from the database.
+   */
+  void readGCellGrid();
+
+  /**
+   * @brief Checks the validity of the odb guide layer
+   *
+   * The db_guide layer is invalid if it is any of the following conditions:
+   * - Not in the DRT layer database
+   * - Above the sepecified top routing layer
+   * - Below the specified bottom routing layer and the via access layer
+   * @note If a layer is invalid, this produces an error unless it is above the
+   * top routing layer for a net that has pins above the top routing layer. In
+   * the latest case, we just ignore the guide and the pin is handled by
+   * io::Parser::setBTerms_addPinFig_helper
+   * @param db_guide The guide to check
+   * @param net The net containing the guide
+   * @param layer_num The layer_num of the guide returned by this function if it
+   * is a valid layer
+   * @returns True if the guide is valid by the previous criteria and False
+   * if above top routing layer for a net with bterms above top routing layer
+   */
+  bool isValidGuideLayerNum(odb::dbGuide* db_guide,
+                            frNet* net,
+                            frLayerNum& layer_num);
+
   frDesign* design_;
-  Logger* logger_;
+  utl::Logger* logger_;
   odb::dbDatabase* db_;
   RouterConfiguration* router_cfg_;
   frOrderedIdMap<frNet*, std::vector<frRect>> tmp_guides_;
@@ -227,7 +261,7 @@ class GuidePathFinder
    * @param pin_gcell_map A map of pins and their corresponding GCell indices.
    */
   GuidePathFinder(frDesign* design,
-                  Logger* logger,
+                  utl::Logger* logger,
                   RouterConfiguration* router_cfg,
                   frNet* net,
                   bool force_feed_through,
@@ -401,7 +435,7 @@ class GuidePathFinder
   frTechObject* getTech() const { return design_->getTech(); }
 
   frDesign* design_{nullptr};
-  Logger* logger_{nullptr};
+  utl::Logger* logger_{nullptr};
   RouterConfiguration* router_cfg_{nullptr};
   frNet* net_{nullptr};
   bool force_feed_through_{false};

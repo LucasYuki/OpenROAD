@@ -3,6 +3,7 @@
 
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
+load("//bazel:python_wrap_cc.bzl", "python_wrap_cc")
 
 package(
     default_visibility = ["//:__subpackages__"],
@@ -21,9 +22,10 @@ cc_library(
         "include",
     ],
     deps = [
-        "//:opensta_lib",
         "//src/dbSta",
+        "//src/dbSta:dbNetwork",
         "//src/odb",
+        "//src/sta:opensta_lib",
         "//src/upf",
         "//src/utl",
     ],
@@ -47,12 +49,13 @@ cc_library(
         "include",
     ],
     deps = [
-        "//:opensta_lib",
         "//:ord",
         "//src/dbSta",
         "//src/gui",
         "//src/odb",
+        "//src/sta:opensta_lib",
         "//src/utl",
+        "@boost.stacktrace",
         "@tk_tcl//:tcl",
     ],
 )
@@ -80,5 +83,23 @@ tcl_wrap_cc(
     ],
     deps = [
         "//src/odb:swig",
+    ],
+)
+
+python_wrap_cc(
+    name = "swig-py",
+    srcs = [
+        "include/ifp/InitFloorplan.hh",
+        "src/InitFloorplan-py.i",
+        "//:error_swig-py",
+    ],
+    module = "ifp_py",
+    root_swig_src = "src/InitFloorplan-py.i",
+    swig_includes = [
+        "include",
+        "src",
+    ],
+    deps = [
+        "//src/odb:swig-py",
     ],
 )

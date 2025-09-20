@@ -3,14 +3,22 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "db/obj/frBlockObject.h"
 #include "db/obj/frVia.h"
 #include "db/taObj/taPin.h"
+#include "db/tech/frTechObject.h"
+#include "db/tech/frViaDef.h"
+#include "frBaseTypes.h"
 #include "frDesign.h"
+#include "frRegionQuery.h"
+#include "global.h"
+#include "utl/Logger.h"
 
 namespace drt {
 class FlexTAGraphics;
@@ -21,7 +29,7 @@ class FlexTA
  public:
   // constructors
   FlexTA(frDesign* in,
-         Logger* logger,
+         utl::Logger* logger,
          RouterConfiguration* router_cfg,
          bool save_updates_);
   ~FlexTA();
@@ -35,7 +43,7 @@ class FlexTA
  private:
   frTechObject* tech_;
   frDesign* design_;
-  Logger* logger_;
+  utl::Logger* logger_;
   RouterConfiguration* router_cfg_;
   bool save_updates_;
   std::unique_ptr<AbstractTAGraphics> graphics_;
@@ -100,7 +108,7 @@ class FlexTAWorker
  public:
   // constructors
   FlexTAWorker(frDesign* designIn,
-               Logger* logger,
+               utl::Logger* logger,
                RouterConfiguration* router_cfg,
                bool save_updates)
       : design_(designIn),
@@ -113,7 +121,7 @@ class FlexTAWorker
         numAssigned_(0),
         totCost_(0),
         maxRetry_(1),
-        hardIroutesMode(false)
+        hardIroutesMode_(false)
   {
   }
   // setters
@@ -183,7 +191,7 @@ class FlexTAWorker
 
  private:
   frDesign* design_;
-  Logger* logger_;
+  utl::Logger* logger_;
   RouterConfiguration* router_cfg_;
   bool save_updates_;
   Rect routeBox_;
@@ -200,7 +208,7 @@ class FlexTAWorker
   int numAssigned_;
   int totCost_;
   int maxRetry_;
-  bool hardIroutesMode;
+  bool hardIroutesMode_;
 
   //// others
   void init();

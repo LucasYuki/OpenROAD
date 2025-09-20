@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include <cstdio>
 #include <string>
 
-#include "extRCap.h"
+#include "odb/db.h"
+#include "rcx/extRCap.h"
 
 namespace rcx {
 
@@ -43,10 +45,12 @@ struct CouplingState
   // Update counts when processing tables
   void updateTableCounts(bool hasEmptyTable, bool hasOneCount)
   {
-    if (hasEmptyTable)
+    if (hasEmptyTable) {
       empty_table_count++;
-    if (hasOneCount)
+    }
+    if (hasOneCount) {
       one_count_table++;
+    }
   }
 
   // Print statistics
@@ -106,8 +110,9 @@ struct CouplingConfig
   }
   void reset_calc_flow_flag(uint level)
   {
-    if (metal_flag > 0)
+    if (metal_flag > 0) {
       new_calc_flow = level <= metal_flag ? true : false;
+    }
   }
   // Destructor to clean up resources
   ~CouplingConfig() {}

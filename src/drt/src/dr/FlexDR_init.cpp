@@ -3,14 +3,32 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
+#include <queue>
 #include <set>
+#include <stack>
 #include <utility>
 #include <vector>
 
+#include "boost/geometry/geometry.hpp"
+#include "boost/polygon/polygon.hpp"
+#include "db/infra/frSegStyle.h"
+#include "db/obj/frAccess.h"
+#include "db/obj/frBTerm.h"
+#include "db/obj/frBlockObject.h"
+#include "db/obj/frInst.h"
+#include "db/obj/frInstTerm.h"
+#include "db/obj/frShape.h"
+#include "db/obj/frVia.h"
 #include "dr/FlexDR.h"
+#include "dr/FlexGridGraph.h"
+#include "frBaseTypes.h"
+#include "frDesign.h"
 #include "frRTree.h"
 
 namespace drt {
@@ -1566,17 +1584,12 @@ frLayerNum FlexDRWorker::initTrackCoords_getNonPref(frLayerNum lNum)
       return -1;
   }
 
-  frLayerNum lTop
-      = std::min(router_cfg_->TOP_ROUTING_LAYER, getTech()->getTopLayerNum());
-  frLayerNum lBot = std::max(router_cfg_->BOTTOM_ROUTING_LAYER,
-                             getTech()->getBottomLayerNum());
-
-  if ((lNum + 2 <= lTop)
+  if ((lNum + 2 <= router_cfg_->TOP_ROUTING_LAYER)
       && (getTech()->getLayer(lNum + 2)->getDir() == lDir2)) {
     return lNum + 2;
   }
 
-  if ((lNum - 2 >= lBot)
+  if ((lNum - 2 >= router_cfg_->BOTTOM_ROUTING_LAYER)
       && (getTech()->getLayer(lNum - 2)->getDir() == lDir2)) {
     return lNum - 2;
   }
@@ -1665,19 +1678,31 @@ void FlexDRWorker::initTrackCoords_pin(drNet* net,
   for (auto& pin : net->getPins()) {
     for (auto& ap : pin->getAccessPatterns()) {
       const Point pt = ap->getPoint();
-      const auto lNum = ap->getBeginLayerNum();
-      const auto lNum2 = initTrackCoords_getNonPref(lNum);
-
-      gridGraph_.addAccessPointLocation(lNum, pt.x(), pt.y());
-      gridGraph_.addAccessPointLocation(lNum2, pt.x(), pt.y());
-
-      if (getTech()->getLayer(lNum)->getDir() == dbTechLayerDir::HORIZONTAL) {
-        xMap[lNum2][pt.x()] = nullptr;
-        yMap[lNum][pt.y()] = nullptr;
+      auto lNum = ap->getBeginLayerNum();
+      frLayerNum end_lnum;
+      if (lNum < router_cfg_->BOTTOM_ROUTING_LAYER) {
+        end_lnum = router_cfg_->BOTTOM_ROUTING_LAYER;
+      } else if (lNum > router_cfg_->TOP_ROUTING_LAYER) {
+        end_lnum = router_cfg_->TOP_ROUTING_LAYER;
       } else {
-        xMap[lNum][pt.x()] = nullptr;
-        yMap[lNum2][pt.y()] = nullptr;
+        end_lnum = initTrackCoords_getNonPref(lNum);
       }
+      while (true) {
+        gridGraph_.addAccessPointLocation(lNum, pt.x(), pt.y());
+        if (getTech()->getLayer(lNum)->getDir() == dbTechLayerDir::HORIZONTAL) {
+          yMap[lNum][pt.y()] = nullptr;
+        } else {
+          xMap[lNum][pt.x()] = nullptr;
+        }
+
+        if (end_lnum > lNum) {
+          lNum += 2;
+        } else if (end_lnum < lNum) {
+          lNum -= 2;
+        } else {
+          break;
+        }
+      };
     }
   }
 }

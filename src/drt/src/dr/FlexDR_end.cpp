@@ -2,12 +2,22 @@
 // Copyright (c) 2019-2025, The OpenROAD Authors
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "db/infra/frSegStyle.h"
+#include "db/obj/frBTerm.h"
+#include "db/obj/frBlockObject.h"
+#include "db/obj/frInstTerm.h"
+#include "db/obj/frMarker.h"
+#include "db/obj/frShape.h"
+#include "db/obj/frVia.h"
 #include "dr/FlexDR.h"
+#include "frBaseTypes.h"
+#include "frDesign.h"
 
 namespace drt {
 
@@ -659,7 +669,7 @@ void FlexDRWorker::cleanup()
   markers_.clear();
   markers_.shrink_to_fit();
   rq_.cleanup();
-  specialAccessAPs.clear();
+  specialAccessAPs_.clear();
 }
 
 bool FlexDRWorker::end(frDesign* design)

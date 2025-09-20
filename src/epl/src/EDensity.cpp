@@ -30,7 +30,7 @@ void EDensity::init()
   //odb::dbBlock* block = pb_->db()->getChip()->getBlock();
   //odb::Rect coreRect = block->getCoreArea();
 
-  int n_intances = pb_->insts().size();
+  int n_intances = pb_->getInsts().size();
   int m = std::sqrt(n_intances);
   n_intances = m;
 }

@@ -5,9 +5,11 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "boost/bind/bind.hpp"
 #include "boostParser.h"
 #include "lefLayerPropParser.h"
 #include "odb/db.h"
@@ -24,9 +26,10 @@ void createOrthongonalSubRule(
       = odb::dbTechLayerCutSpacingTableOrthRule::create(parser->layer);
   std::vector<std::pair<int, int>> table;
   table.reserve(params.size());
-  for (const auto& item : params)
+  for (const auto& item : params) {
     table.emplace_back(lefinReader->dbdist(at_c<0>(item)),
                        lefinReader->dbdist(at_c<1>(item)));
+  }
   rule->setSpacingTable(table);
 }
 void createDefSubRule(odb::lefTechLayerCutSpacingTableParser* parser)
@@ -105,13 +108,15 @@ void setPRL(
   auto items = at_c<3>(params);
   parser->curRule->setPrl(lefinReader->dbdist(prl));
   if (dir.is_initialized()) {
-    if (dir.value() == "HORIZONTAL")
+    if (dir.value() == "HORIZONTAL") {
       parser->curRule->setPrlHorizontal(true);
-    else
+    } else {
       parser->curRule->setPrlVertical(true);
+    }
   }
-  if (maxxy.is_initialized())
+  if (maxxy.is_initialized()) {
     parser->curRule->setMaxXY(true);
+  }
 
   for (const auto& item : items) {
     auto from = at_c<0>(item).c_str();
@@ -131,10 +136,11 @@ void setExactAlignedSpacing(
   auto dir = at_c<0>(params);
   auto items = at_c<1>(params);
   if (dir.is_initialized()) {
-    if (dir.value() == "HORIZONTAL")
+    if (dir.value() == "HORIZONTAL") {
       parser->curRule->setHorizontal(true);
-    else
+    } else {
       parser->curRule->setVertical(true);
+    }
   }
 
   for (const auto& item : items) {
@@ -288,14 +294,16 @@ void setCutClass(
       auto spacing1 = at_c<0>(item);
       auto spacing2 = at_c<1>(item);
       int sp1, sp2;
-      if (spacing1.which() == 0)
+      if (spacing1.which() == 0) {
         sp1 = parser->curRule->getDefault();
-      else
+      } else {
         sp1 = lefinReader->dbdist(boost::get<double>(spacing1));
-      if (spacing2.which() == 0)
+      }
+      if (spacing2.which() == 0) {
         sp2 = parser->curRule->getDefault();
-      else
+      } else {
         sp2 = lefinReader->dbdist(boost::get<double>(spacing2));
+      }
       table[i][j] = {sp1, sp2};
     }
   }
@@ -304,11 +312,11 @@ void setCutClass(
     int i = (*it).second;
     size_t idx = col.find_last_of('/');
     if (idx == std::string::npos) {
-      if (cols.find(col + "/SIDE") != cols.end())
+      if (cols.find(col + "/SIDE") != cols.end()) {
         cols[col + "/END"] = i;
-      else if (cols.find(col + "/END") != cols.end())
+      } else if (cols.find(col + "/END") != cols.end()) {
         cols[col + "/SIDE"] = i;
-      else {
+      } else {
         cols[col + "/SIDE"] = i;
         cols[col + "/END"] = colSz++;
         for (auto& k : table) {
@@ -325,18 +333,19 @@ void setCutClass(
     int i = (*it).second;
     size_t idx = row.find_last_of('/');
     if (idx == std::string::npos) {
-      if (rows.find(row + "/SIDE") != rows.end())
+      if (rows.find(row + "/SIDE") != rows.end()) {
         rows[row + "/END"] = i;
-      else if (rows.find(row + "/END") != rows.end())
+      } else if (rows.find(row + "/END") != rows.end()) {
         rows[row + "/SIDE"] = i;
-      else {
+      } else {
         rows[row + "/SIDE"] = i;
         rows[row + "/END"] = rowSz++;
         table.push_back(table[i]);
       }
       rows.erase(it++);
-    } else
+    } else {
       ++it;
+    }
   }
   parser->curRule->setSpacingTable(table, rows, cols);
 }
@@ -438,8 +447,9 @@ bool parse(
                && first == last;
   if (!valid && parser->curRule != nullptr) {
     if (!incomplete_props.empty()
-        && incomplete_props.back().first == parser->curRule)
+        && incomplete_props.back().first == parser->curRule) {
       incomplete_props.pop_back();
+    }
     odb::dbTechLayerCutSpacingTableDefRule::destroy(parser->curRule);
   }
 

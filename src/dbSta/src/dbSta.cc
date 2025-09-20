@@ -12,7 +12,11 @@
 #include <tcl.h>
 
 #include <algorithm>  // min
+#include <cctype>
 #include <cmath>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <memory>
@@ -20,7 +24,6 @@
 #include <regex>
 #include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "boost/json.hpp"
@@ -28,6 +31,7 @@
 #include "dbSdcNetwork.hh"
 #include "db_sta/dbNetwork.hh"
 #include "odb/db.h"
+#include "odb/dbTypes.h"
 #include "sta/Clock.hh"
 #include "sta/Delay.hh"
 #include "sta/EquivCells.hh"
@@ -152,6 +156,8 @@ class dbStaCbk : public dbBlockCallBackObj
   void setNetwork(dbNetwork* network);
   void inDbInstCreate(dbInst* inst) override;
   void inDbInstDestroy(dbInst* inst) override;
+  void inDbModuleCreate(dbModule* module) override;
+  void inDbModuleDestroy(dbModule* module) override;
   void inDbInstSwapMasterBefore(dbInst* inst, dbMaster* master) override;
   void inDbInstSwapMasterAfter(dbInst* inst) override;
   void inDbNetDestroy(dbNet* net) override;
@@ -166,6 +172,9 @@ class dbStaCbk : public dbBlockCallBackObj
   void inDbBTermSetSigType(dbBTerm* bterm, const dbSigType& sig_type) override;
 
  private:
+  // for inDbInstSwapMasterBefore/inDbInstSwapMasterAfter
+  bool swap_master_arcs_equiv_ = false;
+
   dbSta* sta_;
   dbNetwork* network_ = nullptr;
   Logger* logger_;
@@ -299,9 +308,11 @@ std::set<dbNet*> dbSta::findClkNets()
     const PinSet* clk_pins = pins(clk);
     if (clk_pins) {
       for (const Pin* pin : *clk_pins) {
-        Net* net = network_->net(pin);
-        if (net) {
-          clk_nets.insert(db_network_->staToDb(net));
+        dbNet* db_net = nullptr;
+        sta::dbNetwork* db_network = getDbNetwork();
+        db_net = db_network->flatNet(pin);
+        if (db_net) {
+          clk_nets.insert(db_net);
         }
       }
     }
@@ -316,9 +327,21 @@ std::set<dbNet*> dbSta::findClkNets(const Clock* clk)
   const PinSet* clk_pins = pins(clk);
   if (clk_pins) {
     for (const Pin* pin : *clk_pins) {
-      Net* net = network_->net(pin);
-      if (net) {
-        clk_nets.insert(db_network_->staToDb(net));
+      dbNet* db_net = nullptr;
+      sta::dbNetwork* db_network = getDbNetwork();
+      // hierarchical fix
+      if (db_network->hasHierarchy()) {
+        db_net = db_network_->flatNet(pin);
+        if (db_net) {
+          clk_nets.insert(db_net);
+        }
+      }
+      // for backward compatibility with jpeg regression case.
+      else {
+        Net* net = network_->net(pin);
+        if (net) {
+          clk_nets.insert(db_network_->staToDb(net));
+        }
       }
     }
   }
@@ -710,17 +733,10 @@ void dbSta::deleteInstance(Instance* inst)
 
 void dbSta::replaceCell(Instance* inst, Cell* to_cell, LibertyCell* to_lib_cell)
 {
+  // do not call `Sta::replaceCell` as sta's before/after hooks are called
+  // from db callbacks
   NetworkEdit* network = networkCmdEdit();
-  LibertyCell* from_lib_cell = network->libertyCell(inst);
-  if (sta::equivCells(from_lib_cell, to_lib_cell)) {
-    replaceEquivCellBefore(inst, to_lib_cell);
-    network->replaceCell(inst, to_cell);
-    replaceEquivCellAfter(inst);
-  } else {
-    replaceCellBefore(inst, to_lib_cell);
-    network->replaceCell(inst, to_cell);
-    replaceCellAfter(inst);
-  }
+  network->replaceCell(inst, to_cell);
 }
 
 void dbSta::deleteNet(Net* net)
@@ -914,25 +930,40 @@ void dbStaCbk::inDbInstDestroy(dbInst* inst)
   sta_->deleteLeafInstanceBefore(network_->dbToSta(inst));
 }
 
+void dbStaCbk::inDbModuleCreate(dbModule* module)
+{
+  network_->registerHierModule(network_->dbToSta(module));
+}
+
+void dbStaCbk::inDbModuleDestroy(dbModule* module)
+{
+  network_->unregisterHierModule(network_->dbToSta(module));
+}
+
 void dbStaCbk::inDbInstSwapMasterBefore(dbInst* inst, dbMaster* master)
 {
   LibertyCell* to_lib_cell = network_->libertyCell(network_->dbToSta(master));
   LibertyCell* from_lib_cell = network_->libertyCell(inst);
   Instance* sta_inst = network_->dbToSta(inst);
-  if (sta::equivCells(from_lib_cell, to_lib_cell)) {
+
+  swap_master_arcs_equiv_ = sta::equivCellsArcs(from_lib_cell, to_lib_cell);
+
+  if (swap_master_arcs_equiv_) {
     sta_->replaceEquivCellBefore(sta_inst, to_lib_cell);
   } else {
-    logger_->error(STA,
-                   1000,
-                   "instance {} swap master {} is not equivalent",
-                   inst->getConstName(),
-                   master->getConstName());
+    sta_->replaceCellBefore(sta_inst, to_lib_cell);
   }
 }
 
 void dbStaCbk::inDbInstSwapMasterAfter(dbInst* inst)
 {
-  sta_->replaceEquivCellAfter(network_->dbToSta(inst));
+  Instance* sta_inst = network_->dbToSta(inst);
+
+  if (swap_master_arcs_equiv_) {
+    sta_->replaceEquivCellAfter(sta_inst);
+  } else {
+    sta_->replaceCellAfter(sta_inst);
+  }
 }
 
 void dbStaCbk::inDbNetDestroy(dbNet* db_net)

@@ -3,10 +3,15 @@
 
 #include "dbTechNonDefaultRule.h"
 
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
 #include "dbBlock.h"
+#include "dbCommon.h"
+#include "dbCore.h"
 #include "dbDatabase.h"
 #include "dbTable.h"
 #include "dbTable.hpp"
@@ -142,12 +147,11 @@ bool _dbTechNonDefaultRule::operator==(const _dbTechNonDefaultRule& rhs) const
 
 _dbTech* _dbTechNonDefaultRule::getTech()
 {
-#if 0  // dead code generates warnings -cherry
-    if (_flags._block_rule == 0)
-        (_dbTech *) getOwner();
-#endif
+  if (_flags._block_rule == 0) {
+    return (_dbTech*) getOwner();
+  }
 
-  return (_dbTech*) getDb()->getTech();
+  return (_dbTech*) getBlock()->getTech();
 }
 
 _dbBlock* _dbTechNonDefaultRule::getBlock()

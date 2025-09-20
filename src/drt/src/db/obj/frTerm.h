@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "db/obj/frAccess.h"
 #include "db/obj/frBlockObject.h"
 #include "db/obj/frNet.h"
 #include "frBaseTypes.h"
@@ -37,7 +38,7 @@ class frTerm : public frBlockObject
   }
   // fills outShapes with copies of the pinFigs
   virtual void getShapes(std::vector<frRect>& outShapes) const = 0;
-  const Rect getBBox() const { return bbox_; }
+  Rect getBBox() const { return bbox_; }
 
  protected:
   // constructors

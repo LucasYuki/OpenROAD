@@ -4,8 +4,7 @@
 #pragma once
 
 #include <algorithm>
-#include <boost/container/flat_map.hpp>
-#include <boost/container/flat_set.hpp>
+#include <bitset>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -16,13 +15,19 @@
 #include <utility>
 #include <vector>
 
-#include "FlexMazeTypes.h"
+#include "boost/container/flat_map.hpp"
+#include "boost/container/flat_set.hpp"
 #include "db/drObj/drPin.h"
 #include "db/infra/frBox.h"
+#include "db/obj/frTrackPattern.h"
+#include "db/tech/frLayer.h"
+#include "db/tech/frTechObject.h"
+#include "dr/FlexMazeTypes.h"
 #include "dr/FlexWavefront.h"
 #include "frBaseTypes.h"
 #include "frDesign.h"
 #include "global.h"
+#include "utl/Logger.h"
 
 namespace drt {
 
@@ -37,7 +42,7 @@ class FlexGridGraph
  public:
   // constructors
   FlexGridGraph(frTechObject* techIn,
-                Logger* loggerIn,
+                utl::Logger* loggerIn,
                 FlexDRWorker* workerIn,
                 RouterConfiguration* router_cfg)
       : tech_(techIn),
@@ -406,7 +411,7 @@ class FlexGridGraph
     return sol;
   }
   // setters
-  void setLogger(Logger* loggerIn) { logger_ = loggerIn; }
+  void setLogger(utl::Logger* loggerIn) { logger_ = loggerIn; }
   bool addEdge(frMIdx x,
                frMIdx y,
                frMIdx z,
@@ -875,7 +880,7 @@ class FlexGridGraph
 
   void setNDR(frNonDefaultRule* ndr) { ndr_ = ndr; }
 
-  void setDstTaperBox(frBox3D* t) { dstTaperBox = t; }
+  void setDstTaperBox(frBox3D* t) { dstTaperBox_ = t; }
 
   frCost getCosts(frMIdx gridX,
                   frMIdx gridY,
@@ -887,7 +892,7 @@ class FlexGridGraph
   bool useNDRCosts(const FlexWavefrontGrid& p) const;
 
   frNonDefaultRule* getNDR() const { return ndr_; }
-  const frBox3D* getDstTaperBox() const { return dstTaperBox; }
+  const frBox3D* getDstTaperBox() const { return dstTaperBox_; }
   // functions
   void init(const frDesign* design,
             const Rect& routeBBox,
@@ -985,11 +990,11 @@ class FlexGridGraph
 
  private:
   frTechObject* tech_ = nullptr;
-  Logger* logger_ = nullptr;
+  utl::Logger* logger_ = nullptr;
   FlexDRWorker* drWorker_ = nullptr;
-  RouterConfiguration* router_cfg_;
-  AbstractDRGraphics* graphics_;  // owned by FlexDR
-                                  //
+  RouterConfiguration* router_cfg_ = nullptr;
+  AbstractDRGraphics* graphics_ = nullptr;  // owned by FlexDR
+
 #ifdef DEBUG_DRT_UNDERFLOW
   static constexpr int cost_bits = 16;
 #else
@@ -1065,7 +1070,7 @@ class FlexGridGraph
       = nullptr;  // std::pair<layer1area, layer2area>
   // ndr related
   frNonDefaultRule* ndr_ = nullptr;
-  const frBox3D* dstTaperBox
+  const frBox3D* dstTaperBox_
       = nullptr;  // taper box for the current dest pin in the search
 
   // locations of access points. The vector is indexed by layer number.

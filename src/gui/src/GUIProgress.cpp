@@ -8,8 +8,11 @@
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QVBoxLayout>
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "mainWindow.h"
 #include "utl/Logger.h"
@@ -167,12 +170,11 @@ void GUIProgress::updateCombined()
       total_progress += progress * scale;
     }
 
-    if (names.size() > max_combined_name_length_
-        && reporter_progress.size() > 2) {
+    if (names.size() > kMaxCombinedNameLength && reporter_progress.size() > 2) {
       names = "several";
     }
-    if (names.size() > max_combined_name_length_) {
-      names = names.substr(0, max_combined_name_length_ - 3);
+    if (names.size() > kMaxCombinedNameLength) {
+      names = names.substr(0, kMaxCombinedNameLength - 3);
       names += "...";
     }
 

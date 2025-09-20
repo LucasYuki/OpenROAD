@@ -21,11 +21,14 @@ or_integration_tests(
     check_charBuf
     check_max_fanout1
     check_max_fanout2
+    check_max_fanout3
     check_wire_rc_cts
     dummy_load
     find_clock
     find_clock_pad
+    hier_insertion_delay
     insertion_delay
+    inverters
     lvt_lib
     max_cap
     no_clocks

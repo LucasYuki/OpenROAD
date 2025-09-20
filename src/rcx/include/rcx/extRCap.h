@@ -3,24 +3,33 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <list>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "ext2dBox.h"
-#include "extSegment.h"
-#include "extViaModel.h"
-#include "extprocess.h"
 #include "odb/db.h"
 #include "odb/dbExtControl.h"
 #include "odb/dbShape.h"
+#include "odb/dbTypes.h"
+#include "odb/dbWireCodec.h"
+#include "odb/geom.h"
 #include "odb/odb.h"
 #include "odb/util.h"
 #include "rcx/dbUtil.h"
+#include "rcx/ext2dBox.h"
 #include "rcx/extPattern.h"
+#include "rcx/extSegment.h"
 #include "rcx/extSolverGen.h"
+#include "rcx/extViaModel.h"
 #include "rcx/ext_options.h"
-#include "util.h"
+#include "rcx/extprocess.h"
+#include "rcx/util.h"
 
 namespace utl {
 class Logger;
@@ -89,23 +98,29 @@ class extDistRC
   void readRC(Ath__parser* parser, double dbFactor = 1.0);
   void readRC_res2(Ath__parser* parser, double dbFactor = 1.0);
   double getFringe();
+  double getFringeW();
   double getCoupling();
   double getDiag();
   double getRes();
-  double getTotalCap() { return _coupling + _fringe + _diag; };
+  int getSep();
+  double getTotalCap() { return coupling_ + fringe_ + diag_; };
+  void setCoupling(double coupling);
+  void setFringe(double fringe);
+  void setFringeW(double fringew);
+  void setRes(double res);
   void addRC(extDistRC* rcUnit, uint len, bool addCC);
   void writeRC(FILE* fp, bool bin);
   void writeRC();
   void interpolate(uint d, extDistRC* rc1, extDistRC* rc2);
   double interpolate_res(uint d, extDistRC* rc2);
 
- public:
-  int _sep;
-  double _coupling;
-  double _fringe;
-  double _fringeW;
-  double _diag;
-  double _res;
+ private:
+  int sep_;
+  double coupling_;
+  double fringe_;
+  double fringeW_;
+  double diag_;
+  double res_;
   Logger* logger_;
 
   friend class extDistRCTable;
@@ -186,14 +201,14 @@ class extDistRCTable
   void makeCapTableOver();
   void makeCapTableUnder();
 
-  Ath__array1D<extDistRC*>* _measureTable;
-  Ath__array1D<extDistRC*>* _computeTable;
-  Ath__array1D<extDistRC*>* _measureTableR[16];
-  Ath__array1D<extDistRC*>* _computeTableR[16];  // OPTIMIZE
-  bool _measureInR;
-  int _maxDist;
-  uint _distCnt;
-  uint _unit;
+  Ath__array1D<extDistRC*>* measureTable_;
+  Ath__array1D<extDistRC*>* computeTable_;
+  Ath__array1D<extDistRC*>* measureTableR_[16];
+  Ath__array1D<extDistRC*>* computeTableR_[16];  // OPTIMIZE
+  bool measureInR_;
+  int maxDist_;
+  uint distCnt_;
+  uint unit_;
   Logger* logger_;
 };
 
@@ -1699,8 +1714,9 @@ struct BoundaryData
     maxExtractBuffer = ccTrackDist * pitch2;
 
     iterationIncrement = iterationTrackCount * minPitch;
-    if (maxWidth > maxCouplingTracks * maxPitch)
+    if (maxWidth > maxCouplingTracks * maxPitch) {
       iterationIncrement = std::max(ur[1] - ll[1], ur[0] - ll[0]);
+    }
 
     for (uint dir = 0; dir < 2; dir++) {
       lo_gs[dir] = ll[dir];
@@ -1768,7 +1784,7 @@ class extMain
                    const char* old_new);
   dbRSeg* addRSeg_v2(dbNet* net,
                      uint& srcId,
-                     Point& prevPoint,
+                     odb::Point& prevPoint,
                      const dbWirePath& path,
                      const dbWirePathShape& pshape,
                      const bool isBranch,
@@ -1778,11 +1794,11 @@ class extMain
   void loopWarning(dbNet* net, const dbWirePathShape& pshape);
   void getShapeRC_v2(dbNet* net,
                      const dbShape& s,
-                     Point& prevPoint,
+                     odb::Point& prevPoint,
                      const dbWirePathShape& pshape);
   void getShapeRC_v3(dbNet* net,
                      const dbShape& s,
-                     Point& prevPoint,
+                     odb::Point& prevPoint,
                      const dbWirePathShape& pshape);
   double getViaRes_v2(dbNet* net, dbTechVia* tvia);
   double getDbViaRes_v2(dbNet* net, const dbShape& s);

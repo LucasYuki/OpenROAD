@@ -12,6 +12,8 @@
 #include <QSettings>
 #include <QStringList>
 #include <QStringListModel>
+#include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -35,7 +37,7 @@ class TclCmdInputWidget : public CmdInputWidget
   // When exiting we have to return an error to stop script execution.
   // We don't want to log the error so we use this string as a special
   // key.  Not elegant but that's TCL.
-  static constexpr const char* exit_string = "_GUI EXITING_";
+  static constexpr const char* kExitString = "_GUI EXITING_";
 
   TclCmdInputWidget(QWidget* parent = nullptr);
   ~TclCmdInputWidget() override;
@@ -67,7 +69,7 @@ class TclCmdInputWidget : public CmdInputWidget
 
  private:
   void init();
-  void processTclResult(bool is_ok);
+  void processTclResult(int tcl_result);
 
   static int tclExitHandler(ClientData instance_data,
                             Tcl_Interp* interp,
@@ -79,7 +81,7 @@ class TclCmdInputWidget : public CmdInputWidget
   void collectNamespaces(std::set<std::string>& namespaces);
   void collectSWIGArguments();
 
-  const QString wordUnderCursor();
+  QString wordUnderCursor();
   const swig_class* swigBeforeCursor();
 
   void setCompleterCommands();
@@ -105,10 +107,10 @@ class TclCmdInputWidget : public CmdInputWidget
   std::vector<CommandArguments> commands_;
   std::map<const swig_class*, std::unique_ptr<QStringList>> swig_arguments_;
 
-  static constexpr const char* enable_highlighting_keyword_ = "highlighting";
-  static constexpr const char* enable_completion_keyword_ = "completion";
-  static const int completer_mimimum_length_ = 2;
-  static constexpr const char* command_rename_prefix_ = "::tcl::openroad::";
+  static constexpr const char* kEnableHighlightingKeyword = "highlighting";
+  static constexpr const char* kEnableCompletionKeyword = "completion";
+  static const int kCompleterMimimumLength = 2;
+  static constexpr const char* kCommandRenamePrefix = "::tcl::openroad::";
 };
 
 }  // namespace gui

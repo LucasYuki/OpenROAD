@@ -3,14 +3,18 @@
 
 #include "dpl/Opendp.h"
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "PlacementDRC.h"
+#include "boost/geometry/geometry.hpp"
 #include "dpl/OptMirror.h"
 #include "graphics/DplObserver.h"
 #include "infrastructure/Grid.h"
@@ -128,7 +132,7 @@ void Opendp::detailedPlacement(const int max_displacement_x,
       logger_->info(DPL, 35, " {}", cell->name());
     }
 
-    saveFailures({}, {}, {}, {}, {}, {}, placement_failures_, {}, {});
+    saveFailures({}, {}, {}, {}, {}, {}, {}, placement_failures_, {}, {});
     if (!report_file_name.empty()) {
       writeJsonReport(report_file_name);
     }
@@ -269,8 +273,13 @@ void Opendp::setFixedGridCells()
 {
   for (auto& cell : network_->getNodes()) {
     if (cell->getType() == Node::CELL && cell->isFixed()) {
-      grid_->visitCellPixels(
-          *cell, true, [&](Pixel* pixel) { setGridCell(*cell, pixel); });
+      grid_->visitCellPixels(*cell, true, [&](Pixel* pixel, bool padded) {
+        if (padded) {
+          pixel->padding_reserved_by.insert(cell.get());
+        } else {
+          setGridCell(*cell, pixel);
+        }
+      });
     }
   }
 }
