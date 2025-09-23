@@ -925,22 +925,23 @@ void BinGrid::updateBinsGCellDensityArea(const std::vector<GCellHandle>& cells)
     int64_t binArea = bin.getBinArea();
     const float scaledBinArea
         = static_cast<float>(binArea * bin.getTargetDensity());
-    bin.setDensity((static_cast<float>(bin.instPlacedArea())
-                    + static_cast<float>(bin.getFillerArea())
-                    + static_cast<float>(bin.getNonPlaceArea()))
-                   / scaledBinArea);
+    if (!(liquid_filler_ && total_filler_area_ > 0)) {
+      bin.setDensity((static_cast<float>(bin.instPlacedArea())
+                      + static_cast<float>(bin.getFillerArea())
+                      + static_cast<float>(bin.getNonPlaceArea()))
+                     / scaledBinArea);
+    }
 
-    const float overflowArea = std::max(
-        0.0f,
-        static_cast<float>(bin.instPlacedArea())
-            + static_cast<float>(bin.getNonPlaceArea()) - scaledBinArea);
-    sumOverflowArea_ += overflowArea;  // NOLINT
+    const int64_t overflowArea
+        = std::max(static_cast<int64_t>(0),
+                   bin.instPlacedArea() + bin.getNonPlaceArea()
+                       - static_cast<int64_t>(scaledBinArea));
+    sumOverflowArea_ += overflowArea;
 
-    const float overflowAreaUnscaled
-        = std::max(0.0f,
-                   static_cast<float>(bin.getInstPlacedAreaUnscaled())
-                       + static_cast<float>(bin.getNonPlaceAreaUnscaled())
-                       - scaledBinArea);
+    const int64_t overflowAreaUnscaled = std::max(
+        static_cast<int64_t>(0),
+        bin.getInstPlacedAreaUnscaled() + bin.getNonPlaceAreaUnscaled()
+            - static_cast<int64_t>(scaledBinArea));
     sumOverflowAreaUnscaled_ += overflowAreaUnscaled;
     if (overflowAreaUnscaled > 0) {
       debugPrint(log_,
@@ -966,6 +967,31 @@ void BinGrid::updateBinsGCellDensityArea(const std::vector<GCellHandle>& cells)
           "bin.instPlacedAreaUnscaled():{}, bin.nonPlaceAreaUnscaled():{}",
           block->dbuAreaToMicrons(bin.getInstPlacedAreaUnscaled()),
           block->dbuAreaToMicrons(bin.getNonPlaceAreaUnscaled()));
+    }
+  }
+
+  if (liquid_filler_ && total_filler_area_ > 0) {
+    double filler_reduction
+        = total_filler_area_
+          / static_cast<double>(total_filler_area_ + sumOverflowArea_);
+#pragma omp parallel for num_threads(num_threads_)
+    for (auto it = bins_.begin(); it < bins_.end(); ++it) {
+      Bin& bin = *it;  // old-style loop for old OpenMP
+
+      int64_t binArea = bin.getBinArea();
+      const float scaledBinArea
+          = static_cast<float>(binArea * bin.getTargetDensity());
+
+      bin.addFillerArea(std::max(
+          static_cast<int>(
+              (scaledBinArea - bin.instPlacedArea() - bin.getNonPlaceArea())
+              * filler_reduction),
+          0));
+
+      bin.setDensity((static_cast<float>(bin.instPlacedArea())
+                      + static_cast<float>(bin.getFillerArea())
+                      + static_cast<float>(bin.getNonPlaceArea()))
+                     / scaledBinArea);
     }
   }
 }
@@ -1693,7 +1719,8 @@ NesterovBase::NesterovBase(NesterovBaseVars nbVars,
   int dbu_per_micron = pb_->db()->getChip()->getBlock()->getDbUnitsPerMicron();
 
   // update gFillerCells
-  initFillerGCells();
+  // initFillerGCells();
+  initLiquidFiller();
 
   nb_gcells_.reserve(pb_->getInsts().size() + fillerStor_.size());
 
@@ -1975,6 +2002,45 @@ void NesterovBase::initFillerGCells()
   }
   // totalFillerArea_ = fillerStor_.size() * getFillerCellArea();
   initial_filler_area_ = totalFillerArea_;
+}
+
+void NesterovBase::initLiquidFiller()
+{
+  int64_t coreArea = pb_->getDie().coreArea();
+  whiteSpaceArea_ = coreArea - static_cast<int64_t>(pb_->nonPlaceInstsArea());
+
+  // targetDensity initialize
+  uniformTargetDensity_
+      = static_cast<float>(stdInstsArea_)
+        / static_cast<float>(whiteSpaceArea_ - macroInstsArea_);  // + 0.01;
+  if (nbVars_.useUniformTargetDensity) {
+    targetDensity_ = uniformTargetDensity_;
+  } else {
+    targetDensity_ = nbVars_.targetDensity;
+  }
+
+  const int64_t nesterovInstanceArea = getNesterovInstsArea();
+  movableArea_ = whiteSpaceArea_ * targetDensity_;
+  totalFillerArea_ = movableArea_ - nesterovInstanceArea;
+  // uniformTargetDensity_ = static_cast<float>(nesterovInstanceArea)
+  //                        / static_cast<float>(whiteSpaceArea_);
+  // uniformTargetDensity_ = ceilf(uniformTargetDensity_ * 100) / 100;
+
+  if (totalFillerArea_ < 0) {
+    log_->warn(GPL,
+               303,
+               "Target density {:.4f} is too low for the available free area.\n"
+               "Automatically adjusting to uniform density {:.4f}.",
+               targetDensity_,
+               uniformTargetDensity_);
+    targetDensity_ = uniformTargetDensity_;
+    movableArea_ = whiteSpaceArea_ * targetDensity_;
+    totalFillerArea_ = movableArea_ - nesterovInstanceArea;
+  }
+  initial_filler_area_ = totalFillerArea_;
+  if (!nbVars_.useUniformTargetDensity) {
+    bg_.setLiquidFiller(true, totalFillerArea_);
+  }
 }
 
 NesterovBase::~NesterovBase() = default;

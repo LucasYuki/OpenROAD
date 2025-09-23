@@ -709,6 +709,12 @@ class BinGrid
 
   void updateBinsNonPlaceArea();
 
+  void setLiquidFiller(bool use, int64_t total_filler_area)
+  {
+    liquid_filler_ = use;
+    total_filler_area_ = total_filler_area;
+  };
+
  private:
   std::vector<Bin> bins_;
   std::shared_ptr<PlacerBase> pb_;
@@ -726,6 +732,8 @@ class BinGrid
   int64_t sumOverflowAreaUnscaled_ = 0;
   bool isSetBinCnt_ = false;
   int num_threads_ = 1;
+  bool liquid_filler_ = false;
+  int64_t total_filler_area_ = 0;
 };
 
 inline std::vector<Bin>& BinGrid::getBins()
@@ -1231,6 +1239,7 @@ class NesterovBase
   bool reprint_iter_header_ = false;
 
   void initFillerGCells();
+  void initLiquidFiller();
 };
 
 inline std::vector<Bin>& NesterovBase::getBins()
