@@ -559,10 +559,19 @@ class Bin
   int64_t getBinArea() const;
   int64_t getNonPlaceArea() const { return nonPlaceArea_; }
   int64_t instPlacedArea() const { return instPlacedArea_; }
+  double getUseRatio() const
+  {
+    return static_cast<double>(nonPlaceAreaUnscaled_ + instPlacedAreaUnscaled_ + fillerArea_) / getBinArea() ;
+  }
   int64_t getNonPlaceAreaUnscaled() const { return nonPlaceAreaUnscaled_; }
   int64_t getInstPlacedAreaUnscaled() const { return instPlacedAreaUnscaled_; }
 
   int64_t getFillerArea() const { return fillerArea_; }
+
+  static bool compareUseRatio(const Bin* a, const Bin* b)
+  {
+    return a->getUseRatio() < b->getUseRatio();  // Sorts by ascending order
+  }
 
  private:
   // index
@@ -717,6 +726,7 @@ class BinGrid
 
  private:
   std::vector<Bin> bins_;
+  std::vector<Bin*> bins_sorted_;
   std::shared_ptr<PlacerBase> pb_;
   utl::Logger* log_ = nullptr;
   int lx_ = 0;

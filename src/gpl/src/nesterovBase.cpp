@@ -795,6 +795,7 @@ void BinGrid::initBins()
 
   // initialize bins_ vector
   bins_.resize(binCntX_ * (size_t) binCntY_);
+  bins_sorted_.resize(binCntX_ * (size_t) binCntY_);
 #pragma omp parallel for num_threads(num_threads_)
   for (int idxY = 0; idxY < binCntY_; ++idxY) {
     for (int idxX = 0; idxX < binCntX_; ++idxX) {
@@ -805,6 +806,7 @@ void BinGrid::initBins()
       const int bin_index = idxY * binCntX_ + idxX;
       bins_[bin_index]
           = Bin(idxX, idxY, bin_lx, bin_ly, bin_ux, bin_uy, targetDensity_);
+      bins_sorted_[bin_index] = &bins_[bin_index];
       auto& bin = bins_[bin_index];
       if (bin.dx() < 0 || bin.dy() < 0) {
         log_->warn(GPL,
@@ -910,6 +912,35 @@ void BinGrid::updateBinsGCellDensityArea(const std::vector<GCellHandle>& cells)
   }
 
   odb::dbBlock* block = pb_->db()->getChip()->getBlock();
+  double leveled_use_ratio = 0;
+  if (liquid_filler_ && total_filler_area_ > 0) {
+    // calculates the filler level
+    std::sort(bins_sorted_.begin(), bins_sorted_.end(), Bin::compareUseRatio);
+    auto it = bins_sorted_.begin();
+    Bin* next_bin = *it;
+
+    int64_t unused_filler_area = total_filler_area_;
+    int64_t accumulated_bin_area = next_bin->getBinArea();
+    leveled_use_ratio = next_bin->getUseRatio();
+    for (auto it = bins_sorted_.begin()++; it < bins_sorted_.end(); ++it) {
+      Bin* bin = *it;
+      double next_use_ratio = bin->getUseRatio();
+      int64_t area_fill_up_next
+          = (next_use_ratio - leveled_use_ratio) * accumulated_bin_area;
+      if (area_fill_up_next < unused_filler_area) {
+        // has enough filler area to level the density to the current bin
+        unused_filler_area -= area_fill_up_next;
+        accumulated_bin_area += bin->getBinArea();
+        leveled_use_ratio = next_use_ratio;
+      } else {
+        // underfill
+        leveled_use_ratio
+            += static_cast<double>(unused_filler_area) / accumulated_bin_area;
+        break;
+      }
+    }
+  }
+
   sumOverflowArea_ = 0;
   sumOverflowAreaUnscaled_ = 0;
   // update density and overflowArea
@@ -923,14 +954,19 @@ void BinGrid::updateBinsGCellDensityArea(const std::vector<GCellHandle>& cells)
     bin.setInstPlacedArea(bin.getInstPlacedAreaUnscaled());
 
     int64_t binArea = bin.getBinArea();
+    if (liquid_filler_ && total_filler_area_ > 0) {
+      double current_utilization = bin.getUseRatio();
+      if (current_utilization <= leveled_use_ratio) {
+        bin.addFillerArea(binArea * (leveled_use_ratio - current_utilization));
+      }
+    }
+
     const float scaledBinArea
         = static_cast<float>(binArea * bin.getTargetDensity());
-    if (!(liquid_filler_ && total_filler_area_ > 0)) {
-      bin.setDensity((static_cast<float>(bin.instPlacedArea())
-                      + static_cast<float>(bin.getFillerArea())
-                      + static_cast<float>(bin.getNonPlaceArea()))
-                     / scaledBinArea);
-    }
+    bin.setDensity((static_cast<float>(bin.instPlacedArea())
+                    + static_cast<float>(bin.getFillerArea())
+                    + static_cast<float>(bin.getNonPlaceArea()))
+                   / scaledBinArea);
 
     const int64_t overflowArea
         = std::max(static_cast<int64_t>(0),
@@ -967,31 +1003,6 @@ void BinGrid::updateBinsGCellDensityArea(const std::vector<GCellHandle>& cells)
           "bin.instPlacedAreaUnscaled():{}, bin.nonPlaceAreaUnscaled():{}",
           block->dbuAreaToMicrons(bin.getInstPlacedAreaUnscaled()),
           block->dbuAreaToMicrons(bin.getNonPlaceAreaUnscaled()));
-    }
-  }
-
-  if (liquid_filler_ && total_filler_area_ > 0) {
-    double filler_reduction
-        = total_filler_area_
-          / static_cast<double>(total_filler_area_ + sumOverflowArea_);
-#pragma omp parallel for num_threads(num_threads_)
-    for (auto it = bins_.begin(); it < bins_.end(); ++it) {
-      Bin& bin = *it;  // old-style loop for old OpenMP
-
-      int64_t binArea = bin.getBinArea();
-      const float scaledBinArea
-          = static_cast<float>(binArea * bin.getTargetDensity());
-
-      bin.addFillerArea(std::max(
-          static_cast<int>(
-              (scaledBinArea - bin.instPlacedArea() - bin.getNonPlaceArea())
-              * filler_reduction),
-          0));
-
-      bin.setDensity((static_cast<float>(bin.instPlacedArea())
-                      + static_cast<float>(bin.getFillerArea())
-                      + static_cast<float>(bin.getNonPlaceArea()))
-                     / scaledBinArea);
     }
   }
 }
