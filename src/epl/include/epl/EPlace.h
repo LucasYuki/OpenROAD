@@ -38,6 +38,7 @@ class EPlace
   void clear();
   void init(odb::dbDatabase* db, utl::Logger* logger);
   bool initEPlace();
+  void place(int threads);
   void randomPlace(int threads);
 
  private:

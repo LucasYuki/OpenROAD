@@ -98,12 +98,25 @@ void EPlace::clear()
   pbVec_.clear();
 }
 
+void EPlace::place(int threads)
+{
+  debugPrint(log_,
+             EPL,
+             "place",
+             1,
+             "place: number of threads {}",
+             threads);
+  if (!initEPlace()) {
+    return;
+  }
+}
+
 void EPlace::randomPlace(int threads)
 {
   debugPrint(log_,
              EPL,
              "random_place",
-             2,
+             1,
              "random_place: number of threads {}",
              threads);
   if (!initPlacer()) {

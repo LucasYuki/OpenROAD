@@ -43,4 +43,12 @@ eplace_random_placement_cmd()
   eplace->randomPlace(threads);
 }
 
+void
+eplace_place_cmd()
+{
+  EPlace* eplace = getEPlace();
+  int threads = ord::OpenRoad::openRoad()->getThreadCount();
+  eplace->place(threads);
+}
+
 %} // inline

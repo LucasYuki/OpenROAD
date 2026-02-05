@@ -24,6 +24,11 @@ proc eplace_random_placement { args } {
   epl::eplace_random_placement_cmd
 }
 
+sta::define_cmd_args "eplace_place" {}
+proc eplace_random_placement { args } {
+  epl::eplace_place_cmd
+}
+
 sta::define_cmd_args "test_epl" {}
 proc test_epl { args } {
   puts "EPL working"
