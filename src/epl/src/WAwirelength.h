@@ -24,26 +24,33 @@
 
 namespace gpl {
 class PlacerBaseCommon;
-class NesterovBaseCommon;
-class NesterovBaseVars;
 }  // namespace gpl
 
 namespace epl {
-
-class WAwirelength : public gpl::NesterovBaseCommon
+class WAwirelengthVars
 {
  public:
-  WAwirelength(gpl::NesterovBaseVars nbVars,
+  double target_density;
+  bool uniform_density = false;
+};
+class WAwirelength
+{
+ public:
+  WAwirelength(WAwirelengthVars waVars,
                std::shared_ptr<gpl::PlacerBaseCommon> pb,
                utl::Logger* log,
                int num_threads,
-               const gpl::Clusters& clusters)
-      : gpl::NesterovBaseCommon(nbVars, pb, log, num_threads, clusters){};
+               const gpl::Clusters& clusters);
 
   /*
     void clear();
     void update(int threads);
   */
+  WAwirelengthVars waVars_;
+  std::shared_ptr<gpl::PlacerBaseCommon> pb_;
+  utl::Logger* log_;
+  int num_threads_;
+  const gpl::Clusters& clusters_;
 };
 
 }  // namespace epl

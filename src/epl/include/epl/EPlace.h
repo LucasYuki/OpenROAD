@@ -37,12 +37,13 @@ class EPlace
   
   void clear();
   void init(odb::dbDatabase* db, utl::Logger* logger);
-  bool initPlacer();
   bool initEPlace();
   void randomPlace(int threads);
 
  private:
+  bool initPlacer();
 
+ private:
   odb::dbDatabase* db_;
   utl::Logger* log_;
   std::shared_ptr<WAwirelength> wa_wirelength_;

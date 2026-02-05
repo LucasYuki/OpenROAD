@@ -35,6 +35,32 @@ void EPlace::init(odb::dbDatabase* db, utl::Logger* logger)
   log_ = logger;
 }
 
+bool EPlace::initEPlace()
+{
+  if (wa_wirelength_) {
+    log_->warn(EPL, 3, "EPlacer already initialized.");
+    return true;
+  }
+
+  if (!initPlacer()) {
+    return false;
+  }
+
+  // Init wa_wirelength_
+  WAwirelengthVars waVars;
+  int threads = 1;
+  wa_wirelength_ = std::make_shared<WAwirelength>(
+      waVars, pbc_, log_, threads, gpl::Clusters());
+
+  // Init e_density
+  EDensityVars edVars;
+  for (auto pb : pbVec_) {
+    e_density_vec_.push_back(std::make_shared<EDensity>(
+        edVars, pb, wa_wirelength_, log_));
+  }
+  return true;
+}
+
 bool EPlace::initPlacer()
 {
   if (pbc_) {
@@ -59,31 +85,6 @@ bool EPlace::initPlacer()
       pbVec_.push_back(
           std::make_shared<gpl::PlacerBase>(db_, pbc_, log_, pd->getGroup()));
     }
-  }
-  return true;
-}
-
-bool EPlace::initEPlace()
-{
-  if (wa_wirelength_) {
-    log_->warn(EPL, 3, "EPlacer already initialized.");
-    return true;
-  }
-
-  if (!initPlacer()) {
-    return false;
-  }
-
-  // Init wa_wirelength_
-  gpl::NesterovBaseVars nesterov_base_vars;
-  int threads = 1;
-  wa_wirelength_ = std::make_shared<WAwirelength>(
-      nesterov_base_vars, pbc_, log_, threads, gpl::Clusters());
-
-  // Init e_density
-  for (auto pb : pbVec_) {
-    e_density_vec_.push_back(std::make_shared<EDensity>(
-        nesterov_base_vars, pb, wa_wirelength_, log_));
   }
   return true;
 }

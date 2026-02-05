@@ -1,27 +1,33 @@
 #pragma once
 
-#include "gpl/nesterovBase.h"
+#include "WAwirelength.h"
 #include "gpl/placerBase.h"
 #include "odb/db.h"
-#include "WAwirelength.h"
 
 namespace gpl {
 class PlacerBase;
 class PlacerBaseCommon;
 class PlacerBaseVars;
 class Instance;
-class NesterovBase;
+class BinGrid;
 }  // namespace gpl
 
 namespace epl {
 class WAwirelength;
 
-class EDensity : gpl::NesterovBase
+class EDensityVars
 {
  public:
-  EDensity(gpl::NesterovBaseVars nbVars,
+  double target_density;
+  bool uniform_density = false;
+};
+
+class EDensity
+{
+ public:
+  EDensity(EDensityVars edVars,
            std::shared_ptr<gpl::PlacerBase> pb,
-           std::shared_ptr<WAwirelength> nbc,
+           std::shared_ptr<WAwirelength> wa_wirelength,
            utl::Logger* log);
   ~EDensity() = default;
 
@@ -29,6 +35,14 @@ class EDensity : gpl::NesterovBase
   void init();
 
  private:
+  void initFillers();
+
+ private:
+  EDensityVars edVars_;
+  std::shared_ptr<gpl::PlacerBase> pb_;
   std::shared_ptr<WAwirelength> wa_wirelength_;
+  utl::Logger* log_ = nullptr;
+
+  gpl::BinGrid bg_;
 };
 }  // namespace epl
