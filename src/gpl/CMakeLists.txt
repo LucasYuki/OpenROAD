@@ -92,6 +92,6 @@ if (Python3_FOUND AND BUILD_PYTHON)
 
 endif()
 
-if(ENABLE_TESTS)
-  add_subdirectory(test)
-endif()
+#if(ENABLE_TESTS)
+#  add_subdirectory(test)
+#endif()

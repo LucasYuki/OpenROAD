@@ -24,7 +24,7 @@ class FFT
   std::pair<float, float> getElectroForce(int x, int y) const;
   float getElectroPhi(int x, int y) const;
 
- private:
+ protected:
   // 2D array; width: binCntX_, height: binCntY_;
   // No hope to use Vector at this moment...
   float** binDensity_ = nullptr;

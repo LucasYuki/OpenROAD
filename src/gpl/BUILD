@@ -15,7 +15,6 @@ cc_library(
     srcs = [
         "src/MakeReplace.cpp",
         "src/fft.cpp",
-        "src/fft.h",
         "src/fftsg.cpp",
         "src/fftsg2d.cpp",
         "src/graphics.cpp",
@@ -44,6 +43,7 @@ cc_library(
     hdrs = [
         "include/gpl/MakeReplace.h",
         "include/gpl/Replace.h",
+        "include/gpl/fft.h",
     ],
     copts = [
         "-fopenmp",

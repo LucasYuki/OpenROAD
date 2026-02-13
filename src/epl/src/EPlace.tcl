@@ -25,7 +25,7 @@ proc eplace_random_placement { args } {
 }
 
 sta::define_cmd_args "eplace_place" {}
-proc eplace_random_placement { args } {
+proc eplace_place { args } {
   epl::eplace_place_cmd
 }
 
