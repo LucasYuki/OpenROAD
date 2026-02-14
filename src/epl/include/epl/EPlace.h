@@ -18,9 +18,14 @@
 
 #include <vector>
 
-#include "odb/db.h"
-#include "gpl/Replace.h"
 #include "Nesterov.h"
+#include "gpl/Replace.h"
+#include "graphics.h"
+#include "odb/db.h"
+
+namespace gpl {
+class Graphics;
+}  // namespace gpl
 
 namespace epl {
 class EDensity;
@@ -34,11 +39,11 @@ class EPlace
  public:
   EPlace();
   ~EPlace();
-  
+
   void clear();
   void init(odb::dbDatabase* db, utl::Logger* logger);
-  bool initEPlace();
-  void place(int threads);
+  bool initEPlace(float density, bool uniform_density);
+  void place(int threads, float density, bool uniform_density);
   void randomPlace(int threads);
 
  private:

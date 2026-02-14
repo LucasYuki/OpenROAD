@@ -14,11 +14,11 @@
 #include <utility>
 #include <vector>
 
-#include "gpl/graphics.h"
-#include "gpl/nesterovBase.h"
-#include "odb/db.h"
 #include "gpl/placerBase.h"
-#include "gpl/routeBase.h"
+#include "graphics.h"
+#include "nesterovBase.h"
+#include "odb/db.h"
+#include "routeBase.h"
 #include "timingBase.h"
 #include "utl/Logger.h"
 

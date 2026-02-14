@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "gpl/nesterovBase.h"
+#include "nesterovBase.h"
 #include "odb/db.h"
 #include "odb/dbTransform.h"
 #include "odb/dbTypes.h"

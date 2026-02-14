@@ -29,88 +29,12 @@ void EDensity::clear()
 void EDensity::init()
 {
   clear();
-
-  // Set seed
-  srand(42);
-  //int dbu_per_micron = pb_->db()->getChip()->getBlock()->getDbUnitsPerMicron();
+  target_density_ = edVars_.target_density;
 
   initFillers();
-
   initGrid();
-  /*
-  nb_gcells_.reserve(pb_->getInsts().size() + fillerStor_.size());
 
-  // add place instances
-  for (auto& pb_inst : pb_->placeInsts()) {
-    int x_offset = rand() % (2 * dbu_per_micron) - dbu_per_micron;
-    int y_offset = rand() % (2 * dbu_per_micron) - dbu_per_micron;
-
-    GCell* gCell = nbc_->pbToNb(pb_inst);
-    if (pb_inst != gCell->insts()[0]) {
-      // Only process the first cluster once
-      continue;
-    }
-
-    for (Instance* inst : gCell->insts()) {
-      inst->setLocation(pb_inst->lx() + x_offset, pb_inst->ly() + y_offset);
-    }
-    gCell->updateLocations();
-    nb_gcells_.emplace_back(nbc_.get(), nbc_->getGCellIndex(gCell));
-    size_t gcells_index = nb_gcells_.size() - 1;
-    db_inst_to_nb_index_[pb_inst->dbInst()] = gcells_index;
-  }
-
-  // add filler cells to gCells_
-  for (size_t i = 0; i < fillerStor_.size(); ++i) {
-    nb_gcells_.emplace_back(this, i);
-    filler_stor_index_to_nb_index_[i] = nb_gcells_.size() - 1;
-  }
-
-  log_->debug(utl::EPL,
-              "Init",
-              "{:27} {:10}",
-              "FillerInit:NumGCells:",
-              nb_gcells_.size());
-  debugPrint(log_,
-             GPL,
-             "FillerInit",
-             1,
-             format_label_int,
-             "FillerInit:NumGNets:",
-             nbc_->getGNets().size());
-  debugPrint(log_,
-             GPL,
-             "FillerInit",
-             1,
-             format_label_int,
-             "FillerInit:NumGPins:",
-             nbc_->getGPins().size());
-
-  // initialize bin grid structure
-  // send param into binGrid structure
-  if (nbVars_.isSetBinCnt) {
-    bg_.setBinCnt(nbVars_.binCntX, nbVars_.binCntY);
-  }
-
-  bg_.setPlacerBase(pb_);
-  bg_.setLogger(log_);
-  bg_.setCorePoints(&(pb_->getDie()));
-  bg_.setTargetDensity(targetDensity_);
-
-  // update binGrid info
-  bg_.initBins();
-
-  // initialize fft structrue based on bins
-  std::unique_ptr<FFT> fft(new FFT(bg_.getBinCntX(),
-                                   bg_.getBinCntY(),
-                                   bg_.getBinSizeX(),
-                                   bg_.getBinSizeY()));
-
-  fft_ = std::move(fft);
-
-  // update densitySize and densityScale in each gCell
-  updateDensitySize();
-  */
+  updateDensity();
 }
 
 void EDensity::initFillers()
@@ -123,7 +47,7 @@ void EDensity::initFillers()
   double curr_density
       = static_cast<double>(place_area + fixed_area) / core_area;
   if (edVars_.uniform_density) {
-    log_->info(utl::EPL, 4, "Using uniform density ({})", curr_density);
+    log_->info(utl::EPL, 4, "Using uniform density", curr_density);
     target_density_ = curr_density;
   }
   if (curr_density > edVars_.target_density) {
@@ -135,11 +59,21 @@ void EDensity::initFillers()
                curr_density);
     target_density_ = curr_density;
   }
+  log_->info(utl::EPL,
+             12,
+             "{:27} {:10.3f}",
+             "Original target density:",
+             target_density_);
 
   filler_area_ = (target_density_ - curr_density) * core_area;
   if (filler_area_ == 0) {
     return;
   }
+  log_->info(utl::EPL,
+             6,
+             "{:27} {:10.3f}",
+             "Target filler area:",
+             pb_->db()->getChip()->getBlock()->dbuAreaToMicrons(filler_area_));
 
   // Calculate filler size
   // Filler size is "the average size of the mid 80% of the movable cells"
@@ -181,19 +115,25 @@ void EDensity::initFillers()
         pos_x, pos_y, pos_x + filler_size_x, pos_y + filler_size_y));
   }
   log_->info(utl::EPL,
-             6,
-             "{} fillers inserted of size ({}, {})",
+             7,
+             "{} fillers inserted of size ({}, {}) um",
              n_fillers,
              pb_->db()->getChip()->getBlock()->dbuToMicrons(filler_size_x),
              pb_->db()->getChip()->getBlock()->dbuToMicrons(filler_size_y));
 
   // Re-update the target density
   filler_area_ = n_fillers * (filler_size_x * filler_size_y);
-  target_density_ = (place_area + fixed_area + filler_area_) / core_area;
+  target_density_ = (place_area + fixed_area + filler_area_)
+                    / static_cast<double>(core_area);
   log_->info(utl::EPL,
-             7,
-             "Filler area: {}. Trget density adjusted: {}",
-             filler_area_,
+             8,
+             "{:27} {:10.3f} um^2",
+             "Filler area:",
+             pb_->db()->getChip()->getBlock()->dbuAreaToMicrons(filler_area_));
+  log_->info(utl::EPL,
+             9,
+             "{:27} {:10.3f}",
+             "Target density adjusted:",
              target_density_);
 }
 
@@ -209,6 +149,24 @@ void EDensity::initGrid()
   float binSizeX = pb_->getDie().coreDx() / static_cast<float>(binCntX);
   float binSizeY = pb_->getDie().coreDy() / static_cast<float>(binCntY);
 
-  grid_ = std::make_unique<Grid>(binCntX, binCntY, binSizeX, binSizeY);
+  grid_ = std::make_unique<Grid>(
+      log_, binCntX, binCntY, binSizeX, binSizeY, &pb_->getDie());
+
+  for (auto inst : pb_->nonPlaceInsts()) {
+    grid_->addFixedInst(inst);
+  }
+  grid_->clearMovable();
 }
+
+void EDensity::updateDensity()
+{
+  grid_->clearMovable();
+  for (auto inst : pb_->placeInsts()) {
+    grid_->addMovableInst(inst);
+  }
+  for (auto inst : fillers_) {
+    grid_->addMovableInst(&inst);
+  }
+}
+
 }  // namespace epl

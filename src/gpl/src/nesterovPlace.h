@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "gpl/nesterovBase.h"
+#include "nesterovBase.h"
 #include "odb/dbBlockCallBackObj.h"
-#include "gpl/point.h"
+#include "point.h"
 #include "utl/prometheus/gauge.h"
 
 namespace utl {

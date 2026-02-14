@@ -19,15 +19,42 @@
 # too users in the global namespace.
 namespace eval epl {
 
+
+sta::define_cmd_args "eplace_place" { \
+    [-density] \
+}
+
+proc eplace_place { args } {
+  sta::parse_key_args "global_placement" args \
+    keys {-density} \
+    flags {}
+  
+  # density settings
+  set target_density 0
+  set uniform_mode 1
+
+  if { [info exists keys(-density)] } {
+    set target_density $keys(-density)
+  }
+  if { $target_density == "uniform" } {
+    set uniform_mode 1
+  } else {
+    set uniform_mode 0
+    sta::check_positive_float "-density" $target_density
+    if { $target_density > 1.0 } {
+      utl::error EPL 10 "Target density must be in \[0, 1\]."
+    }
+  }
+
+  epl::eplace_place_cmd $target_density $uniform_mode
+}
+
+
 sta::define_cmd_args "eplace_random_placement" {}
 proc eplace_random_placement { args } {
   epl::eplace_random_placement_cmd
 }
 
-sta::define_cmd_args "eplace_place" {}
-proc eplace_place { args } {
-  epl::eplace_place_cmd
-}
 
 sta::define_cmd_args "test_epl" {}
 proc test_epl { args } {

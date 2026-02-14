@@ -7,7 +7,6 @@
 #include <Eigen/SparseCore>
 #include <memory>
 
-#include "gpl/graphics.h"
 #include "odb/db.h"
 #include "gpl/placerBase.h"
 #include "utl/Logger.h"

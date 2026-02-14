@@ -35,7 +35,7 @@ void EPlace::init(odb::dbDatabase* db, utl::Logger* logger)
   log_ = logger;
 }
 
-bool EPlace::initEPlace()
+bool EPlace::initEPlace(float density, bool uniform_density)
 {
   if (wa_wirelength_) {
     log_->warn(EPL, 3, "EPlacer already initialized.");
@@ -54,6 +54,8 @@ bool EPlace::initEPlace()
 
   // Init e_density
   EDensityVars edVars;
+  edVars.target_density = density;
+  edVars.uniform_density = uniform_density;
   for (auto pb : pbVec_) {
     e_density_vec_.push_back(std::make_shared<EDensity>(
         edVars, pb, wa_wirelength_, log_));
@@ -98,7 +100,7 @@ void EPlace::clear()
   pbVec_.clear();
 }
 
-void EPlace::place(int threads)
+void EPlace::place(int threads, float density, bool uniform_density)
 {
   debugPrint(log_,
              EPL,
@@ -106,8 +108,18 @@ void EPlace::place(int threads)
              1,
              "place: number of threads {}",
              threads);
-  if (!initEPlace()) {
+  if (!initEPlace(density, uniform_density)) {
     return;
+  }
+
+  bool debug = true;
+  std::unique_ptr<gpl::Graphics> graphics = nullptr;
+  if (debug && gpl::Graphics::guiActive()) {
+    graphics = std::make_unique<gpl::Graphics>(log_, pbc_, pbVec_);
+  }
+
+  if (debug && gpl::Graphics::guiActive()) {
+    graphics->cellPlot(true);
   }
 }
 

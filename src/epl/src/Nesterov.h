@@ -14,13 +14,15 @@ class EDensity;
 class NesterovOptimizer
 {
  public:
-  NesterovOptimizer(const NesterovOptimizer& npVars,
-                    const std::shared_ptr<gpl::PlacerBaseCommon>& pbc,
-                    const std::shared_ptr<WAwirelength>& nbc,
-                    std::vector<std::shared_ptr<gpl::PlacerBase>>& pbVec,
-                    std::vector<std::shared_ptr<EDensity>>& nbVec,
-                    utl::Logger* log){};
-  ~NesterovOptimizer(){};
+  /*
+   NesterovOptimizer(tconst NesterovOptimizer& npVars,
+                     const std::shared_ptr<gpl::PlacerBaseCommon>& pbc,
+                     const std::shared_ptr<WAwirelength>& nbc,
+                     std::vector<sd::shared_ptr<gpl::PlacerBase>>& pbVec,
+                     std::vector<std::shared_ptr<EDensity>>& nbVec,
+                     utl::Logger* log){};
+   ~NesterovOptimizer(){};
+ */
 };
 
 }  // namespace epl

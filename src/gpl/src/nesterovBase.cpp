@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2018-2025, The OpenROAD Authors
 
-#include "gpl/nesterovBase.h"
+#include "nesterovBase.h"
 
 #include <omp.h>
 
@@ -22,9 +22,9 @@
 #include <vector>
 
 #include "gpl/fft.h"
+#include "gpl/placerBase.h"
 #include "nesterovPlace.h"
 #include "odb/db.h"
-#include "gpl/placerBase.h"
 #include "utl/Logger.h"
 
 #define REPLACE_SQRT2 1.414213562373095048801L

@@ -10,8 +10,8 @@ WAwirelength::WAwirelength(WAwirelengthVars waVars,
     : waVars_(waVars),
       pb_(std::move(pb)),
       log_(log),
-      num_threads_(num_threads_),
-      clusters_(clusters_)
+      num_threads_(num_threads),
+      clusters_(clusters)
 {
 }
 

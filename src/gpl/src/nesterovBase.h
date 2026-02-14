@@ -17,10 +17,10 @@
 #include <vector>
 
 #include "gpl/Replace.h"
-#include "odb/db.h"
 #include "gpl/placerBase.h"
-#include "gpl/point.h"
-#include "gpl/routeBase.h"
+#include "routeBase.h"
+#include "odb/db.h"
+#include "point.h"
 namespace odb {
 class dbInst;
 class dbITerm;

@@ -9,8 +9,6 @@
 
 namespace gpl {
 class PlacerBase;
-class PlacerBaseCommon;
-class PlacerBaseVars;
 class Instance;
 }  // namespace gpl
 
@@ -20,8 +18,9 @@ class WAwirelength;
 class EDensityVars
 {
  public:
-  double target_density;
+  double target_density = 0;
   bool uniform_density = false;
+  bool debug = true;
 };
 
 class EDensity
@@ -35,10 +34,12 @@ class EDensity
 
   void clear();
   void init();
+  void step();
 
  private:
   void initFillers();
   void initGrid();
+  void updateDensity();
 
  private:
   EDensityVars edVars_;

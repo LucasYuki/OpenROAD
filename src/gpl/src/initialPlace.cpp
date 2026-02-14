@@ -13,6 +13,7 @@
 
 #include "odb/dbTypes.h"
 #include "gpl/placerBase.h"
+#include "graphics.h"
 #include "solver.h"
 
 namespace gpl {

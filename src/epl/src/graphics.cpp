@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2020-2025, The OpenROAD Authors
 
-#include "graphics.h"
+#include "gpl/graphics.h"
 
 #include <algorithm>
 #include <cmath>
@@ -14,10 +14,10 @@
 #include <utility>
 #include <vector>
 
-#include "gpl/placerBase.h"
-#include "nesterovBase.h"
+#include "gpl/nesterovBase.h"
 #include "nesterovPlace.h"
 #include "odb/db.h"
+#include "gpl/placerBase.h"
 #include "utl/Logger.h"
 
 namespace gpl {

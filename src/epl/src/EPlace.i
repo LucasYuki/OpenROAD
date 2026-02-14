@@ -36,19 +36,19 @@ using epl::EPlace;
 %inline %{
 
 void
+eplace_place_cmd(float density, bool uniform_density)
+{
+  EPlace* eplace = getEPlace();
+  int threads = ord::OpenRoad::openRoad()->getThreadCount();
+  eplace->place(threads, density, uniform_density);
+}
+
+void
 eplace_random_placement_cmd()
 {
   EPlace* eplace = getEPlace();
   int threads = ord::OpenRoad::openRoad()->getThreadCount();
   eplace->randomPlace(threads);
-}
-
-void
-eplace_place_cmd()
-{
-  EPlace* eplace = getEPlace();
-  int threads = ord::OpenRoad::openRoad()->getThreadCount();
-  eplace->place(threads);
 }
 
 %} // inline

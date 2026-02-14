@@ -54,6 +54,7 @@ target_link_libraries(epl
     OpenSTA
     odb
     gpl
+    gui
     Eigen3::Eigen
     Threads::Threads
     OpenMP::OpenMP_CXX
