@@ -20,7 +20,6 @@
 
 #include "Nesterov.h"
 #include "gpl/Replace.h"
-#include "graphics.h"
 #include "odb/db.h"
 
 namespace gpl {

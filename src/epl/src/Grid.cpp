@@ -29,30 +29,37 @@ Grid::Grid(utl::Logger* log,
              binCntY,
              binSizeX,
              binSizeY);
-  binDensityFixed_ = new float*[binCntX_];
+  binAreaFixed_ = new int64_t*[binCntX_];
+  binAreaFixedMacro_ = new int64_t*[binCntX_];
 
-  for (int i = 0; i < binCntX_; i++) {
-    binDensityFixed_[i] = new float[binCntY_];
+  for (int x = 0; x < binCntX_; x++) {
+    binAreaFixed_[x] = new int64_t[binCntY_];
+    binAreaFixedMacro_[x] = new int64_t[binCntY_];
 
-    for (int j = 0; j < binCntY_; j++) {
-      binDensityFixed_[i][j] = 0.0f;
+    for (int y = 0; y < binCntY_; y++) {
+      binAreaFixed_[x][y] = 0.0f;
+      binAreaFixedMacro_[x][y] = 0.0f;
     }
   }
 }
 
 Grid::~Grid()
 {
-  for (int i = 0; i < binCntX_; i++) {
-    delete[] binDensityFixed_[i];
+  for (int x = 0; x < binCntX_; x++) {
+    delete[] binAreaFixed_[x];
+    delete[] binAreaFixedMacro_[x];
   }
-  delete[] binDensityFixed_;
+  delete[] binAreaFixed_;
+  delete[] binAreaFixedMacro_;
 }
 
 void Grid::clearMovable()
 {
-  for (int i = 0; i < binCntX_; i++) {
-    for (int j = 0; j < binCntY_; j++) {
-      binDensity_[i][j] = binDensityFixed_[i][j];
+  for (int x = 0; x < binCntX_; x++) {
+    for (int y = 0; y < binCntY_; y++) {
+      binDensity_[x][y]
+          = (binAreaFixed_[x][y] + binAreaFixedMacro_[x][y] * target_density_)
+            / getBin(x, y).area();
     }
   }
 }
@@ -62,9 +69,13 @@ void Grid::addFixedInst(const gpl::Instance* inst)
   std::pair<int, int> idxX = getMinMaxIdxX(inst);
   std::pair<int, int> idxY = getMinMaxIdxY(inst);
   odb::Rect inst_rect{inst->lx(), inst->ly(), inst->ux(), inst->uy()};
+  int64_t** bin_area = binAreaFixed_;
+  if (inst->isMacro()) {
+    bin_area = binAreaFixedMacro_;
+  }
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
-      binDensityFixed_[x][y] += inst_rect.intersect(getBin(x, y)).area();
+      bin_area[x][y] += inst_rect.intersect(getBin(x, y)).area();
     }
   }
 }
@@ -82,11 +93,15 @@ void Grid::addMovableInst(const gpl::Instance* inst)
     inst_rect.set_ylo(inst_rect.yCenter() - binSizeY_ / 2);
     inst_rect.set_yhi(inst_rect.yMin() + binSizeY_);
   }
-  double area_ratio = inst->area() / static_cast<double>(inst_rect.area());
+  double scaling = inst->area() / static_cast<double>(inst_rect.area());
+  if (inst->isMacro()) {
+    scaling *= target_density_;
+  }
 
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
-      binDensity_[x][y] += inst_rect.intersect(getBin(x, y)).area() * area_ratio;
+      binDensity_[x][y] += inst_rect.intersect(getBin(x, y)).area() * scaling
+                           / getBin(x, y).area();
     }
   }
 }

@@ -113,6 +113,7 @@ void EPlace::place(int threads, float density, bool uniform_density)
   }
 
   bool debug = true;
+  /*
   std::unique_ptr<gpl::Graphics> graphics = nullptr;
   if (debug && gpl::Graphics::guiActive()) {
     graphics = std::make_unique<gpl::Graphics>(log_, pbc_, pbVec_);
@@ -121,6 +122,7 @@ void EPlace::place(int threads, float density, bool uniform_density)
   if (debug && gpl::Graphics::guiActive()) {
     graphics->cellPlot(true);
   }
+  */
 }
 
 void EPlace::randomPlace(int threads)

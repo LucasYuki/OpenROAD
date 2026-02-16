@@ -30,6 +30,9 @@ class Grid : gpl::FFT
   void clearMovable();
   void addFixedInst(const gpl::Instance* inst);
   void addMovableInst(const gpl::Instance* inst);
+  float total_overflow();
+
+  void setTargetDensity(float density) { target_density_ = density; };
 
  private:
   std::pair<int, int> getMinMaxIdxX(const gpl::Instance* inst) const;
@@ -46,6 +49,8 @@ class Grid : gpl::FFT
  private:
   utl::Logger* log_;
   gpl::Die* die_;
-  float** binDensityFixed_ = nullptr;
+  int64_t** binAreaFixed_ = nullptr;
+  int64_t** binAreaFixedMacro_ = nullptr;
+  float target_density_ = 0;
 };
 }  // namespace epl

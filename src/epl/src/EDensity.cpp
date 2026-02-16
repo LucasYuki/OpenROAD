@@ -79,15 +79,18 @@ void EDensity::initFillers()
   // Filler size is "the average size of the mid 80% of the movable cells"
   auto insts = pb_->placeInsts();
   int n_insts = insts.size();
-  int size_x[n_insts], size_y[n_insts];
+  std::vector<int> size_x(n_insts), size_y(n_insts);
   int curr_idx = 0;
   for (auto& inst : insts) {
-    size_x[curr_idx] = inst->dx();
-    size_y[curr_idx] = inst->dy();
-    curr_idx++;
+    if (inst->isMacro()) { 
+      continue;
+    }
+    size_x.push_back(inst->dx());
+    size_y.push_back(inst->dy());
   }
-  std::sort(size_x, size_x + n_insts);
-  std::sort(size_y, size_y + n_insts);
+  n_insts = size_x.size();
+  std::sort(size_x.begin(), size_x.end());
+  std::sort(size_y.begin(), size_y.end());
 
   int64_t filler_size_x = 0, filler_size_y = 0;
   int start_idx = n_insts * 0.1, end_idx = n_insts * 0.9;
@@ -155,6 +158,7 @@ void EDensity::initGrid()
   for (auto inst : pb_->nonPlaceInsts()) {
     grid_->addFixedInst(inst);
   }
+  grid_->setTargetDensity(target_density_);
   grid_->clearMovable();
 }
 
