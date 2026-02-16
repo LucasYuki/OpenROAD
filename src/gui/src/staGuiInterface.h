@@ -18,6 +18,12 @@
 #include "odb/dbBlockCallBackObj.h"
 #include "odb/dbObject.h"
 #include "odb/geom.h"
+#include "sta/Delay.hh"
+#include "sta/Graph.hh"
+#include "sta/MinMax.hh"
+#include "sta/NetworkClass.hh"
+#include "sta/Path.hh"
+#include "sta/SdcClass.hh"
 
 namespace sta {
 class Corner;
@@ -60,10 +66,8 @@ class TimingPathNode
         delay_(delay),
         slew_(slew),
         load_(load),
-        path_slack_(0.0),
         fanout_(fanout),
-        paired_nodes_({}),
-        instance_node_(nullptr)
+        paired_nodes_({})
   {
   }
 
@@ -130,16 +134,24 @@ class TimingPathNode
   float delay_;
   float slew_;
   float load_;
-  float path_slack_;
+  float path_slack_{0.0};
   int fanout_;
 
   std::set<const TimingPathNode*> paired_nodes_;
-  const TimingPathNode* instance_node_;
+  const TimingPathNode* instance_node_{nullptr};
 };
 
 class TimingPath
 {
  public:
+  enum PathSection
+  {
+    kAll,
+    kLaunch,
+    kData,
+    kCapture
+  };
+
   TimingPath();
 
   void setStartClock(const char* name) { start_clk_ = name; }
@@ -185,6 +197,7 @@ class TimingPath
                            sta::DcalcAnalysisPt* dcalc_ap,
                            float offset,
                            bool clock_expanded);
+  std::vector<odb::dbNet*> getNets(const PathSection& path_section) const;
 
  private:
   TimingNodeList path_nodes_;
@@ -223,6 +236,10 @@ class TimingPath
                           float& prev_inst_delay,
                           bool& pin_belongs_to_inverter_pair_instance);
   void computeClkEndIndex(TimingNodeList& nodes, int& index);
+  void getNets(std::vector<odb::dbNet*>& nets,
+               const TimingNodeList& nodes,
+               bool only_clock,
+               bool only_data) const;
 };
 
 class ClockTree
@@ -351,7 +368,7 @@ class STAGuiInterface
                                 const std::vector<StaPins>& thrus,
                                 const StaPins& to,
                                 const std::string& path_group_name,
-                                sta::ClockSet* clks) const;
+                                const sta::ClockSet* clks) const;
   TimingPathList getTimingPaths(const sta::Pin* thru) const;
 
   std::unique_ptr<TimingPathNode> getTimingNode(const sta::Pin* pin) const;

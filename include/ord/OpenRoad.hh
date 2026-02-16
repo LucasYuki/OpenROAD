@@ -64,6 +64,10 @@ namespace fin {
 class Finale;
 }
 
+namespace ram {
+class RamGen;
+}
+
 namespace exa {
 class Example;
 }
@@ -160,6 +164,7 @@ class OpenRoad
   dbVerilogNetwork* getVerilogNetwork() { return verilog_network_; }
   dpl::Opendp* getOpendp() { return opendp_; }
   fin::Finale* getFinale() { return finale_; }
+  ram::RamGen* getRamGen() { return ram_gen_; }
   tap::Tapcell* getTapcell() { return tapcell_; }
   mpl::MacroPlacer* getMacroPlacer() { return macro_placer_; }
   exa::Example* getExample() { return example_; }
@@ -222,6 +227,13 @@ class OpenRoad
   // to notify the tools (eg dbSta, gui).
   void designCreated();
 
+  void read3Dbv(const std::string& filename);
+  void read3Dbx(const std::string& filename);
+  void write3Dbv(const std::string& filename);
+  void write3Dbx(const std::string& filename);
+  void read3DBloxBMap(const std::string& filename);
+  void check3DBlox();
+
   void readDb(std::istream& stream);
   void readDb(const char* filename, bool hierarchy = false);
   void writeDb(std::ostream& stream);
@@ -257,6 +269,7 @@ class OpenRoad
   ppl::IOPlacer* ioPlacer_ = nullptr;
   dpl::Opendp* opendp_ = nullptr;
   fin::Finale* finale_ = nullptr;
+  ram::RamGen* ram_gen_ = nullptr;
   mpl::MacroPlacer* macro_placer_ = nullptr;
   exa::Example* example_ = nullptr;
   grt::GlobalRouter* global_router_ = nullptr;

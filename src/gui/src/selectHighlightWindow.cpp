@@ -5,10 +5,13 @@
 
 #include <QComboBox>
 #include <QHBoxLayout>
+#include <QMenu>
 #include <QPushButton>
 #include <QString>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QVariant>
+#include <QWidget>
 #include <string>
 #include <utility>
 
@@ -100,7 +103,7 @@ void HighlightModel::populateModel()
   int highlight_group = 0;
   for (auto& highlight_objs : objs_) {
     for (auto& obj : highlight_objs) {
-      table_data_.push_back(std::make_pair(highlight_group, &obj));
+      table_data_.emplace_back(highlight_group, &obj);
     }
     ++highlight_group;
   }
@@ -143,10 +146,10 @@ QVariant HighlightModel::data(const QModelIndex& index, int role) const
   }
   std::string obj_name = table_data_[row_index].second->getName();
   std::string obj_type;
-  if (obj_name.rfind("Net: ", 0) == 0) {
+  if (obj_name.starts_with("Net: ")) {
     obj_name = obj_name.substr(5);
     obj_type = "Net";
-  } else if (obj_name.rfind("Inst: ", 0) == 0) {
+  } else if (obj_name.starts_with("Inst: ")) {
     obj_name = obj_name.substr(6);
     obj_type = "Instance";
   }
@@ -334,10 +337,6 @@ SelectHighlightWindow::SelectHighlightWindow(const SelectionSet& sel_set,
   ui_.hltTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
 
   ui_.tabWidget->setCurrentIndex(0);
-}
-
-SelectHighlightWindow::~SelectHighlightWindow()
-{
 }
 
 void SelectHighlightWindow::updateSelectionModel()

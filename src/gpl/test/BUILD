@@ -1,4 +1,8 @@
+load("@openroad_rules_python//python:defs.bzl", "py_library", "py_test")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("//test:regression.bzl", "regression_test")
+
+package(features = ["layering_check"])
 
 TESTS = [
     "ar01",
@@ -35,24 +39,16 @@ TESTS = [
     "simple08",
     "simple09",
     "simple10",
+    "region01",
 ]
 
 py_library(
     name = "helpers",
     srcs = ["helpers.py"],
+    imports = ["."],
     deps = [
         "//openroad:openroadpy",
     ],
-    imports = ["."],
-)
-
-py_library(
-    name = "gpl_aux",
-    srcs = ["gpl_aux.py"],
-    deps = [
-        "//openroad:openroadpy",
-    ],
-    imports = ["."],
 )
 
 filegroup(
@@ -62,7 +58,7 @@ filegroup(
         "asap7/*.lib",
         "asap7/*.lef",
         "asap7/*.tcl",
-    ])
+    ]),
 )
 
 filegroup(
@@ -83,9 +79,15 @@ filegroup(
     ),
 )
 
+# TODO: Enable once difference between bazel and ctest is resolved.
+MANUAL_FOR_BAZEL_TESTS = [
+    "incremental02",
+]
+
 [regression_test(
     name = test_name,
     data = [":test_resources"],
+    tags = ["manual"] if test_name in MANUAL_FOR_BAZEL_TESTS else [],
 ) for test_name in TESTS]
 
 PY_TESTS = [
@@ -107,7 +109,6 @@ PY_TESTS = [
     "simple03",
     "simple04",
     "simple05",
-    "simple06",
     "simple07",
     "simple08",
     "simple09",
@@ -115,16 +116,57 @@ PY_TESTS = [
 ]
 
 [
-py_test(
-    name = test_name,
-    srcs = [test_name + ".py"],
+    py_test(
+        name = test_name,
+        srcs = [test_name + ".py"],
+        data = [
+            ":test_resources",
+        ],
+        deps = [
+            ":helpers",
+            "//openroad:openroadpy",
+        ],
+    )
+    for test_name in PY_TESTS
+]
+
+cc_test(
+    name = "gpl_fft_unittest",
+    srcs = ["fft_test.cc"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    linkstatic = True,  # TODO: remove once deps define all symbols
     deps = [
-        "//openroad:openroadpy",
-        ":helpers",
-        ":gpl_aux",
+        "//src/gpl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@spdlog",
     ],
-    data = [
-        ":test_resources"
-    ]
 )
-for test_name in PY_TESTS]
+
+cc_test(
+    name = "mbff_test",
+    srcs = ["mbff_test.cpp"],
+    data = [
+        "library/test/test0.lef",
+        "library/test/test0.lib",
+    ],
+    deps = [
+        "//:openroad_lib",
+        "//bazel:runfiles",
+        "//src/ant",
+        "//src/dbSta",
+        "//src/dbSta:dbReadVerilog",
+        "//src/dpl",
+        "//src/est",
+        "//src/gpl",
+        "//src/grt",
+        "//src/odb",
+        "//src/rsz",
+        "//src/stt",
+        "//src/tst",
+        "//src/utl",
+        "@com_google_absl//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

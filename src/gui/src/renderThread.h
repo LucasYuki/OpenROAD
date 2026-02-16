@@ -3,12 +3,16 @@
 
 #pragma once
 
+#include <QColor>
 #include <QMutex>
 #include <QPainter>
+#include <QString>
 #include <QThread>
 #include <QWaitCondition>
+#include <cstdint>
 #include <map>
 #include <mutex>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -62,10 +66,14 @@ class RenderThread : public QThread
 
   void setupIOPins(odb::dbBlock* block, const odb::Rect& bounds);
 
-  void drawBlock(QPainter* painter,
-                 odb::dbBlock* block,
+  void drawChips(QPainter* painter,
+                 odb::dbChip* chip,
                  const odb::Rect& bounds,
                  int depth);
+  void drawChip(QPainter* painter,
+                odb::dbChip* chip,
+                const odb::Rect& bounds,
+                int depth);
   void drawLayer(QPainter* painter,
                  odb::dbBlock* block,
                  odb::dbTechLayer* layer,
@@ -97,7 +105,8 @@ class RenderThread : public QThread
 
   void drawBlockages(QPainter* painter,
                      odb::dbBlock* block,
-                     const odb::Rect& bounds);
+                     const odb::Rect& bounds,
+                     const std::vector<odb::dbInst*>& insts);
   void drawObstructions(odb::dbBlock* block,
                         odb::dbTechLayer* layer,
                         QPainter* painter,
@@ -120,8 +129,16 @@ class RenderThread : public QThread
                   const odb::Rect& bounds,
                   odb::dbTechLayer* layer);
   void drawAccessPoints(Painter& painter,
+                        odb::dbBlock* block,
+                        const odb::Rect& bounds,
                         const std::vector<odb::dbInst*>& insts);
   void drawRouteGuides(Painter& painter, odb::dbTechLayer* layer);
+  void drawNetsRouteGuides(Painter& painter,
+                           const std::set<odb::dbNet*>& nets,
+                           odb::dbTechLayer* layer);
+  void drawNetRouteGuides(Painter& painter,
+                          odb::dbNet* net,
+                          odb::dbTechLayer* layer);
   void drawNetTracks(Painter& painter, odb::dbTechLayer* layer);
   void drawModuleView(QPainter* painter,
                       const std::vector<odb::dbInst*>& insts);
@@ -160,9 +177,8 @@ class RenderThread : public QThread
   QFont pin_font_;
   bool pin_draw_names_ = false;
   double pin_max_size_ = 0.0;
-  std::map<odb::dbTechLayer*,
-           std::vector<std::pair<odb::dbBTerm*, odb::dbBox*>>>
-      pins_;
+
+  static constexpr int64_t kMaxBPinsPerLayer = 100000;
 };
 
 }  // namespace gui

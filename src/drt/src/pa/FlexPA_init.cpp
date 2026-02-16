@@ -11,7 +11,13 @@
 #include "db/obj/frInst.h"
 #include "frBaseTypes.h"
 #include "gc/FlexGC.h"
+#include "odb/dbTypes.h"
+#include "odb/geom.h"
 #include "pa/FlexPA.h"
+#include "pa/FlexPA_unique.h"
+
+using odb::dbTechLayerDir;
+using odb::dbTechLayerType;
 
 namespace drt {
 
@@ -39,7 +45,7 @@ ViaRawPriorityTuple FlexPA::getViaRawPriority(const frViaDef* via_def)
   gtl::polygon_90_set_data<frCoord> via_layer_ps1;
 
   for (auto& fig : via_def->getLayer1Figs()) {
-    const Rect bbox = fig->getBBox();
+    const odb::Rect bbox = fig->getBBox();
     gtl::rectangle_data<frCoord> bbox_rect(
         bbox.xMin(), bbox.yMin(), bbox.xMax(), bbox.yMax());
     using boost::polygon::operators::operator+=;
@@ -62,7 +68,7 @@ ViaRawPriorityTuple FlexPA::getViaRawPriority(const frViaDef* via_def)
 
   gtl::polygon_90_set_data<frCoord> via_layer_PS2;
   for (auto& fig : via_def->getLayer2Figs()) {
-    const Rect bbox = fig->getBBox();
+    const odb::Rect bbox = fig->getBBox();
     const gtl::rectangle_data<frCoord> bbox_rect(
         bbox.xMin(), bbox.yMin(), bbox.xMax(), bbox.yMax());
     using boost::polygon::operators::operator+=;
@@ -164,6 +170,18 @@ void FlexPA::initSkipInstTerm(UniqueClass* unique_class)
     }
     unique_class->setSkipTerm(term.get(), skip);
   }
+}
+
+bool FlexPA::updateSkipInstTerm(frInst* inst)
+{
+  auto unique_class = unique_insts_.getUniqueClass(inst);
+  for (const auto& term : inst->getInstTerms()) {
+    if (!isSkipInstTermLocal(term.get())
+        && unique_class->isSkipTerm(term->getTerm())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace drt

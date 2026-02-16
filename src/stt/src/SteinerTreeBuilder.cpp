@@ -16,28 +16,23 @@
 #include "odb/geom.h"
 #include "stt/flute.h"
 #include "stt/pd.h"
+#include "utl/Logger.h"
 
 namespace stt {
 
-static void reportSteinerBranches(const stt::Tree& tree, Logger* logger);
+static void reportSteinerBranches(const stt::Tree& tree, utl::Logger* logger);
 
-SteinerTreeBuilder::SteinerTreeBuilder()
+SteinerTreeBuilder::SteinerTreeBuilder(odb::dbDatabase* db, utl::Logger* logger)
     : alpha_(0.3),
       min_fanout_alpha_({0, -1}),
       min_hpwl_alpha_({0, -1}),
-      logger_(nullptr),
-      db_(nullptr),
+      logger_(logger),
+      db_(db),
       flute_(new flt::Flute())
 {
 }
 
 SteinerTreeBuilder::~SteinerTreeBuilder() = default;
-
-void SteinerTreeBuilder::init(odb::dbDatabase* db, Logger* logger)
-{
-  db_ = db;
-  logger_ = logger;
-}
 
 Tree SteinerTreeBuilder::makeSteinerTree(const std::vector<int>& x,
                                          const std::vector<int>& y,
@@ -207,6 +202,10 @@ void SteinerTreeBuilder::setMinHPWLAlpha(int min_hpwl, float alpha)
 
 int SteinerTreeBuilder::computeHPWL(odb::dbNet* net)
 {
+  if (net->getBTermCount() + net->getITermCount() == 0) {
+    return 0;
+  }
+
   int min_x = std::numeric_limits<int>::max();
   int min_y = std::numeric_limits<int>::max();
   int max_x = std::numeric_limits<int>::min();
@@ -262,14 +261,14 @@ Tree SteinerTreeBuilder::flute(const std::vector<int>& x,
   return flute_->flute(x, y, acc);
 }
 
-int SteinerTreeBuilder::wirelength(Tree t)
+int SteinerTreeBuilder::wirelength(const Tree& t)
 {
-  return flute_->wirelength(std::move(t));
+  return flute_->wirelength(t);
 }
 
-void SteinerTreeBuilder::plottree(Tree t)
+void SteinerTreeBuilder::plottree(const Tree& t)
 {
-  flute_->plottree(std::move(t));
+  flute_->plottree(t);
 }
 
 Tree SteinerTreeBuilder::flutes(const std::vector<int>& xs,
@@ -293,7 +292,7 @@ static int findLocationIndex(const Tree& tree, int x, int y);
 void reportSteinerTree(const stt::Tree& tree,
                        int drvr_x,
                        int drvr_y,
-                       Logger* logger)
+                       utl::Logger* logger)
 {
   // flute mangles the x/y locations and pdrevII moves the driver to 0
   // so we have to find the driver location index.
@@ -308,13 +307,13 @@ void reportSteinerTree(const stt::Tree& tree,
   }
 }
 
-void reportSteinerTree(const stt::Tree& tree, Logger* logger)
+void reportSteinerTree(const stt::Tree& tree, utl::Logger* logger)
 {
   logger->report("Wire length = {}", tree.length);
   reportSteinerBranches(tree, logger);
 }
 
-static void reportSteinerBranches(const stt::Tree& tree, Logger* logger)
+static void reportSteinerBranches(const stt::Tree& tree, utl::Logger* logger)
 {
   for (int i = 0; i < tree.branchCount(); i++) {
     int x1 = tree.branch[i].x;
@@ -386,7 +385,7 @@ void Tree::printTree(utl::Logger* logger) const
                      (float) branch[i].y,
                      branch[i].n);
     }
-    for (int i = deg; i < 2 * deg - 2; i++) {
+    for (int i = deg; i < branch.size(); i++) {
       logger->report("s{:2d}:  x={:4g}  y={:4g}  e={}",
                      i,
                      (float) branch[i].x,

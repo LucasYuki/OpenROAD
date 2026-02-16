@@ -17,22 +17,17 @@ namespace ord {
 class OpenRoad;
 }  // namespace ord
 
-namespace utl {
-class Logger;
-}
-
 namespace sta {
 class dbSta;
 class Pin;
 }  // namespace sta
 
 namespace cut {
-using utl::Logger;
 
 class Blif
 {
  public:
-  Blif(Logger* logger,
+  Blif(utl::Logger* logger,
        sta::dbSta* sta,
        const std::string& const0_cell_,
        const std::string& const0_cell_port_,
@@ -46,12 +41,12 @@ class Blif
   bool inspectBlif(const char* file_name, int& num_instances);
   float getRequiredTime(sta::Pin* term, bool is_rise);
   float getArrivalTime(sta::Pin* term, bool is_rise);
-  void addArrival(sta::Pin* pin, std::string netName);
-  void addRequired(sta::Pin* pin, std::string netName);
+  void addArrival(sta::Pin* pin, const std::string& netName);
+  void addRequired(sta::Pin* pin, const std::string& netName);
 
  private:
   std::set<odb::dbInst*> instances_to_optimize_;
-  Logger* logger_;
+  utl::Logger* logger_;
   sta::dbSta* open_sta_ = nullptr;
   std::string const0_cell_;
   std::string const0_cell_port_;

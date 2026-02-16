@@ -8,10 +8,15 @@
 #include <vector>
 
 #include "db_sta/dbSta.hh"
+#include "grt/GRoute.h"
 #include "grt/GlobalRouter.h"
+#include "grt/PinGridLocation.h"
 #include "grt/RoutePt.h"
 #include "odb/db.h"
+#include "sta/ArcDelayCalc.hh"
 #include "sta/Clock.hh"
+#include "sta/MinMax.hh"
+#include "sta/ParasiticsClass.hh"
 #include "sta/Set.hh"
 
 namespace sta {
@@ -101,6 +106,13 @@ class MakeWireParasitics
   void layerRC(int wire_length_dbu,
                int layer,
                sta::Corner* corner,
+               // Return values.
+               float& res,
+               float& cap) const;
+  void layerRC(int wire_length_dbu,
+               int layer,
+               sta::Corner* corner,
+               odb::dbNet* net,
                // Return values.
                float& res,
                float& cap) const;

@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QString>
 #include <QWidget>
 #include <map>
 
@@ -27,6 +28,7 @@ class GlobalConnectDialog : public QDialog
 
  private slots:
   void runRules();
+  void runRulesWithForce();
   void clearRules();
   void deleteRule(odb::dbGlobalConnect* gconnect);
   void makeRule();
@@ -41,6 +43,7 @@ class GlobalConnectDialog : public QDialog
   QPushButton* add_;
   QPushButton* clear_;
   QPushButton* run_;
+  QPushButton* run_force_;
 
   struct GlobalConnectWidgets
   {
@@ -62,7 +65,7 @@ class GlobalConnectDialog : public QDialog
   QLabel* connections_;
 
   void addRule(odb::dbGlobalConnect* gc);
-  void runRule(odb::dbGlobalConnect* gc);
+  void runRule(odb::dbGlobalConnect* gc, bool force);
 };
 
 }  // namespace gui

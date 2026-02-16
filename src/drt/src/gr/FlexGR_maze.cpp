@@ -11,9 +11,16 @@
 #include <utility>
 #include <vector>
 
+#include "db/grObj/grFig.h"
+#include "db/grObj/grNet.h"
+#include "db/grObj/grNode.h"
+#include "db/grObj/grShape.h"
+#include "db/grObj/grVia.h"
 #include "db/obj/frBlockObject.h"
+#include "dr/FlexMazeTypes.h"
 #include "frBaseTypes.h"
 #include "gr/FlexGR.h"
+#include "odb/geom.h"
 
 namespace drt {
 
@@ -111,9 +118,9 @@ void FlexGRWorker::route_mazeIterInit()
                                xIdx, yIdx, zIdx, frDirEnum::N)) {
             // has congestion, need to region query to find what nets are using
             // this gcell
-            Point gcellCenter;
+            odb::Point gcellCenter;
             gridGraph_.getPoint(xIdx, yIdx, gcellCenter);
-            Rect gcellCenterBox(gcellCenter, gcellCenter);
+            odb::Rect gcellCenterBox(gcellCenter, gcellCenter);
             result.clear();
             workerRegionQuery.query(gcellCenterBox, lNum, result);
             for (auto rptr : result) {
@@ -123,7 +130,7 @@ void FlexGRWorker::route_mazeIterInit()
                   cptr->getGrNet()->setRipup(true);
                 } else {
                   std::cout << "Error: route_mazeIterInit hasGrNet() empty"
-                            << std::endl;
+                            << '\n';
                 }
               }
             }
@@ -341,7 +348,7 @@ void FlexGRWorker::modCong_pathSeg(grPathSeg* pathSeg, bool isAdd)
       }
     }
   } else {
-    std::cout << "Error: non-colinear pathSeg in modCong_pathSeg" << std::endl;
+    std::cout << "Error: non-colinear pathSeg in modCong_pathSeg\n";
   }
 }
 
@@ -423,7 +430,7 @@ bool FlexGRWorker::routeNet(grNet* net)
                 mazeIdx2endPointNode);
 
   FlexMazeIdx ccMazeIdx1, ccMazeIdx2;  // connComps ll, ur FlexMazeIdx
-  Point centerPt;
+  odb::Point centerPt;
   std::vector<FlexMazeIdx> connComps;
 
   routeNet_setSrc(net,
@@ -495,7 +502,7 @@ void FlexGRWorker::routeNet_printNet(grNet* net)
   nodeQ.push_back(root);
 
   std::cout << "start traversing subnet of " << net->getFrNet()->getName()
-            << std::endl;
+            << '\n';
 
   while (!nodeQ.empty()) {
     auto node = nodeQ.front();
@@ -510,10 +517,10 @@ void FlexGRWorker::routeNet_printNet(grNet* net)
       std::cout << "boundary pin node ";
     }
     std::cout << "at ";
-    Point loc = node->getLoc();
+    odb::Point loc = node->getLoc();
     frLayerNum lNum = node->getLayerNum();
     std::cout << "(" << loc.x() << ", " << loc.y() << ") on layerNum " << lNum
-              << std::endl;
+              << '\n';
 
     for (auto child : node->getChildren()) {
       nodeQ.push_back(child);
@@ -526,10 +533,10 @@ void FlexGRWorker::routeNet_printNet(grNet* net)
         std::cout << "boundary pin node ";
       }
       std::cout << "at ";
-      Point loc = child->getLoc();
+      odb::Point loc = child->getLoc();
       frLayerNum lNum = child->getLayerNum();
       std::cout << "(" << loc.x() << ", " << loc.y() << ") on layerNum " << lNum
-                << std::endl;
+                << '\n';
     }
   }
 }
@@ -542,7 +549,7 @@ void FlexGRWorker::routeNet_setSrc(
     std::vector<FlexMazeIdx>& connComps,
     FlexMazeIdx& ccMazeIdx1,
     FlexMazeIdx& ccMazeIdx2,
-    Point& centerPt)
+    odb::Point& centerPt)
 {
   frMIdx xDim, yDim, zDim;
   gridGraph_.getDim(xDim, yDim, zDim);
@@ -588,8 +595,8 @@ grNode* FlexGRWorker::routeNet_getNextDst(
     FlexMazeIdx& ccMazeIdx2,
     std::map<FlexMazeIdx, grNode*>& mazeIdx2unConnPinGCellNode)
 {
-  Point pt;
-  Point ll, ur;
+  odb::Point pt;
+  odb::Point ll, ur;
   gridGraph_.getPoint(ccMazeIdx1.x(), ccMazeIdx1.y(), ll);
   gridGraph_.getPoint(ccMazeIdx2.x(), ccMazeIdx2.y(), ur);
   frCoord currDist = std::numeric_limits<frCoord>::max();
@@ -606,14 +613,13 @@ grNode* FlexGRWorker::routeNet_getNextDst(
                   << std::flush;
       }
       gridGraph_.getPoint(mazeIdx.x(), mazeIdx.y(), pt);
-      frCoord dx = std::max(std::max(ll.x() - pt.x(), pt.x() - ur.x()), 0);
-      frCoord dy = std::max(std::max(ll.y() - pt.y(), pt.y() - ur.y()), 0);
-      frCoord dz
-          = std::max(std::max(gridGraph_.getZHeight(ccMazeIdx1.z())
-                                  - gridGraph_.getZHeight(mazeIdx.z()),
-                              gridGraph_.getZHeight(mazeIdx.z())
-                                  - gridGraph_.getZHeight(ccMazeIdx2.z())),
-                     0);
+      frCoord dx = std::max({ll.x() - pt.x(), pt.x() - ur.x(), 0});
+      frCoord dy = std::max({ll.y() - pt.y(), pt.y() - ur.y(), 0});
+      frCoord dz = std::max({gridGraph_.getZHeight(ccMazeIdx1.z())
+                                 - gridGraph_.getZHeight(mazeIdx.z()),
+                             gridGraph_.getZHeight(mazeIdx.z())
+                                 - gridGraph_.getZHeight(ccMazeIdx2.z()),
+                             0});
       if (dx + dy + dz < currDist) {
         currDist = dx + dy + dz;
         nextDst = node;
@@ -626,7 +632,7 @@ grNode* FlexGRWorker::routeNet_getNextDst(
 
   if (nextDst == nullptr) {
     std::cout << "Error: nextDst node is nullptr\n" << std::flush;
-    std::cout << nextDst->getNet()->getFrNet()->getName() << std::endl;
+    std::cout << nextDst->getNet()->getFrNet()->getName() << '\n';
   }
   return nextDst;
 }
@@ -652,7 +658,7 @@ grNode* FlexGRWorker::routeNet_postAstarUpdate(
     gridGraph_.setSrc(mi);
     localConnComps.insert(mi);
   } else {
-    std::cout << "Error: routeNet_postAstarUpdate path is empty" << std::endl;
+    std::cout << "Error: routeNet_postAstarUpdate path is empty\n";
   }
 
   for (int i = 0; i < (int) path.size() - 1; i++) {
@@ -751,10 +757,10 @@ void FlexGRWorker::routeNet_postAstarWritePath(
     // if need to genParent, need to break pathSeg in case the source is not a
     // pin (i.e., branch from pathSeg)
     if (needGenParent && i == (int) points.size() - 2) {
-      Point srcLoc;
+      odb::Point srcLoc;
       gridGraph_.getPoint(points.back().x(), points.back().y(), srcLoc);
       frLayerNum srcLNum = (points.back().z() + 1) * 2;
-      Rect srcBox(srcLoc, srcLoc);
+      odb::Rect srcBox(srcLoc, srcLoc);
       std::vector<grConnFig*> result;
       workerRegionQuery.query(srcBox, srcLNum, result);
       for (auto rptr : result) {
@@ -772,7 +778,7 @@ void FlexGRWorker::routeNet_postAstarWritePath(
 
     // create parent node if no existing done
     if (parent == nullptr) {
-      Point parentLoc;
+      odb::Point parentLoc;
       frLayerNum parentLNum = (points[i + 1].z() + 1) * 2;
       gridGraph_.getPoint(points[i + 1].x(), points[i + 1].y(), parentLoc);
 
@@ -790,7 +796,7 @@ void FlexGRWorker::routeNet_postAstarWritePath(
     // child and parent are all set
     if (startX != endX && startY == endY && startZ == endZ) {
       // horz pathSeg
-      Point startLoc, endLoc;
+      odb::Point startLoc, endLoc;
       frLayerNum lNum = gridGraph_.getLayerNum(startZ);
       gridGraph_.getPoint(startX, startY, startLoc);
       gridGraph_.getPoint(endX, endY, endLoc);
@@ -816,7 +822,7 @@ void FlexGRWorker::routeNet_postAstarWritePath(
 
     } else if (startX == endX && startY != endY && startZ == endZ) {
       // vert pathSeg
-      Point startLoc, endLoc;
+      odb::Point startLoc, endLoc;
       frLayerNum lNum = gridGraph_.getLayerNum(startZ);
       gridGraph_.getPoint(startX, startY, startLoc);
       gridGraph_.getPoint(endX, endY, endLoc);
@@ -847,7 +853,7 @@ void FlexGRWorker::routeNet_postAstarWritePath(
       if (isChildBP) {
         // currZ is child node idx and parent idx is currZ + 1
         for (auto currZ = startZ; currZ < endZ; currZ++) {
-          Point loc;
+          odb::Point loc;
           gridGraph_.getPoint(startX, startY, loc);
           grNode* tmpParent = nullptr;
           if (currZ == endZ - 1) {
@@ -896,7 +902,7 @@ void FlexGRWorker::routeNet_postAstarWritePath(
       } else {
         // currZ is child idx and parent idx is currZ - 1
         for (auto currZ = endZ; currZ > startZ; currZ--) {
-          Point loc;
+          odb::Point loc;
           gridGraph_.getPoint(startX, startY, loc);
           grNode* tmpParent = nullptr;
           if (currZ == startZ + 1) {
@@ -958,7 +964,7 @@ void FlexGRWorker::routeNet_postAstarWritePath(
 grNode* FlexGRWorker::routeNet_postAstarWritePath_splitPathSeg(
     grNode* child,
     grNode* parent,
-    const Point& breakPt)
+    const odb::Point& breakPt)
 {
   auto& workerRegionQuery = getWorkerRegionQuery();
 
@@ -969,7 +975,7 @@ grNode* FlexGRWorker::routeNet_postAstarWritePath_splitPathSeg(
   auto net = pathSeg->getGrNet();
   auto lNum = pathSeg->getLayerNum();
   auto [bp, ep] = pathSeg->getPoints();
-  Point childLoc = child->getLoc();
+  odb::Point childLoc = child->getLoc();
   bool isChildBP = (childLoc == bp);
 
   auto uBreakNode = std::make_unique<grNode>();

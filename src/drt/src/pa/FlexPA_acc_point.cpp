@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2019-2025, The OpenROAD Authors
 
-#include <omp.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <map>
@@ -19,17 +17,25 @@
 #include "db/obj/frInstTerm.h"
 #include "db/obj/frShape.h"
 #include "db/obj/frVia.h"
+#include "db/tech/frLayer.h"
 #include "db/tech/frViaDef.h"
 #include "frBaseTypes.h"
 #include "frProfileTask.h"
 #include "gc/FlexGC.h"
+#include "odb/dbTransform.h"
+#include "odb/dbTypes.h"
+#include "odb/geom.h"
+#include "omp.h"
 #include "pa/AbstractPAGraphics.h"
 #include "pa/FlexPA.h"
+#include "pa/FlexPA_unique.h"
+#include "utl/Logger.h"
 #include "utl/exception.h"
 
-namespace drt {
-
+using odb::dbTechLayerDir;
 using utl::ThreadException;
+
+namespace drt {
 
 /**
  *
@@ -96,7 +102,8 @@ void FlexPA::genAPCentered(std::map<frCoord, frAccessPointEnum>& coords,
     return;
   }
 
-  // If there are less than 3 coords OnGrid will create a Centered Access Point
+  // If there are less than 3 coords OnGrid will create a Centered Access
+  // odb::Point
   frCoord manu_grid = getDesign()->getTech()->getManufacturingGrid();
   frCoord coord = (low + high) / 2 / manu_grid * manu_grid;
 
@@ -116,7 +123,7 @@ void FlexPA::genViaEnclosedCoords(std::map<frCoord, frAccessPointEnum>& coords,
   const auto rect_width = gtl::delta(rect, gtl::HORIZONTAL);
   const auto rect_height = gtl::delta(rect, gtl::VERTICAL);
   frVia via(via_def);
-  const Rect box = via.getLayer1BBox();
+  const odb::Rect box = via.getLayer1BBox();
   const auto via_width = box.dx();
   const auto via_height = box.dy();
   if (via_width > rect_width || via_height > rect_height) {
@@ -207,7 +214,7 @@ void FlexPA::genAPCosted(
 // Responsible for checking if an AP is valid and configuring it
 void FlexPA::createSingleAccessPoint(
     std::vector<std::unique_ptr<frAccessPoint>>& aps,
-    std::set<std::pair<Point, frLayerNum>>& apset,
+    std::set<std::pair<odb::Point, frLayerNum>>& apset,
     const gtl::rectangle_data<frCoord>& maxrect,
     const frCoord x,
     const frCoord y,
@@ -222,7 +229,7 @@ void FlexPA::createSingleAccessPoint(
       && upper_type != frAccessPointEnum::NearbyGrid) {
     return;
   }
-  Point fpt(x, y);
+  odb::Point fpt(x, y);
   if (apset.find(std::make_pair(fpt, layer_num)) != apset.end()) {
     return;
   }
@@ -261,7 +268,7 @@ void FlexPA::createSingleAccessPoint(
   ap->setType((frAccessPointEnum) upper_type, false);
   if ((lower_type == frAccessPointEnum::NearbyGrid
        || upper_type == frAccessPointEnum::NearbyGrid)) {
-    Point end;
+    odb::Point end;
     const int hwidth
         = design_->getTech()->getLayer(ap->getLayerNum())->getMinWidth() / 2;
 
@@ -270,7 +277,7 @@ void FlexPA::createSingleAccessPoint(
     end.setY(std::clamp(
         fpt.y(), gtl::yl(maxrect) + hwidth, gtl::yh(maxrect) - hwidth));
 
-    Point e = fpt;
+    odb::Point e = fpt;
     if (fpt.x() != end.x()) {
       e.setX(end.x());
     } else if (fpt.y() != end.y()) {
@@ -304,7 +311,7 @@ void FlexPA::createSingleAccessPoint(
 void FlexPA::createMultipleAccessPoints(
     frInstTerm* inst_term,
     std::vector<std::unique_ptr<frAccessPoint>>& aps,
-    std::set<std::pair<Point, frLayerNum>>& apset,
+    std::set<std::pair<odb::Point, frLayerNum>>& apset,
     const gtl::rectangle_data<frCoord>& rect,
     const frLayerNum layer_num,
     const std::map<frCoord, frAccessPointEnum>& x_coords,
@@ -313,7 +320,7 @@ void FlexPA::createMultipleAccessPoints(
     const frAccessPointEnum upper_type)
 {
   auto layer = getDesign()->getTech()->getLayer(layer_num);
-  bool allow_via = !isIOTerm(inst_term);
+  bool allow_via = true;
   bool allow_planar = true;
   //  only VIA_ACCESS_LAYERNUM layer can have via access
   if (isStdCellTerm(inst_term)) {
@@ -507,7 +514,7 @@ void FlexPA::genAPsFromLayerShapes(
 void FlexPA::createAPsFromLayerToRectCoordsMap(
     const LayerToRectCoordsMap& layer_rect_to_coords,
     std::vector<std::unique_ptr<frAccessPoint>>& aps,
-    std::set<std::pair<Point, frLayerNum>>& apset,
+    std::set<std::pair<odb::Point, frLayerNum>>& apset,
     frInstTerm* inst_term,
     const frAccessPointEnum lower_type,
     const frAccessPointEnum upper_type)
@@ -551,9 +558,9 @@ void FlexPA::genAPsFromPinShapes(
   }
 }
 
-Point FlexPA::genEndPoint(
+odb::Point FlexPA::genEndPoint(
     const std::vector<gtl::polygon_90_data<frCoord>>& layer_polys,
-    const Point& begin_point,
+    const odb::Point& begin_point,
     const frLayerNum layer_num,
     const frDirEnum dir,
     const bool is_block)
@@ -607,7 +614,7 @@ Point FlexPA::genEndPoint(
 }
 
 bool FlexPA::isPointOutsideShapes(
-    const Point& point,
+    const odb::Point& point,
     const std::vector<gtl::polygon_90_data<frCoord>>& layer_polys)
 {
   const gtl::point_data<frCoord> pt(point.getX(), point.getY());
@@ -628,7 +635,7 @@ bool FlexPA::filterPlanarAccess(
     T* pin,
     frInstTerm* inst_term)
 {
-  const Point begin_point = ap->getPoint();
+  const odb::Point begin_point = ap->getPoint();
   // skip viaonly access
   if (!ap->hasAccess(dir)) {
     return false;
@@ -636,7 +643,7 @@ bool FlexPA::filterPlanarAccess(
   const bool is_block
       = inst_term
         && inst_term->getInst()->getMaster()->getMasterType().isBlock();
-  const Point end_point
+  const odb::Point end_point
       = genEndPoint(layer_polys, begin_point, ap->getLayerNum(), dir, is_block);
   const bool is_outside = isPointOutsideShapes(end_point, layer_polys);
   // skip if two width within shape for standard cell
@@ -682,7 +689,7 @@ bool FlexPA::isPlanarViolationFree(frAccessPoint* ap,
                                    T* pin,
                                    frPathSeg* ps,
                                    frInstTerm* inst_term,
-                                   const Point point,
+                                   const odb::Point point,
                                    frLayer* layer)
 {
   // Runs the DRC Engine to check for any violations
@@ -691,8 +698,8 @@ bool FlexPA::isPlanarViolationFree(frAccessPoint* ap,
   design_rule_checker.setIgnoreCornerSpacing();
   const auto pitch = layer->getPitch();
   const auto extension = 5 * pitch;
-  Rect tmp_box(point, point);
-  Rect ext_box;
+  odb::Rect tmp_box(point, point);
+  odb::Rect ext_box;
   tmp_box.bloat(extension, ext_box);
   design_rule_checker.setExtBox(ext_box);
   design_rule_checker.setDrcBox(ext_box);
@@ -732,7 +739,7 @@ bool FlexPA::isPlanarViolationFree(frAccessPoint* ap,
 }
 
 void FlexPA::getViasFromMetalWidthMap(
-    const Point& pt,
+    const odb::Point& pt,
     const frLayerNum layer_num,
     const gtl::polygon_90_set_data<frCoord>& polyset,
     std::vector<std::pair<int, const frViaDef*>>& via_defs)
@@ -796,14 +803,14 @@ frCoord FlexPA::viaMaxExt(frInstTerm* inst_term,
                           const gtl::polygon_90_set_data<frCoord>& polyset,
                           const frViaDef* via_def)
 {
-  const Point begin_point = ap->getPoint();
+  const odb::Point begin_point = ap->getPoint();
   const auto layer_num = ap->getLayerNum();
   auto via = std::make_unique<frVia>(via_def);
   via->setOrigin(begin_point);
-  const Rect box = via->getLayer1BBox();
+  const odb::Rect box = via->getLayer1BBox();
 
   // check if ap is on the left/right boundary of the cell
-  Rect boundary_bbox;
+  odb::Rect boundary_bbox;
   bool is_side_bound = false;
   if (inst_term) {
     boundary_bbox = inst_term->getInst()->getBoundaryBBox();
@@ -852,7 +859,7 @@ void FlexPA::filterViaAccess(
     frInstTerm* inst_term,
     bool deep_search)
 {
-  const Point begin_point = ap->getPoint();
+  const odb::Point begin_point = ap->getPoint();
   const auto layer_num = ap->getLayerNum();
 
   // skip planar only access
@@ -880,24 +887,44 @@ void FlexPA::filterViaAccess(
 
   if (via_defs.empty()) {  // no via map entry
     // hardcode first two single vias
-    for (auto& [tup, via_def] : layer_num_to_via_defs_[layer_num + 1][1]) {
-      via_defs.emplace_back(via_defs.size(), via_def);
-      if (via_defs.size() >= max_num_via_trial && !deep_search) {
-        break;
+    auto collect_vias = [&](int adj_layer_num, int max_trial) {
+      if (adj_layer_num > router_cfg_->TOP_ROUTING_LAYER) {
+        return;
       }
+      if (layer_num_to_via_defs_.find(adj_layer_num)
+          != layer_num_to_via_defs_.end()) {
+        for (auto& [tup, via_def] : layer_num_to_via_defs_[adj_layer_num][1]) {
+          if (inst_term && inst_term->isStubborn()
+              && avoid_via_defs_.contains(via_def)) {
+            continue;
+          }
+          via_defs.emplace_back(via_defs.size(), via_def);
+          if (via_defs.size() >= max_trial && !deep_search) {
+            break;
+          }
+        }
+      }
+    };
+
+    // UP Vias
+    collect_vias(layer_num + 1, max_num_via_trial);
+
+    // DOWN Vias
+    if (isIOTerm(inst_term)) {
+      collect_vias(layer_num - 1, max_num_via_trial);
     }
   }
 
   int valid_via_count = 0;
   for (auto& [idx, via_def] : via_defs) {
     auto via = std::make_unique<frVia>(via_def, begin_point);
-    const Rect box = via->getLayer1BBox();
-    if (inst_term) {
-      Rect boundary_bbox = inst_term->getInst()->getBoundaryBBox();
+    const odb::Rect box = via->getLayer1BBox();
+    if (inst_term && !deep_search) {
+      odb::Rect boundary_bbox = inst_term->getInst()->getBoundaryBBox();
       if (!boundary_bbox.contains(box)) {
         continue;
       }
-      Rect layer2_boundary_box = via->getLayer2BBox();
+      odb::Rect layer2_boundary_box = via->getLayer2BBox();
       if (!boundary_bbox.contains(layer2_boundary_box)) {
         continue;
       }
@@ -910,7 +937,11 @@ void FlexPA::filterViaAccess(
     }
     if (checkViaPlanarAccess(ap, via.get(), pin, inst_term, layer_polys)) {
       ap->addViaDef(via_def);
-      ap->setAccess(frDirEnum::U);
+      if (via_def->getLayer1Num() == layer_num) {
+        ap->setAccess(frDirEnum::U);
+      } else {
+        ap->setAccess(frDirEnum::D);
+      }
       valid_via_count++;
       if (valid_via_count >= max_num_via_trial) {
         break;
@@ -959,28 +990,31 @@ bool FlexPA::checkDirectionalViaAccess(
     const std::vector<gtl::polygon_90_data<frCoord>>& layer_polys,
     frDirEnum dir)
 {
-  auto upper_layer = getTech()->getLayer(via->getViaDef()->getLayer2Num());
+  frLayerNum target_layer_num;
+  if (via->getViaDef()->getLayer1Num() == ap->getLayerNum()) {
+    target_layer_num = via->getViaDef()->getLayer2Num();
+  } else {
+    target_layer_num = via->getViaDef()->getLayer1Num();
+  }
+  auto target_layer = getTech()->getLayer(target_layer_num);
   const bool vert_dir = (dir == frDirEnum::S || dir == frDirEnum::N);
-  const bool wrong_dir = (upper_layer->isHorizontal() && vert_dir)
-                         || (upper_layer->isVertical() && !vert_dir);
-  auto style = upper_layer->getDefaultSegStyle();
+  const bool wrong_dir = (target_layer->isHorizontal() && vert_dir)
+                         || (target_layer->isVertical() && !vert_dir);
+  auto style = target_layer->getDefaultSegStyle();
 
   if (wrong_dir) {
-    if (!router_cfg_->USENONPREFTRACKS || upper_layer->isUnidirectional()) {
+    if (!router_cfg_->USENONPREFTRACKS || target_layer->isUnidirectional()) {
       return false;
     }
-    style.setWidth(upper_layer->getWrongDirWidth());
+    style.setWidth(target_layer->getWrongDirWidth());
   }
 
-  const Point begin_point = ap->getPoint();
+  const odb::Point begin_point = ap->getPoint();
   const bool is_block
       = inst_term
         && inst_term->getInst()->getMaster()->getMasterType().isBlock();
-  const Point end_point = genEndPoint(layer_polys,
-                                      begin_point,
-                                      via->getViaDef()->getLayer2Num(),
-                                      dir,
-                                      is_block);
+  const odb::Point end_point
+      = genEndPoint(layer_polys, begin_point, target_layer_num, dir, is_block);
 
   if (inst_term && inst_term->hasNet()) {
     via->addToNet(inst_term->getNet());
@@ -996,7 +1030,7 @@ bool FlexPA::checkDirectionalViaAccess(
     ps->setPoints(begin_point, end_point);
     style.setBeginStyle(frcTruncateEndStyle, 0);
   }
-  ps->setLayerNum(upper_layer->getLayerNum());
+  ps->setLayerNum(target_layer->getLayerNum());
   ps->setStyle(style);
   if (inst_term && inst_term->hasNet()) {
     ps->addToNet(inst_term->getNet());
@@ -1012,7 +1046,7 @@ bool FlexPA::isViaViolationFree(frAccessPoint* ap,
                                 T* pin,
                                 frPathSeg* ps,
                                 frInstTerm* inst_term,
-                                const Point point)
+                                const odb::Point point)
 {
   // Runs the DRC Engine to check for any violations
   FlexGCWorker design_rule_checker(getTech(), logger_, router_cfg_);
@@ -1021,8 +1055,8 @@ bool FlexPA::isViaViolationFree(frAccessPoint* ap,
   design_rule_checker.setIgnoreCornerSpacing();
   const auto pitch = getTech()->getLayer(ap->getLayerNum())->getPitch();
   const auto extension = 5 * pitch;
-  Rect tmp_box(point, point);
-  Rect ext_box;
+  odb::Rect tmp_box(point, point);
+  odb::Rect ext_box;
   tmp_box.bloat(extension, ext_box);
   auto pin_term = pin->getTerm();
   auto pin_net = pin_term->getNet();
@@ -1079,6 +1113,14 @@ void FlexPA::filterMultipleAPAccesses(
     frInstTerm* inst_term,
     const bool& is_std_cell_pin)
 {
+  if (isIOTerm(inst_term)) {
+    // if the pin is an I/O pin, and there is planar access, return
+    for (auto& ap : aps) {
+      if (ap->hasPlanarAccess()) {
+        return;
+      }
+    }
+  }
   std::vector<std::vector<gtl::polygon_90_data<frCoord>>> layer_polys(
       pin_shapes.size());
   for (int i = 0; i < (int) pin_shapes.size(); i++) {
@@ -1172,8 +1214,8 @@ bool FlexPA::EnoughSparsePoints(
   for (int i = 0; i < (int) aps.size(); i++) {
     const int colision_dist
         = design_->getTech()->getLayer(aps[i]->getLayerNum())->getWidth() / 2;
-    Rect ap_colision_box;
-    Rect(aps[i]->getPoint(), aps[i]->getPoint())
+    odb::Rect ap_colision_box;
+    odb::Rect(aps[i]->getPoint(), aps[i]->getPoint())
         .bloat(colision_dist, ap_colision_box);
     for (int j = i + 1; j < (int) aps.size(); j++) {
       if (aps[i]->getLayerNum() == aps[j]->getLayerNum()
@@ -1201,13 +1243,14 @@ bool FlexPA::EnoughPointsFarFromEdge(
     frInstTerm* inst_term)
 {
   const int far_from_edge_requirement = 1;
-  Rect cell_box = inst_term->getInst()->getBBox();
+  odb::Rect cell_box = inst_term->getInst()->getBBox();
   int total_far_from_edge = 0;
   for (auto& ap : aps) {
     const int colision_dist
         = design_->getTech()->getLayer(ap->getLayerNum())->getWidth() * 2;
-    Rect ap_colision_box;
-    Rect(ap->getPoint(), ap->getPoint()).bloat(colision_dist, ap_colision_box);
+    odb::Rect ap_colision_box;
+    odb::Rect(ap->getPoint(), ap->getPoint())
+        .bloat(colision_dist, ap_colision_box);
     if (cell_box.contains(ap_colision_box)) {
       total_far_from_edge++;
       if (total_far_from_edge >= far_from_edge_requirement) {
@@ -1235,7 +1278,7 @@ bool FlexPA::EnoughAccessPoints(
 template <typename T>
 bool FlexPA::genPinAccessCostBounded(
     std::vector<std::unique_ptr<frAccessPoint>>& aps,
-    std::set<std::pair<Point, frLayerNum>>& apset,
+    std::set<std::pair<odb::Point, frLayerNum>>& apset,
     const std::vector<gtl::polygon_90_set_data<frCoord>>& pin_shapes,
     const std::vector<std::vector<gtl::polygon_90_data<frCoord>>>& layer_polys,
     T* pin,
@@ -1286,7 +1329,7 @@ FlexPA::mergePinShapes(T* pin, frInstTerm* inst_term, const bool is_shrink)
     inst = inst_term->getInst();
   }
 
-  dbTransform xform;
+  odb::dbTransform xform;
   if (inst) {
     xform = inst->getDBTransform();
   }
@@ -1313,7 +1356,7 @@ FlexPA::mergePinShapes(T* pin, frInstTerm* inst_term, const bool is_shrink)
       if (!layer->isRoutable()) {
         continue;
       }
-      Rect box = obj->getBBox();
+      odb::Rect box = obj->getBBox();
       xform.apply(box);
       gtl::rectangle_data<frCoord> rect(
           box.xMin(), box.yMin(), box.xMax(), box.yMax());
@@ -1331,7 +1374,7 @@ FlexPA::mergePinShapes(T* pin, frInstTerm* inst_term, const bool is_shrink)
       auto layer_num = obj->getLayerNum();
       std::vector<gtl::point_data<frCoord>> points;
       // must be copied pts
-      for (Point pt : obj->getPoints()) {
+      for (odb::Point pt : obj->getPoints()) {
         xform.apply(pt);
         points.emplace_back(pt.x(), pt.y());
       }
@@ -1350,10 +1393,17 @@ FlexPA::mergePinShapes(T* pin, frInstTerm* inst_term, const bool is_shrink)
 template <typename T>
 int FlexPA::genPinAccess(T* pin, frInstTerm* inst_term)
 {
+  // IO term pin always only have one access
+  const int pin_access_idx
+      = inst_term ? inst_term->getInst()->getPinAccessIdx() : 0;
+  if (pin->getPinAccess(pin_access_idx)->getNumAccessPoints() > 0) {
+    pin->getPinAccess(pin_access_idx)->clearAccessPoints();
+  }
+
   // aps are after xform
   // before checkPoints, ap->hasAccess(dir) indicates whether to check drc
   std::vector<std::unique_ptr<frAccessPoint>> aps;
-  std::set<std::pair<Point, frLayerNum>> apset;
+  std::set<std::pair<odb::Point, frLayerNum>> apset;
 
   if (graphics_) {
     UniqueClass* inst_class = nullptr;
@@ -1441,9 +1491,6 @@ int FlexPA::genPinAccess(T* pin, frInstTerm* inst_term)
   }
 
   updatePinStats(aps, inst_term);
-  // IO term pin always only have one access
-  const int pin_access_idx
-      = inst_term ? inst_term->getInst()->getPinAccessIdx() : 0;
   // write to pa
   for (auto& ap : aps) {
     pin->getPinAccess(pin_access_idx)->addAccessPoint(std::move(ap));
@@ -1547,39 +1594,46 @@ void FlexPA::genAllAccessPoints()
     logger_->info(DRT, 78, "  Complete {} pins.", pin_count);
   }
 }
+void FlexPA::revertAccessPoints(frInst* inst)
+{
+  const odb::dbTransform xform = inst->getTransform();
+  const odb::Point offset(xform.getOffset());
+  odb::dbTransform revertXform(odb::Point(-offset.getX(), -offset.getY()));
+
+  const auto pin_access_idx = inst->getPinAccessIdx();
+  for (auto& inst_term : inst->getInstTerms()) {
+    for (auto& pin : inst_term->getTerm()->getPins()) {
+      auto pin_access = pin->getPinAccess(pin_access_idx);
+      for (auto& access_point : pin_access->getAccessPoints()) {
+        odb::Point unique_AP_point(access_point->getPoint());
+        revertXform.apply(unique_AP_point);
+        access_point->setPoint(unique_AP_point);
+        for (auto& ps : access_point->getPathSegs()) {
+          odb::Point begin = ps.getBeginPoint();
+          odb::Point end = ps.getEndPoint();
+          revertXform.apply(begin);
+          revertXform.apply(end);
+          if (end < begin) {
+            odb::Point tmp = begin;
+            begin = end;
+            end = tmp;
+          }
+          ps.setPoints(begin, end);
+        }
+      }
+    }
+  }
+}
 
 void FlexPA::revertAccessPoints()
 {
   const auto& unique = unique_insts_.getUniqueClasses();
   for (const auto& unique_class : unique) {
-    auto candidate_inst = unique_class->getFirstInst();
-    const dbTransform xform = candidate_inst->getTransform();
-    const Point offset(xform.getOffset());
-    dbTransform revertXform(Point(-offset.getX(), -offset.getY()));
-
-    const auto pin_access_idx = candidate_inst->getPinAccessIdx();
-    for (auto& inst_term : candidate_inst->getInstTerms()) {
-      for (auto& pin : inst_term->getTerm()->getPins()) {
-        auto pin_access = pin->getPinAccess(pin_access_idx);
-        for (auto& access_point : pin_access->getAccessPoints()) {
-          Point unique_AP_point(access_point->getPoint());
-          revertXform.apply(unique_AP_point);
-          access_point->setPoint(unique_AP_point);
-          for (auto& ps : access_point->getPathSegs()) {
-            Point begin = ps.getBeginPoint();
-            Point end = ps.getEndPoint();
-            revertXform.apply(begin);
-            revertXform.apply(end);
-            if (end < begin) {
-              Point tmp = begin;
-              begin = end;
-              end = tmp;
-            }
-            ps.setPoints(begin, end);
-          }
-        }
-      }
+    if (unique_class->getInsts().empty()) {
+      continue;
     }
+    auto inst = unique_class->getFirstInst();
+    revertAccessPoints(inst);
   }
 }
 

@@ -13,6 +13,8 @@
 #include "GRTree.h"
 #include "Layers.h"
 #include "geo.h"
+#include "odb/db.h"
+#include "odb/geom.h"
 #include "robin_hood.h"
 
 namespace grt {
@@ -26,6 +28,10 @@ struct AccessPoint
 {
   PointT point;
   IntervalT layers;
+  bool operator==(const AccessPoint& ap) const
+  {
+    return point == ap.point && layers == ap.layers;
+  }
 };
 
 // Only hash and compare on the point, not the layers
@@ -72,6 +78,8 @@ class GridGraph
   int getM2Pitch() const { return m2_pitch_; }
   int getNumLayers() const { return num_layers_; }
   int getSize(int dimension) const { return (dimension ? y_size_ : x_size_); }
+  int getXSize() const { return x_size_; }
+  int getYSize() const { return y_size_; }
   std::string getLayerName(int layer_index) const
   {
     return layer_names_[layer_index];
@@ -104,7 +112,7 @@ class GridGraph
   CostT getUnitViaCost() const { return unit_via_cost_; }
 
   // Misc
-  AccessPointSet selectAccessPoints(const GRNet* net) const;
+  AccessPointSet selectAccessPoints(GRNet* net) const;
 
   // Methods for updating demands
   void commitTree(const std::shared_ptr<GRTreeNode>& tree, bool rip_up = false);
@@ -148,6 +156,13 @@ class GridGraph
   {
     return unit_length_short_costs_[layer_index];
   }
+  std::vector<AccessPoint> translateAccessPointsToGrid(
+      const std::vector<odb::dbAccessPoint*>& ap,
+      const odb::Point& inst_location) const;
+  AccessPoint selectAccessPoint(
+      const std::vector<AccessPoint>& access_points) const;
+  bool findODBAccessPoints(GRNet* net,
+                           AccessPointSet& selected_access_points) const;
 
   double logistic(const CapacityT& input, double slope) const;
   CostT getWireCost(int layer_index,
@@ -172,6 +187,8 @@ class GridGraph
   const int num_layers_;
   const int x_size_;
   const int y_size_;
+
+  const Design* design_;
 
   // Unit costs
   CostT unit_length_wire_cost_;

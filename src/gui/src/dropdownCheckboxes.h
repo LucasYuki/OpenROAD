@@ -4,11 +4,13 @@
 #pragma once
 
 #include <qchar.h>
+#include <qnamespace.h>
 #include <qobjectdefs.h>
 
 #include <QComboBox>
 #include <QStandardItem>
 #include <QStandardItemModel>
+#include <QWidget>
 #include <string>
 #include <vector>
 
@@ -47,6 +49,7 @@ class DropdownCheckboxes : public QComboBox
   QStandardItem* getAllItem() { return all_item_; };
 
   QStandardItemModel* model() { return model_; };
+  bool isAllSelected() { return all_item_->checkState() == Qt::Checked; };
   std::vector<QString> selectedItems();
 
  public slots:

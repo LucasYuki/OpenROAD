@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include <Eigen/SparseCore>
 #include <memory>
 #include <vector>
 
+#include "Eigen/SparseCore"
 #include "nesterovPlace.h"
 #include "odb/db.h"
 
@@ -18,20 +18,19 @@ namespace gpl {
 
 class PlacerBaseCommon;
 class PlacerBase;
-class Graphics;
+class AbstractGraphics;
 
-class InitialPlaceVars
+struct InitialPlaceVars
 {
- public:
-  int maxIter;
-  int minDiffLength;
-  int maxSolverIter;
-  int maxFanout;
-  float netWeightScale;
-  bool debug;
+  InitialPlaceVars(const PlaceOptions& options, bool debug);
 
-  InitialPlaceVars();
-  void reset();
+  const int maxIter;
+  const int minDiffLength;
+  const int maxSolverIter;
+  const int maxFanout;
+  const float netWeightScale;
+  const bool debug;
+  const bool forceCenter;
 };
 
 using SMatrix = Eigen::SparseMatrix<float, Eigen::RowMajor>;
@@ -42,6 +41,7 @@ class InitialPlace
   InitialPlace(InitialPlaceVars ipVars,
                std::shared_ptr<PlacerBaseCommon> pbc,
                std::vector<std::shared_ptr<PlacerBase>>& pbVec,
+               std::unique_ptr<AbstractGraphics> graphics,
                utl::Logger* logger);
   void doBicgstabPlace(int threads);
 
@@ -49,7 +49,9 @@ class InitialPlace
   InitialPlaceVars ipVars_;
   std::shared_ptr<PlacerBaseCommon> pbc_;
   std::vector<std::shared_ptr<PlacerBase>> pbVec_;
+  std::unique_ptr<AbstractGraphics> graphics_;
   utl::Logger* log_ = nullptr;
+  int gif_key_ = 0;
 
   // Solve two SparseMatrix equations here;
   //
@@ -81,7 +83,7 @@ class InitialPlace
   Eigen::VectorXf instLocVecY_, fixedInstForceVecY_;
   SMatrix placeInstForceMatrixX_, placeInstForceMatrixY_;
 
-  void placeInstsCenter();
+  void placeInstsInitialPositions();
   void setPlaceInstExtId();
   void updatePinInfo();
   void createSparseMatrix();

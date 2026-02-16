@@ -93,7 +93,7 @@ void Grid::addMovableInst(const gpl::Instance* inst)
     inst_rect.set_ylo(inst_rect.yCenter() - binSizeY_ / 2);
     inst_rect.set_yhi(inst_rect.yMin() + binSizeY_);
   }
-  double scaling = inst->area() / static_cast<double>(inst_rect.area());
+  double scaling = inst->getArea() / static_cast<double>(inst_rect.area());
   if (inst->isMacro()) {
     scaling *= target_density_;
   }

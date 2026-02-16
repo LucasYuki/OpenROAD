@@ -14,22 +14,30 @@
 #include <vector>
 
 #include "db_sta/dbNetwork.hh"
+#include "db_sta/dbSta.hh"
 #include "odb/db.h"
 #include "odb/dbObject.h"
 #include "odb/dbTransform.h"
 #include "odb/geom.h"
 #include "sta/ArcDelayCalc.hh"
 #include "sta/ClkNetwork.hh"
+#include "sta/Delay.hh"
 #include "sta/ExceptionPath.hh"
 #include "sta/Graph.hh"
 #include "sta/GraphDelayCalc.hh"
 #include "sta/Liberty.hh"
+#include "sta/MinMax.hh"
+#include "sta/NetworkClass.hh"
+#include "sta/Path.hh"
 #include "sta/PathAnalysisPt.hh"
 #include "sta/PathEnd.hh"
 #include "sta/PathExpanded.hh"
 #include "sta/Sdc.hh"
+#include "sta/SdcClass.hh"
 #include "sta/Search.hh"
+#include "sta/SearchClass.hh"
 #include "sta/VisitPathEnds.hh"
+#include "utl/Logger.h"
 
 namespace gui {
 
@@ -263,6 +271,11 @@ void TimingPath::populateNodeList(sta::Path* path,
       fanout_ += node_fanout;
     }
 
+    sta::dbNetwork* network = sta->getDbNetwork();
+    if (network->flatNet(pin) == nullptr) {
+      sta->getLogger()->error(
+          utl::GUI, 111, "Timing pin {} has a null net.", network->name(pin));
+    }
     list.push_back(std::make_unique<TimingPathNode>(pin_object,
                                                     pin,
                                                     pin_is_clock,
@@ -404,6 +417,56 @@ void TimingPath::populateCapturePath(sta::Path* path,
 {
   populateNodeList(
       path, sta, dcalc_ap, offset, true, clock_expanded, capture_nodes_);
+}
+
+std::vector<odb::dbNet*> TimingPath::getNets(
+    const PathSection& path_section) const
+{
+  std::vector<odb::dbNet*> section_nets;
+  switch (path_section) {
+    case kAll: {
+      getNets(section_nets, path_nodes_, false, false);
+      getNets(section_nets, capture_nodes_, false, false);
+      break;
+    }
+    case kLaunch: {
+      getNets(section_nets, path_nodes_, true, false);
+      break;
+    }
+    case kData: {
+      getNets(section_nets, path_nodes_, false, true);
+      break;
+    }
+    case kCapture: {
+      getNets(section_nets, capture_nodes_, false, false);
+      break;
+    }
+  }
+
+  return section_nets;
+}
+
+void TimingPath::getNets(std::vector<odb::dbNet*>& nets,
+                         const TimingNodeList& nodes,
+                         const bool only_clock,
+                         const bool only_data) const
+{
+  for (const auto& node : nodes) {
+    if (only_clock && !node->isClock()) {
+      continue;
+    }
+    if (only_data && node->isClock()) {
+      continue;
+    }
+
+    if (node->isSource()) {
+      for (auto* sink_node : node->getPairedNodes()) {
+        if (sink_node != nullptr) {
+          nets.push_back(sink_node->getNet());
+        }
+      }
+    }
+  }
 }
 
 std::string TimingPath::getStartStageName() const
@@ -883,7 +946,9 @@ sta::PathEndVisitor* PathGroupSlackEndVisitor::copy() const
 void PathGroupSlackEndVisitor::visit(sta::PathEnd* path_end)
 {
   sta::Search* search = sta_->search();
-  if (search->pathGroup(path_end) == path_group_) {
+  const sta::PathGroupSeq path_groups = search->pathGroups(path_end);
+  const auto iter = std::ranges::find(path_groups, path_group_);
+  if (iter != path_groups.end()) {
     if (clk_ != nullptr) {
       sta::Path* path = path_end->path();
       if (path->clock(sta_) != clk_) {
@@ -959,6 +1024,7 @@ void STAGuiInterface::updatePathGroups()
   search->makePathGroups(1,         /* group count */
                          1,         /* endpoint count*/
                          false,     /* unique pins */
+                         false,     /* unique edges */
                          -sta::INF, /* min slack */
                          sta::INF,  /* max slack*/
                          nullptr,   /* group names */
@@ -1046,21 +1112,31 @@ TimingPathList STAGuiInterface::getTimingPaths(
     const std::vector<StaPins>& thrus,
     const StaPins& to,
     const std::string& path_group_name,
-    sta::ClockSet* clks) const
+    const sta::ClockSet* clks) const
 {
   TimingPathList paths;
 
   initSTA();
 
+  sta::ClockSet* clks_from = nullptr;
+  sta::ClockSet* clks_to = nullptr;
+  if (clks) {
+    clks_from = new sta::ClockSet;
+    clks_to = new sta::ClockSet;
+    for (auto clk : *clks) {
+      clks_from->insert(clk);
+      clks_to->insert(clk);
+    }
+  }
   sta::ExceptionFrom* e_from = nullptr;
   if (!from.empty()) {
     sta::PinSet* pins = new sta::PinSet(getNetwork());
     pins->insert(from.begin(), from.end());
     e_from = sta_->makeExceptionFrom(
-        pins, clks, nullptr, sta::RiseFallBoth::riseFall());
-  } else if (clks) {
+        pins, clks_from, nullptr, sta::RiseFallBoth::riseFall());
+  } else if (clks_from) {
     e_from = sta_->makeExceptionFrom(
-        nullptr, clks, nullptr, sta::RiseFallBoth::riseFall());
+        nullptr, clks_from, nullptr, sta::RiseFallBoth::riseFall());
   }
 
   sta::ExceptionThruSeq* e_thrus = nullptr;
@@ -1078,18 +1154,19 @@ TimingPathList STAGuiInterface::getTimingPaths(
           pins, nullptr, nullptr, sta::RiseFallBoth::riseFall()));
     }
   }
+
   sta::ExceptionTo* e_to = nullptr;
   if (!to.empty()) {
     sta::PinSet* pins = new sta::PinSet(getNetwork());
     pins->insert(to.begin(), to.end());
     e_to = sta_->makeExceptionTo(pins,
-                                 clks,
+                                 clks_to,
                                  nullptr,
                                  sta::RiseFallBoth::riseFall(),
                                  sta::RiseFallBoth::riseFall());
-  } else if (clks) {
+  } else if (clks_to) {
     e_to = sta_->makeExceptionTo(nullptr,
-                                 clks,
+                                 clks_to,
                                  nullptr,
                                  sta::RiseFallBoth::riseFall(),
                                  sta::RiseFallBoth::riseFall());
@@ -1114,7 +1191,8 @@ TimingPathList STAGuiInterface::getTimingPaths(
           // group_count, endpoint_count, unique_pins
           max_path_count_,
           one_path_per_endpoint_ ? 1 : max_path_count_,
-          true,
+          true,  // unique pins
+          true,  // unique edges
           -sta::INF,
           sta::INF,  // slack_min, slack_max,
           true,      // sort_by_slack
@@ -1325,7 +1403,7 @@ ConeDepthMap STAGuiInterface::buildConeConnectivity(
 
   for (const auto& [level, pin_list] : map) {
     int next_level = level + 1;
-    if (map.count(next_level) == 0) {
+    if (!map.contains(next_level)) {
       break;
     }
 
@@ -1394,11 +1472,12 @@ void STAGuiInterface::annotateConeTiming(const sta::Pin* source_pin,
 
   for (const auto& path : paths) {
     for (const auto& node : path->getPathNodes()) {
-      auto pin_find = std::find_if(pin_order.begin(),
-                                   pin_order.end(),
-                                   [&node](const TimingPathNode* other) {
-                                     return node->getPin() == other->getPin();
-                                   });
+      auto pin_find
+          = std::ranges::find_if(pin_order,
+
+                                 [&node](const TimingPathNode* other) {
+                                   return node->getPin() == other->getPin();
+                                 });
 
       if (pin_find != pin_order.end()) {
         TimingPathNode* pin_node = *pin_find;
@@ -1412,10 +1491,9 @@ void STAGuiInterface::annotateConeTiming(const sta::Pin* source_pin,
   }
 
   for (auto& [level, pin_list] : map) {
-    std::sort(
-        pin_list.begin(), pin_list.end(), [](const auto& l, const auto& r) {
-          return l->getPathSlack() > r->getPathSlack();
-        });
+    std::ranges::sort(pin_list, [](const auto& l, const auto& r) {
+      return l->getPathSlack() > r->getPathSlack();
+    });
   }
 }
 

@@ -8,6 +8,15 @@
 #include <string>
 
 #include "BaseMove.hh"
+#include "rsz/Resizer.hh"
+#include "sta/ArcDelayCalc.hh"
+#include "sta/Delay.hh"
+#include "sta/Graph.hh"
+#include "sta/NetworkClass.hh"
+#include "sta/Path.hh"
+#include "sta/PathExpanded.hh"
+#include "sta/TimingArc.hh"
+#include "utl/Logger.h"
 
 namespace rsz {
 
@@ -19,7 +28,6 @@ using sta::ArcDelay;
 using sta::Instance;
 using sta::InstancePinIterator;
 using sta::LoadPinIndexMap;
-using sta::Net;
 using sta::NetConnectedPinIterator;
 using sta::Path;
 using sta::PathExpanded;
@@ -91,8 +99,9 @@ void BufferMove::debugCheckMultipleBuffers(Path* path, PathExpanded* expanded)
     const int start_index = expanded->startIndex();
     for (int i = start_index; i < path_length; i++) {
       const Path* path = expanded->path(i);
+      const Vertex* path_vertex = path->vertex(sta_);
       const Pin* path_pin = path->pin(sta_);
-      if (i > 0 && network_->isDriver(path_pin)
+      if (i > 0 && path_vertex->isDriver(network_)
           && !network_->isTopLevelPort(path_pin)) {
         const TimingArc* prev_arc = path->prevArc(sta_);
         printf("repair_setup %s: %s ---> %s \n",

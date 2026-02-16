@@ -31,14 +31,18 @@
 #include <utility>
 #include <vector>
 
+#include "db/obj/frBlockage.h"
 #include "db/obj/frInst.h"
 #include "db/obj/frVia.h"
+#include "db/tech/frConstraint.h"
 #include "db/tech/frTechObject.h"
 #include "db/tech/frViaDef.h"
 #include "frBaseTypes.h"
 #include "frDesign.h"
 #include "global.h"
+#include "gtest/gtest.h"
 #include "odb/db.h"
+#include "odb/dbTypes.h"
 #include "utl/Logger.h"
 
 namespace odb {
@@ -48,16 +52,15 @@ class dbTechLayerCutSpacingTableDefRule;
 namespace drt {
 
 // General Fixture for tests using db objects.
-class Fixture
+class Fixture : public ::testing::Test
 {
- public:
+ protected:
   Fixture();
-  virtual ~Fixture() = default;
 
   void addLayer(frTechObject* tech,
                 const char* name,
-                dbTechLayerType type,
-                dbTechLayerDir dir = dbTechLayerDir::NONE);
+                odb::dbTechLayerType type,
+                odb::dbTechLayerDir dir = odb::dbTechLayerDir::NONE);
 
   odb::dbInst* createDummyInst(odb::dbMaster* master);
 
@@ -80,7 +83,7 @@ class Fixture
                            frCoord designRuleWidth = -1);
 
   frTerm* makeMacroPin(frMaster* master,
-                       std::string name,
+                       const std::string& name,
                        frCoord xl,
                        frCoord yl,
                        frCoord xh,
@@ -191,23 +194,23 @@ class Fixture
 
   frViaDef* makeViaDef(const char* name,
                        frLayerNum layer_num,
-                       const Point& ll,
-                       const Point& ur);
+                       const odb::Point& ll,
+                       const odb::Point& ur);
 
-  frVia* makeVia(frViaDef* via, frNet* net, const Point& origin);
+  frVia* makeVia(frViaDef* via, frNet* net, const odb::Point& origin);
 
   void makePathseg(frNet* net,
                    frLayerNum layer_num,
-                   const Point& begin,
-                   const Point& end,
+                   const odb::Point& begin,
+                   const odb::Point& end,
                    frUInt4 width = 100,
                    frEndStyleEnum begin_style = frcTruncateEndStyle,
                    frEndStyleEnum end_style = frcTruncateEndStyle);
 
   void makePathsegExt(frNet* net,
                       frLayerNum layer_num,
-                      const Point& begin,
-                      const Point& end,
+                      const odb::Point& begin,
+                      const odb::Point& end,
                       frUInt4 width = 100)
   {
     makePathseg(net,
@@ -221,21 +224,21 @@ class Fixture
 
   frSpacingTableInfluenceConstraint* makeSpacingTableInfluenceConstraint(
       frLayerNum layer_num,
-      std::vector<frCoord> widthTbl,
-      std::vector<std::pair<frCoord, frCoord>> valTbl);
+      const std::vector<frCoord>& widthTbl,
+      const std::vector<std::pair<frCoord, frCoord>>& valTbl);
 
   frLef58EolExtensionConstraint* makeEolExtensionConstraint(
       frLayerNum layer_num,
       frCoord spacing,
-      std::vector<frCoord> eol,
-      std::vector<frCoord> ext,
+      const std::vector<frCoord>& eol,
+      const std::vector<frCoord>& ext,
       bool parallelOnly = false);
 
   frSpacingTableTwConstraint* makeSpacingTableTwConstraint(
       frLayerNum layer_num,
-      std::vector<frCoord> widthTbl,
-      std::vector<frCoord> prlTbl,
-      std::vector<std::vector<frCoord>> spacingTbl);
+      const std::vector<frCoord>& widthTbl,
+      const std::vector<frCoord>& prlTbl,
+      const std::vector<std::vector<frCoord>>& spacingTbl);
 
   frLef58WidthTableOrthConstraint* makeWidthTblOrthConstraint(
       frLayerNum layer_num,
@@ -267,11 +270,5 @@ class Fixture
  private:
   odb::dbDatabase* db_;
 };
-
-// BOOST_TEST wants an operator<< for any type it compares.  We
-// don't have those for enums and they are tedious to write.
-// Just compare them as integers to avoid this requirement.
-#define TEST_ENUM_EQUAL(L, R) \
-  BOOST_TEST(static_cast<int>(L) == static_cast<int>(R))
 
 }  // namespace drt

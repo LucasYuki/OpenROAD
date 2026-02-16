@@ -3,19 +3,23 @@
 
 #include "Graphics.h"
 
+#include <any>
+#include <cstdlib>
+#include <set>
+
 #include "dpl/Opendp.h"
+#include "gui/gui.h"
 #include "infrastructure/Grid.h"
 #include "infrastructure/Objects.h"
 #include "infrastructure/network.h"
+#include "odb/db.h"
 #include "odb/geom.h"
 
 namespace dpl {
 
-using odb::dbBox;
-
 Graphics::Graphics(Opendp* dp,
                    float min_displacement,
-                   const dbInst* debug_instance)
+                   const odb::dbInst* debug_instance)
     : dp_(dp),
       debug_instance_(debug_instance),
       min_displacement_(min_displacement)
@@ -23,12 +27,12 @@ Graphics::Graphics(Opendp* dp,
   gui::Gui::get()->registerRenderer(this);
 }
 
-void Graphics::startPlacement(dbBlock* block)
+void Graphics::startPlacement(odb::dbBlock* block)
 {
   block_ = block;
 }
 
-void Graphics::placeInstance(dbInst* instance)
+void Graphics::placeInstance(odb::dbInst* instance)
 {
   if (!instance || instance != debug_instance_) {
     return;
@@ -51,7 +55,7 @@ void Graphics::binSearch(const Node* cell,
   if (!debug_instance_ || cell->getDbInst() != debug_instance_) {
     return;
   }
-  Rect core = dp_->grid_->getCore();
+  odb::Rect core = dp_->grid_->getCore();
   int xl_dbu = core.xMin() + gridToDbu(xl, dp_->grid_->getSiteWidth()).v;
   int yl_dbu = core.yMin() + dp_->grid_->gridYToDbu(yl).v;
   int xh_dbu = core.xMin() + gridToDbu(xh, dp_->grid_->getSiteWidth()).v;
@@ -59,7 +63,7 @@ void Graphics::binSearch(const Node* cell,
   searched_.emplace_back(xl_dbu, yl_dbu, xh_dbu, yh_dbu);
 }
 
-void Graphics::endPlacement()
+void Graphics::redrawAndPause()
 {
   auto gui = gui::Gui::get();
   gui->redraw();
@@ -72,37 +76,42 @@ void Graphics::drawObjects(gui::Painter& painter)
     return;
   }
 
-  odb::Rect core = block_->getCoreArea();
+  // Create a set of selected instances for fast lookup
+  std::set<odb::dbInst*> selected_insts;
+  auto selection = gui::Gui::get()->selection();
+  for (const auto& selected : selection) {
+    if (selected.isInst()) {
+      selected_insts.insert(std::any_cast<odb::dbInst*>(selected.getObject()));
+    }
+  }
 
   for (const auto& cell : dp_->network_->getNodes()) {
-    if (!cell->isPlaced()) {
-      continue;
-    }
-    // Compare the squared distances to save calling sqrt
-    float min_length = min_displacement_ * dp_->grid_->gridHeight(cell.get()).v;
-    min_length *= min_length;
-    DbuX lx{core.xMin() + cell->getLeft()};
-    DbuY ly{core.yMin() + cell->getBottom()};
-
-    auto color = cell->getDbInst() ? gui::Painter::kGray : gui::Painter::kRed;
-    painter.setPen(color);
-    painter.setBrush(color);
-    painter.drawRect(Rect(
-        lx.v, ly.v, lx.v + cell->getWidth().v, ly.v + cell->getHeight().v));
-
-    if (!cell->getDbInst()) {
+    if (!cell->isPlaced() || !cell->getDbInst()) {
       continue;
     }
 
-    dbBox* bbox = cell->getDbInst()->getBBox();
-    Point initial_location(bbox->xMin(), bbox->yMin());
-    Point final_location(lx.v, ly.v);
-    float len = Point::squaredDistance(initial_location, final_location);
-    if (len < min_length) {
+    odb::Point initial_location = dp_->getOdbLocation(cell.get());
+    odb::Point final_location = dp_->getDplLocation(cell.get());
+    float len = odb::Point::squaredDistance(initial_location, final_location);
+    if (len <= 0) {
       continue;
     }
 
-    painter.setPen(gui::Painter::kYellow, /* cosmetic */ true);
+    int dx = final_location.x() - initial_location.x();
+    int dy = final_location.y() - initial_location.y();
+    gui::Painter::Color line_color;
+
+    // Check if the instance is selected
+    if (selected_insts.contains(cell->getDbInst())) {
+      line_color = gui::Painter::kYellow;
+    } else if (std::abs(dx) > std::abs(dy)) {
+      line_color = (dx > 0) ? gui::Painter::kGreen : gui::Painter::kRed;
+    } else {
+      line_color = (dy > 0) ? gui::Painter::kMagenta : gui::Painter::kBlue;
+    }
+
+    painter.setPen(line_color, /* cosmetic */ true);
+    painter.setBrush(line_color);
     painter.drawLine(initial_location.x(),
                      initial_location.y(),
                      final_location.x(),

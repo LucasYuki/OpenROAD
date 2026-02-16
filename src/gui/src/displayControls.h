@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QColor>
 #include <QColorDialog>
 #include <QDialog>
 #include <QDockWidget>
@@ -14,10 +15,13 @@
 #include <QRadioButton>
 #include <QSettings>
 #include <QStandardItemModel>
+#include <QString>
 #include <QStringList>
 #include <QTextEdit>
 #include <QTreeView>
 #include <QVBoxLayout>
+#include <QVariant>
+#include <QWidget>
 #include <functional>
 #include <map>
 #include <optional>
@@ -117,11 +121,10 @@ class DisplayControlModel : public QStandardItemModel
  public:
   DisplayControlModel(int user_data_item_idx, QWidget* parent = nullptr);
 
-  QVariant data(const QModelIndex& index,
-                int role = Qt::DisplayRole) const override;
+  QVariant data(const QModelIndex& index, int role) const override;
   QVariant headerData(int section,
                       Qt::Orientation orientation,
-                      int role = Qt::DisplayRole) const override;
+                      int role) const override;
 
  private:
   const int user_data_item_idx_;
@@ -214,6 +217,7 @@ class DisplayControls : public QDockWidget,
   bool areNonPrefTracksVisible() override;
 
   bool areIOPinsVisible() const override;
+  bool areIOPinsSelectable() const override;
   bool areIOPinNamesVisible() const override;
   QFont ioPinMarkersFont() const override;
 
@@ -246,6 +250,7 @@ class DisplayControls : public QDockWidget,
 
   bool isGCellGridVisible() const override;
   bool isFlywireHighlightOnly() const override;
+  bool areFocusedNetsGuidesVisible() const override;
 
   // API from dbNetworkObserver
   void postReadLiberty() override;
@@ -267,7 +272,7 @@ class DisplayControls : public QDockWidget,
   // options displayed need to match
   void blockLoaded(odb::dbBlock* block);
 
-  void setCurrentBlock(odb::dbBlock* block);
+  void setCurrentChip(odb::dbChip* chip);
 
   // This is called by the check boxes to update the state
   void itemChanged(QStandardItem* item);
@@ -384,6 +389,7 @@ class DisplayControls : public QDockWidget,
     ModelRow flywires_only;
     ModelRow labels;
     ModelRow background;
+    ModelRow focused_nets_guides;
   };
 
   struct InstanceShapeModels

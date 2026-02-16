@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QColor>
 #include <QComboBox>
 #include <QDockWidget>
 #include <QGraphicsItem>
@@ -10,12 +11,16 @@
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QMenu>
+#include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QString>
 #include <QTabWidget>
 #include <QToolTip>
+#include <QVariant>
+#include <QWidget>
 #include <map>
 #include <memory>
 #include <optional>
@@ -25,8 +30,11 @@
 #include <variant>
 #include <vector>
 
+#include "db_sta/dbNetwork.hh"
 #include "gui/gui.h"
 #include "odb/db.h"
+#include "sta/Delay.hh"
+#include "sta/NetworkClass.hh"
 #include "staGuiInterface.h"
 
 namespace sta {
@@ -114,9 +122,7 @@ class ClockNetGraphicsViewItem : public QGraphicsItem
   void buildTrunkJunction(const std::vector<ClockNodeGraphicsViewItem*>& nodes,
                           bool top_anchor,
                           const QPointF& trunk_junction);
-  void addLeafPath(const QPointF& start,
-                   const qreal y_trunk,
-                   const QPointF& end);
+  void addLeafPath(const QPointF& start, qreal y_trunk, const QPointF& end);
 
   void setNetInformation();
 };
@@ -180,7 +186,7 @@ class ClockNodeGraphicsViewItem : public QGraphicsObject
   void updateView();
 
  protected:
-  void addDelayFin(QPainterPath& path, const qreal delay) const;
+  void addDelayFin(QPainterPath& path, qreal delay) const;
   void contextMenuEvent(QGraphicsSceneContextMenuEvent* event) override;
 
  private:

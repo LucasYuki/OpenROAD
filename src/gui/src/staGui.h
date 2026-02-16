@@ -14,7 +14,10 @@
 #include <QHBoxLayout>
 #include <QHash>
 #include <QListWidget>
+#include <QPushButton>
 #include <QSpinBox>
+#include <QVariant>
+#include <QWidget>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -27,7 +30,7 @@
 #include "odb/db.h"
 #include "odb/dbBlockCallBackObj.h"
 #include "odb/dbObject.h"
-#include "sta/PathExpanded.hh"
+#include "sta/SdcClass.hh"
 #include "sta/Sta.hh"
 #include "staGuiInterface.h"
 
@@ -81,15 +84,15 @@ class TimingPathsModel : public QAbstractTableModel
                    STAGuiInterface* sta,
                    QObject* parent = nullptr);
 
-  int rowCount(const QModelIndex& parent = QModelIndex()) const Q_DECL_OVERRIDE;
-  int columnCount(const QModelIndex& parent
-                  = QModelIndex()) const Q_DECL_OVERRIDE;
+  int rowCount(const QModelIndex& parent) const Q_DECL_OVERRIDE;
+  int rowCount() const { return rowCount({}); }
+  int columnCount(const QModelIndex& parent) const Q_DECL_OVERRIDE;
+  int columnCount() const { return columnCount({}); }
 
-  QVariant data(const QModelIndex& index,
-                int role = Qt::DisplayRole) const Q_DECL_OVERRIDE;
+  QVariant data(const QModelIndex& index, int role) const Q_DECL_OVERRIDE;
   QVariant headerData(int section,
                       Qt::Orientation orientation,
-                      int role = Qt::DisplayRole) const Q_DECL_OVERRIDE;
+                      int role) const Q_DECL_OVERRIDE;
 
   TimingPath* getPathAt(const QModelIndex& index) const;
 
@@ -98,7 +101,7 @@ class TimingPathsModel : public QAbstractTableModel
                      const std::vector<std::set<const sta::Pin*>>& thru,
                      const std::set<const sta::Pin*>& to,
                      const std::string& path_group_name,
-                     sta::ClockSet* clks);
+                     const sta::ClockSet* clks);
 
  public slots:
   void sort(int col_index, Qt::SortOrder sort_order) override;
@@ -108,7 +111,7 @@ class TimingPathsModel : public QAbstractTableModel
                      const std::vector<std::set<const sta::Pin*>>& thru,
                      const std::set<const sta::Pin*>& to,
                      const std::string& path_group_name,
-                     sta::ClockSet* clks);
+                     const sta::ClockSet* clks);
 
   STAGuiInterface* sta_;
   bool is_setup_;
@@ -147,15 +150,14 @@ class TimingPathDetailModel : public QAbstractTableModel
                         sta::dbSta* sta,
                         QObject* parent = nullptr);
 
-  int rowCount(const QModelIndex& parent = QModelIndex()) const Q_DECL_OVERRIDE;
-  int columnCount(const QModelIndex& parent
-                  = QModelIndex()) const Q_DECL_OVERRIDE;
+  int rowCount(const QModelIndex& parent) const Q_DECL_OVERRIDE;
+  int rowCount() const { return rowCount({}); }
+  int columnCount(const QModelIndex& parent) const Q_DECL_OVERRIDE;
 
-  QVariant data(const QModelIndex& index,
-                int role = Qt::DisplayRole) const Q_DECL_OVERRIDE;
+  QVariant data(const QModelIndex& index, int role) const Q_DECL_OVERRIDE;
   QVariant headerData(int section,
                       Qt::Orientation orientation,
-                      int role = Qt::DisplayRole) const Q_DECL_OVERRIDE;
+                      int role) const Q_DECL_OVERRIDE;
   Qt::ItemFlags flags(const QModelIndex& index) const Q_DECL_OVERRIDE;
 
   TimingPath* getPath() const { return path_; }
@@ -243,6 +245,7 @@ class TimingPathRenderer : public gui::Renderer
   static constexpr const char* kDataPathLabel = "Data path";
   static constexpr const char* kLaunchClockLabel = "Launch clock";
   static constexpr const char* kCaptureClockLabel = "Capture clock";
+  static constexpr const char* kLegendLabel = "Legend";
 };
 
 class TimingConeRenderer : public gui::Renderer
@@ -273,10 +276,7 @@ class GuiDBChangeListener : public QObject, public odb::dbBlockCallBackObj
 {
   Q_OBJECT
  public:
-  GuiDBChangeListener(QObject* parent = nullptr)
-      : QObject(parent), is_modified_(false)
-  {
-  }
+  GuiDBChangeListener(QObject* parent = nullptr) : QObject(parent) {}
 
   void inDbInstCreate(odb::dbInst* /* inst */) override { callback(); }
   void inDbInstDestroy(odb::dbInst* /* inst */) override { callback(); }
@@ -323,7 +323,7 @@ class GuiDBChangeListener : public QObject, public odb::dbBlockCallBackObj
     }
   }
 
-  bool is_modified_;
+  bool is_modified_{false};
 };
 
 class PinSetWidget : public QWidget
@@ -406,7 +406,7 @@ class TimingControlsDialog : public QDialog
   std::set<const sta::Pin*> getFromPins() const { return from_->getPins(); }
   std::vector<std::set<const sta::Pin*>> getThruPins() const;
   std::set<const sta::Pin*> getToPins() const { return to_->getPins(); }
-  void getClocks(sta::ClockSet* clock_set) const;
+  const sta::ClockSet* getClocks();
 
   const sta::Pin* convertTerm(Gui::Term term) const;
 
@@ -440,6 +440,8 @@ class TimingControlsDialog : public QDialog
   std::vector<PinSetWidget*> thru_;
   PinSetWidget* to_;
   QHash<QString, sta::Clock*> qstring_to_clk_;
+
+  sta::ClockSet selected_clocks_;
 
   static constexpr int kThruStartRow = 4;
 

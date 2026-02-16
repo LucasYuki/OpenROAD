@@ -17,10 +17,14 @@
 #include "boost/geometry/geometry.hpp"
 #include "dpl/OptMirror.h"
 #include "graphics/DplObserver.h"
+#include "infrastructure/Coordinates.h"
+#include "infrastructure/DecapObjects.h"
 #include "infrastructure/Grid.h"
 #include "infrastructure/Objects.h"
 #include "infrastructure/Padding.h"
 #include "infrastructure/network.h"
+#include "odb/db.h"
+#include "odb/geom.h"
 #include "odb/util.h"
 #include "util/journal.h"
 #include "utl/Logger.h"
@@ -32,6 +36,7 @@ using std::string;
 
 using utl::DPL;
 
+using odb::dbInst;
 using odb::Rect;
 
 ////////////////////////////////////////////////////////////////
@@ -43,18 +48,12 @@ bool Opendp::isMultiRow(const Node* cell) const
 
 ////////////////////////////////////////////////////////////////
 
-Opendp::Opendp()
+Opendp::Opendp(odb::dbDatabase* db, utl::Logger* logger)
+    : logger_(logger), db_(db)
 {
   dummy_cell_ = std::make_unique<Node>();
   dummy_cell_->setPlaced(true);
-}
-
-Opendp::~Opendp() = default;
-
-void Opendp::init(dbDatabase* db, Logger* logger)
-{
-  db_ = db;
-  logger_ = logger;
+  dummy_cell_->setFixed(true);
   padding_ = std::make_shared<Padding>();
   grid_ = std::make_unique<Grid>();
   grid_->init(logger);
@@ -62,17 +61,19 @@ void Opendp::init(dbDatabase* db, Logger* logger)
   arch_ = std::make_unique<Architecture>();
 }
 
+Opendp::~Opendp() = default;
+
 void Opendp::setPaddingGlobal(const int left, const int right)
 {
   padding_->setPaddingGlobal(GridX{left}, GridX{right});
 }
 
-void Opendp::setPadding(dbInst* inst, const int left, const int right)
+void Opendp::setPadding(odb::dbInst* inst, const int left, const int right)
 {
   padding_->setPadding(inst, GridX{left}, GridX{right});
 }
 
-void Opendp::setPadding(dbMaster* master, const int left, const int right)
+void Opendp::setPadding(odb::dbMaster* master, const int left, const int right)
 {
   padding_->setPadding(master, GridX{left}, GridX{right});
 }
@@ -80,6 +81,16 @@ void Opendp::setPadding(dbMaster* master, const int left, const int right)
 void Opendp::setDebug(std::unique_ptr<DplObserver>& observer)
 {
   debug_observer_ = std::move(observer);
+}
+
+void Opendp::setJumpMoves(const int jump_moves)
+{
+  jump_moves_ = jump_moves;
+}
+
+void Opendp::setIterativePlacement(const bool iterative)
+{
+  iterative_placement_ = iterative;
 }
 
 void Opendp::setJournal(Journal* journal)
@@ -144,7 +155,7 @@ void Opendp::updateDbInstLocations()
 {
   for (auto& cell : network_->getNodes()) {
     if (!cell->isFixed() && cell->isStdCell()) {
-      dbInst* db_inst_ = cell->getDbInst();
+      odb::dbInst* db_inst_ = cell->getDbInst();
       // Only move the instance if necessary to avoid triggering callbacks.
       if (db_inst_->getOrient() != cell->getOrient()) {
         db_inst_->setOrient(cell->getOrient());
@@ -205,9 +216,7 @@ void Opendp::findDisplacementStats()
     }
     const int displacement = disp(cell.get());
     displacement_sum_ += displacement;
-    if (displacement > displacement_max_) {
-      displacement_max_ = displacement;
-    }
+    displacement_max_ = std::max<int64_t>(displacement, displacement_max_);
   }
   if (network_->getNumCells() != 0) {
     displacement_avg_ = displacement_sum_ / network_->getNumCells();
@@ -240,12 +249,12 @@ int Opendp::padGlobalRight() const
   return padding_->padGlobalRight().v;
 }
 
-int Opendp::padLeft(dbInst* inst) const
+int Opendp::padLeft(odb::dbInst* inst) const
 {
   return padding_->padLeft(inst).v;
 }
 
-int Opendp::padRight(dbInst* inst) const
+int Opendp::padRight(odb::dbInst* inst) const
 {
   return padding_->padRight(inst).v;
 }
@@ -275,7 +284,7 @@ void Opendp::setFixedGridCells()
     if (cell->getType() == Node::CELL && cell->isFixed()) {
       grid_->visitCellPixels(*cell, true, [&](Pixel* pixel, bool padded) {
         if (padded) {
-          pixel->padding_reserved_by.insert(cell.get());
+          pixel->padding_reserved_by = cell.get();
         } else {
           setGridCell(*cell, pixel);
         }
@@ -359,7 +368,7 @@ void Opendp::groupInitPixels2()
   }
 }
 
-dbInst* Opendp::getAdjacentInstance(dbInst* inst, bool left) const
+odb::dbInst* Opendp::getAdjacentInstance(odb::dbInst* inst, bool left) const
 {
   const Rect inst_rect = inst->getBBox()->getBox();
   DbuX x_dbu = left ? DbuX{inst_rect.xMin() - 1} : DbuX{inst_rect.xMax() + 1};
@@ -370,7 +379,7 @@ dbInst* Opendp::getAdjacentInstance(dbInst* inst, bool left) const
 
   Pixel* pixel = grid_->gridPixel(x, y);
 
-  dbInst* adjacent_inst = nullptr;
+  odb::dbInst* adjacent_inst = nullptr;
 
   // do not return macros, endcaps and tapcells
   if (pixel != nullptr && pixel->cell && pixel->cell->getDbInst()->isCore()) {
@@ -384,19 +393,19 @@ std::vector<dbInst*> Opendp::getAdjacentInstancesCluster(dbInst* inst) const
 {
   const bool left = true;
   const bool right = false;
-  std::vector<dbInst*> adj_inst_cluster;
+  std::vector<odb::dbInst*> adj_inst_cluster;
 
-  dbInst* left_inst = getAdjacentInstance(inst, left);
+  odb::dbInst* left_inst = getAdjacentInstance(inst, left);
   while (left_inst != nullptr) {
     adj_inst_cluster.push_back(left_inst);
     // the right instance can be ignored, since it was added in the line above
     left_inst = getAdjacentInstance(left_inst, left);
   }
 
-  std::reverse(adj_inst_cluster.begin(), adj_inst_cluster.end());
+  std::ranges::reverse(adj_inst_cluster);
   adj_inst_cluster.push_back(inst);
 
-  dbInst* right_inst = getAdjacentInstance(inst, right);
+  odb::dbInst* right_inst = getAdjacentInstance(inst, right);
   while (right_inst != nullptr) {
     adj_inst_cluster.push_back(right_inst);
     // the left instance can be ignored, since it was added in the line above
@@ -486,6 +495,19 @@ void Opendp::groupInitPixels()
       }
     }
   }
+}
+
+odb::Point Opendp::getOdbLocation(const Node* cell) const
+{
+  odb::dbBox* odb_bbox = cell->getDbInst()->getBBox();
+  return {odb_bbox->xMin(), odb_bbox->yMin()};
+}
+
+odb::Point Opendp::getDplLocation(const Node* cell) const
+{
+  DbuX final_x{core_.xMin() + cell->getLeft()};
+  DbuY final_y{core_.yMin() + cell->getBottom()};
+  return {final_x.v, final_y.v};
 }
 
 int divRound(const int dividend, const int divisor)

@@ -11,18 +11,24 @@
 #include <map>
 #include <vector>
 
+#include "db/infra/frPoint.h"
 #include "db/obj/frTrackPattern.h"
 #include "db/tech/frViaDef.h"
 #include "dr/FlexDR.h"
 #include "frBaseTypes.h"
 #include "frDesign.h"
+#include "odb/dbTypes.h"
+#include "odb/geom.h"
+
+using odb::dbTechLayerDir;
+using odb::dbTechLayerType;
 
 namespace drt {
 void FlexGridGraph::addAccessPointLocation(frLayerNum layer_num,
                                            frCoord x_coord,
                                            frCoord y_coord)
 {
-  ap_locs_[layer_num].insert(Point(x_coord, y_coord));
+  ap_locs_[layer_num].insert(odb::Point(x_coord, y_coord));
 }
 
 void initCoords(const frLayerCoordTrackPatternMap& map,
@@ -32,10 +38,9 @@ void initCoords(const frLayerCoordTrackPatternMap& map,
   for (auto& [l, m] : map) {
     coords.reserve(m.size());
     if (coords.empty()) {
-      std::transform(
-          m.begin(), m.end(), std::back_inserter(coords), [](const auto& kv) {
-            return kv.first;
-          });
+      std::ranges::transform(m, std::back_inserter(coords), [](const auto& kv) {
+        return kv.first;
+      });
     } else {
       auto it = coords.begin();
       for (auto& [k, _] : m) {
@@ -56,7 +61,8 @@ bool FlexGridGraph::isAccessPointLocation(frLayerNum layer_num,
     return false;
   }
   const auto& layer_maze_locs = ap_locs_[layer_num];
-  return layer_maze_locs.find(Point(x_coord, y_coord)) != layer_maze_locs.end();
+  return layer_maze_locs.find(odb::Point(x_coord, y_coord))
+         != layer_maze_locs.end();
 }
 void FlexGridGraph::initGrids(const frLayerCoordTrackPatternMap& xMap,
                               const frLayerCoordTrackPatternMap& yMap,
@@ -105,7 +111,7 @@ void FlexGridGraph::initGrids(const frLayerCoordTrackPatternMap& xMap,
 bool FlexGridGraph::outOfDieVia(frMIdx x,
                                 frMIdx y,
                                 frMIdx z,
-                                const Rect& dieBox)
+                                const odb::Rect& dieBox)
 {
   frLayerNum lNum = getLayerNum(z) + 1;
   if (lNum > getTech()->getTopLayerNum()) {
@@ -115,7 +121,7 @@ bool FlexGridGraph::outOfDieVia(frMIdx x,
   if (!via) {
     return true;
   }
-  Rect viaBox(via->getLayer1ShapeBox());
+  odb::Rect viaBox(via->getLayer1ShapeBox());
   viaBox.merge(via->getLayer2ShapeBox());
   viaBox.moveDelta(xCoords_[x], yCoords_[y]);
   return !dieBox.contains(viaBox);
@@ -126,7 +132,7 @@ bool FlexGridGraph::hasOutOfDieViol(frMIdx x, frMIdx y, frMIdx z)
   if (!getTech()->getLayer(lNum)->isUnidirectional()) {
     return false;
   }
-  Rect testBoxUp;
+  odb::Rect testBoxUp;
   if (lNum + 1 <= getTech()->getTopLayerNum()) {
     const frViaDef* via = getTech()->getLayer(lNum + 1)->getDefaultViaDef();
     if (via) {
@@ -138,7 +144,7 @@ bool FlexGridGraph::hasOutOfDieViol(frMIdx x, frMIdx y, frMIdx z)
       dieBox_.bloat(1, testBoxUp);
     }
   }
-  Rect testBoxDown;
+  odb::Rect testBoxDown;
   if (lNum - 1 >= getTech()->getBottomLayerNum()) {
     const frViaDef* via = getTech()->getLayer(lNum - 1)->getDefaultViaDef();
     if (via) {
@@ -200,7 +206,7 @@ void FlexGridGraph::initEdges(const frDesign* design,
                               frLayerCoordTrackPatternMap& xMap,
                               frLayerCoordTrackPatternMap& yMap,
                               const frLayerDirMap& zMap,
-                              const Rect& bbox,
+                              const odb::Rect& bbox,
                               bool initDR)
 {
   frMIdx xDim, yDim, zDim;
@@ -429,8 +435,8 @@ void FlexGridGraph::initEdges(const frDesign* design,
 
 // initialization: update grid graph topology, does not assign edge cost
 void FlexGridGraph::init(const frDesign* design,
-                         const Rect& routeBBox,
-                         const Rect& extBBox,
+                         const odb::Rect& routeBBox,
+                         const odb::Rect& extBBox,
                          frLayerCoordTrackPatternMap& xMap,
                          frLayerCoordTrackPatternMap& yMap,
                          bool initDR,
@@ -458,7 +464,7 @@ void FlexGridGraph::initTracks(
     frLayerCoordTrackPatternMap& horLoc2TrackPatterns,
     frLayerCoordTrackPatternMap& vertLoc2TrackPatterns,
     frLayerDirMap& layerNum2PreRouteDir,
-    const Rect& bbox)
+    const odb::Rect& bbox)
 {
   for (auto& layer : getTech()->getLayers()) {
     if (layer->getType() != dbTechLayerType::ROUTING) {
@@ -479,9 +485,7 @@ void FlexGridGraph::initTracks(
         int trackNum = ((tp->isHorizontal() ? bbox.xMin() : bbox.yMin())
                         - tp->getStartCoord())
                        / (int) tp->getTrackSpacing();
-        if (trackNum < 0) {
-          trackNum = 0;
-        }
+        trackNum = std::max(trackNum, 0);
         if (trackNum * (int) tp->getTrackSpacing() + tp->getStartCoord()
             < (tp->isHorizontal() ? bbox.xMin() : bbox.yMin())) {
           ++trackNum;
@@ -532,7 +536,7 @@ void FlexGridGraph::print() const
   std::ofstream mazeLog(router_cfg_->OUT_MAZE_FILE.c_str());
   if (mazeLog.is_open()) {
     // print edges
-    Rect gridBBox;
+    odb::Rect gridBBox;
     getBBox(gridBBox);
     mazeLog << "printing Maze grid (" << gridBBox.xMin() << ", "
             << gridBBox.yMin() << ") -- (" << gridBBox.xMax() << ", "
@@ -547,14 +551,14 @@ void FlexGridGraph::print() const
     std::cout << "extBBox (xDim, yDim, zDim) = (" << xDim << ", " << yDim
               << ", " << zDim << ")\n";
 
-    Point p;
+    odb::Point p;
     for (frMIdx xIdx = 0; xIdx < xDim; ++xIdx) {
       for (frMIdx yIdx = 0; yIdx < yDim; ++yIdx) {
         for (frMIdx zIdx = 0; zIdx < zDim; ++zIdx) {
           if (hasEdge(xIdx, yIdx, zIdx, frDirEnum::N)) {
             if (yIdx + 1 >= yDim) {
               std::cout << "Error: no edge (" << xIdx << ", " << yIdx << ", "
-                        << zIdx << ", N) " << yDim << std::endl;
+                        << zIdx << ", N) " << yDim << '\n';
               continue;
             }
             mazeLog << "Edge: " << getPoint(p, xIdx, yIdx).x() << " "
@@ -565,7 +569,7 @@ void FlexGridGraph::print() const
           if (hasEdge(xIdx, yIdx, zIdx, frDirEnum::E)) {
             if (xIdx + 1 >= xDim) {
               std::cout << "Error: no edge (" << xIdx << ", " << yIdx << ", "
-                        << zIdx << ", E) " << xDim << std::endl;
+                        << zIdx << ", E) " << xDim << '\n';
               continue;
             }
             mazeLog << "Edge: " << getPoint(p, xIdx, yIdx).x() << " "
@@ -576,7 +580,7 @@ void FlexGridGraph::print() const
           if (hasEdge(xIdx, yIdx, zIdx, frDirEnum::U)) {
             if (zIdx + 1 >= zDim) {
               std::cout << "Error: no edge (" << xIdx << ", " << yIdx << ", "
-                        << zIdx << ", U) " << zDim << std::endl;
+                        << zIdx << ", U) " << zDim << '\n';
               continue;
             }
             mazeLog << "Edge: " << getPoint(p, xIdx, yIdx).x() << " "

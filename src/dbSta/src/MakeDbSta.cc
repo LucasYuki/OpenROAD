@@ -3,11 +3,10 @@
 
 #include "db_sta/MakeDbSta.hh"
 
-#include <tcl.h>
-
-#include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
 #include "odb/db.h"
+#include "sta/Sta.hh"
+#include "tcl.h"
 #include "utl/decode.h"
 
 extern "C" {
@@ -24,16 +23,8 @@ void deleteDbSta(sta::dbSta* sta)
   sta::Sta::setSta(nullptr);
 }
 
-void initDbSta(sta::dbSta* sta,
-               utl::Logger* logger,
-               Tcl_Interp* tcl_interp,
-               odb::dbDatabase* db)
+void initDbSta(Tcl_Interp* tcl_interp)
 {
-  sta::initSta();
-
-  sta->initVars(tcl_interp, db, logger);
-  sta::Sta::setSta(sta);
-
   // Define swig TCL commands.
   Dbsta_Init(tcl_interp);
   // Eval encoded sta TCL sources.

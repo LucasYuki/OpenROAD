@@ -3,6 +3,7 @@
 
 #include "par/PartitionMgr.h"
 
+#include <algorithm>
 #include <cmath>
 #include <ctime>
 #include <fstream>
@@ -59,15 +60,12 @@ bool CompareInstancePtr::operator()(const sta::Instance* lhs,
          < db_network_->staToDb(rhs)->getName();
 }
 
-void PartitionMgr::init(odb::dbDatabase* db,
-                        sta::dbNetwork* db_network,
-                        sta::dbSta* sta,
-                        utl::Logger* logger)
+PartitionMgr::PartitionMgr(odb::dbDatabase* db,
+                           sta::dbNetwork* db_network,
+                           sta::dbSta* sta,
+                           utl::Logger* logger)
+    : db_(db), db_network_(db_network), sta_(sta), logger_(logger)
 {
-  db_ = db;
-  db_network_ = db_network;
-  sta_ = sta;
-  logger_ = logger;
 }
 
 // The function for partitioning a hypergraph
@@ -626,8 +624,7 @@ Instance* PartitionMgr::buildPartitionedInstance(
     }
 
     // fill in missing ports in bus
-    const auto [min_idx, max_idx]
-        = std::minmax_element(port_idx.begin(), port_idx.end());
+    const auto [min_idx, max_idx] = std::ranges::minmax_element(port_idx);
     for (int idx = *min_idx; idx <= *max_idx; idx++) {
       if (port_idx.find(idx) == port_idx.end()) {
         // build missing port
@@ -806,7 +803,7 @@ void PartitionMgr::writePartitionVerilog(const char* file_name,
 
   reinterpret_cast<ConcreteNetwork*>(network)->setTopInstance(top_inst);
 
-  writeVerilog(file_name, true, false, {}, network);
+  writeVerilog(file_name, false, {}, network);
 
   delete network;
 }

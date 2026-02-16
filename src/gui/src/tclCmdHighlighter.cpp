@@ -3,6 +3,10 @@
 
 #include "tclCmdHighlighter.h"
 
+#include <QColor>
+#include <QRegularExpressionMatchIterator>
+#include <QString>
+#include <QTextCharFormat>
 #include <QTextDocument>
 #include <memory>
 #include <set>
@@ -21,10 +25,6 @@ TclCmdHighlighter::TclCmdHighlighter(
 {
   initFormats();
   init(or_cmds, command_start, command_end);
-}
-
-TclCmdHighlighter::~TclCmdHighlighter()
-{
 }
 
 void TclCmdHighlighter::initFormats()

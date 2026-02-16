@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "db/obj/frTrackPattern.h"
 #include "frBaseTypes.h"
 #include "odb/db.h"
+#include "odb/geom.h"
 
 namespace drt {
 namespace io {
@@ -35,9 +37,9 @@ class frBlock : public frBlockObject
   frBlock(const frString& name) : name_(name) {}
   // getters
   frUInt4 getDBUPerUU() const { return dbUnit_; }
-  Rect getBBox() const
+  odb::Rect getBBox() const
   {
-    Rect box;
+    odb::Rect box;
     if (!boundaries_.empty()) {
       box = boundaries_.begin()->getBBox();
     }
@@ -46,14 +48,14 @@ class frBlock : public frBlockObject
     frCoord urx = box.xMax();
     frCoord ury = box.yMax();
     for (auto& boundary : boundaries_) {
-      Rect tmpBox = boundary.getBBox();
+      odb::Rect tmpBox = boundary.getBBox();
       llx = llx < tmpBox.xMin() ? llx : tmpBox.xMin();
       lly = lly < tmpBox.yMin() ? lly : tmpBox.yMin();
       urx = urx > tmpBox.xMax() ? urx : tmpBox.xMax();
       ury = ury > tmpBox.yMax() ? ury : tmpBox.yMax();
     }
     for (auto& inst : getInsts()) {
-      Rect tmpBox = inst->getBBox();
+      odb::Rect tmpBox = inst->getBBox();
       llx = llx < tmpBox.xMin() ? llx : tmpBox.xMin();
       lly = lly < tmpBox.yMin() ? lly : tmpBox.yMin();
       urx = urx > tmpBox.xMax() ? urx : tmpBox.xMax();
@@ -62,7 +64,7 @@ class frBlock : public frBlockObject
     for (auto& term : getTerms()) {
       for (auto& pin : term->getPins()) {
         for (auto& fig : pin->getFigs()) {
-          Rect tmpBox = fig->getBBox();
+          odb::Rect tmpBox = fig->getBBox();
           llx = llx < tmpBox.xMin() ? llx : tmpBox.xMin();
           lly = lly < tmpBox.yMin() ? lly : tmpBox.yMin();
           urx = urx > tmpBox.xMax() ? urx : tmpBox.xMax();
@@ -70,7 +72,7 @@ class frBlock : public frBlockObject
         }
       }
     }
-    return Rect(llx, lly, urx, ury);
+    return odb::Rect(llx, lly, urx, ury);
   }
   const std::vector<frBoundary>& getBoundaries() const { return boundaries_; }
   const std::vector<std::unique_ptr<frBlockage>>& getBlockages() const
@@ -183,10 +185,10 @@ class frBlock : public frBlockObject
   }
   frCoord getGCellSizeVertical() { return getGCellPatterns()[1].getSpacing(); }
   // idx must be legal
-  Rect getGCellBox(const Point& idx1) const
+  odb::Rect getGCellBox(const odb::Point& idx1) const
   {
-    Point idx(idx1);
-    Rect dieBox = getDieBox();
+    odb::Point idx(idx1);
+    odb::Rect dieBox = getDieBox();
     auto& gp = getGCellPatterns();
     auto& xgp = gp[0];
     auto& ygp = gp[1];
@@ -220,11 +222,11 @@ class frBlock : public frBlockObject
     if (idx.y() >= (int) ygp.getCount() - 1) {
       yh = dieBox.yMax();
     }
-    return Rect(xl, yl, xh, yh);
+    return odb::Rect(xl, yl, xh, yh);
   }
-  Point getGCellCenter(const Point& idx) const
+  odb::Point getGCellCenter(const odb::Point& idx) const
   {
-    Rect dieBox = getDieBox();
+    odb::Rect dieBox = getDieBox();
     auto& gp = getGCellPatterns();
     auto& xgp = gp[0];
     auto& ygp = gp[1];
@@ -246,30 +248,59 @@ class frBlock : public frBlockObject
     if (idx.y() == (int) ygp.getCount() - 1) {
       yh = dieBox.yMax();
     }
-    return Point((xl + xh) / 2, (yl + yh) / 2);
+    return odb::Point((xl + xh) / 2, (yl + yh) / 2);
   }
-  Point getGCellIdx(const Point& pt) const
+  odb::Point getGCellIdx(const odb::Point& pt) const
   {
     auto& gp = getGCellPatterns();
     auto& xgp = gp[0];
     auto& ygp = gp[1];
     frCoord idxX = (pt.x() - xgp.getStartCoord()) / (frCoord) xgp.getSpacing();
     frCoord idxY = (pt.y() - ygp.getStartCoord()) / (frCoord) ygp.getSpacing();
-    if (idxX < 0) {
-      idxX = 0;
-    }
-    if (idxY < 0) {
-      idxY = 0;
-    }
+    idxX = std::max(idxX, 0);
+    idxY = std::max(idxY, 0);
     if (idxX >= (int) xgp.getCount()) {
       idxX = (int) xgp.getCount() - 1;
     }
     if (idxY >= (int) ygp.getCount()) {
       idxY = (int) ygp.getCount() - 1;
     }
-    return Point(idxX, idxY);
+    return odb::Point(idxX, idxY);
   }
-  bool isValidGCellIdx(const Point& pt) const
+
+  std::vector<odb::Point> getGCellIndices(const odb::Point& pt) const
+  {
+    const auto& gp = getGCellPatterns();
+    const auto& xgp = gp[0];
+    const auto& ygp = gp[1];
+    frCoord coord_x = pt.x() - xgp.getStartCoord();
+    frCoord coord_y = pt.y() - ygp.getStartCoord();
+    const frCoord max_coord_x = xgp.getSpacing() * (frCoord) xgp.getCount();
+    const frCoord max_coord_y = ygp.getSpacing() * (frCoord) ygp.getCount();
+    coord_x = std::clamp(coord_x, 0, max_coord_x - 1);
+    coord_y = std::clamp(coord_y, 0, max_coord_y - 1);
+
+    const frCoord base_idxX = coord_x / (frCoord) xgp.getSpacing();
+    const frCoord base_idxY = coord_y / (frCoord) ygp.getSpacing();
+    std::set<frCoord> x_indices{base_idxX};
+    std::set<frCoord> y_indices{base_idxY};
+    // TODO: handle case where gcell size is 1 unit
+    if (coord_x % xgp.getSpacing() == 0 && base_idxX != 0) {
+      x_indices.insert(base_idxX - 1);
+    }
+    if (coord_y % ygp.getSpacing() == 0 && base_idxY != 0) {
+      y_indices.insert(base_idxY - 1);
+    }
+    std::vector<odb::Point> sol;
+    for (auto& x : x_indices) {
+      for (auto& y : y_indices) {
+        sol.emplace_back(x, y);
+      }
+    }
+    return sol;
+  }
+
+  bool isValidGCellIdx(const odb::Point& pt) const
   {
     const auto& gp = getGCellPatterns();
     const auto& xgp = gp[0];
@@ -318,17 +349,34 @@ class frBlock : public frBlockObject
     name2inst_.erase(inst->getName());
     inst->setToBeDeleted(true);
   }
-  void removeDeletedInsts()
+
+  void removeNet(frNet* net)
   {
-    insts_.erase(std::remove_if(insts_.begin(),
-                                insts_.end(),
-                                [](const std::unique_ptr<frInst>& inst) {
-                                  return inst->isToBeDeleted();
-                                }),
-                 insts_.end());
+    name2net_.erase(net->getName());
+    for (auto term : net->getInstTerms()) {
+      term->addToNet(nullptr);
+    }
+    for (auto term : net->getBTerms()) {
+      term->addToNet(nullptr);
+    }
+    net->setToBeDeleted(true);
+  }
+
+  void removeDeletedObjects()
+  {
+    std::erase_if(insts_, [](const std::unique_ptr<frInst>& inst) {
+      return inst->isToBeDeleted();
+    });
+    std::erase_if(nets_, [](const std::unique_ptr<frNet>& net) {
+      return net->toBeDeleted();
+    });
     int id = 0;
     for (const auto& inst : insts_) {
       inst->setId(id++);
+    }
+    id = 0;
+    for (const auto& net : nets_) {
+      net->setId(id++);
     }
   }
   void addNet(std::unique_ptr<frNet> in)
@@ -343,7 +391,7 @@ class frBlock : public frBlockObject
     name2snet_[in->getName()] = in.get();
     snets_.push_back(std::move(in));
   }
-  const Rect& getDieBox() const { return dieBox_; }
+  const odb::Rect& getDieBox() const { return dieBox_; }
   void setBoundaries(const std::vector<frBoundary>& in)
   {
     boundaries_ = in;
@@ -355,7 +403,7 @@ class frBlock : public frBlockObject
     frCoord urx = dieBox_.xMax();
     frCoord ury = dieBox_.yMax();
     for (auto& boundary : boundaries_) {
-      Rect tmpBox = boundary.getBBox();
+      odb::Rect tmpBox = boundary.getBBox();
       llx = std::min(llx, tmpBox.xMin());
       lly = std::min(lly, tmpBox.yMin());
       urx = std::max(urx, tmpBox.xMax());
@@ -423,7 +471,7 @@ class frBlock : public frBlockObject
 
   std::vector<std::unique_ptr<frNet>>
       fakeSNets_;  // 0 is floating VSS, 1 is floating VDD
-  Rect dieBox_;
+  odb::Rect dieBox_;
 
   frUInt4 upcoming_inst_id_{0};
   frUInt4 upcoming_term_id_{0};

@@ -25,18 +25,16 @@
 #include "boost/functional/hash.hpp"
 #include "boost/unordered/unordered_map.hpp"
 #include "db_sta/dbNetwork.hh"
+#include "db_sta/dbSta.hh"
 #include "est/EstimateParasitics.h"
 #include "odb/db.h"
 #include "rsz/Resizer.hh"
 #include "sta/Corner.hh"
-
-namespace utl {
-class Logger;
-}  // namespace utl
+#include "sta/Graph.hh"
+#include "sta/Liberty.hh"
+#include "utl/Logger.h"
 
 namespace cts {
-
-using utl::Logger;
 
 struct PairHash
 {
@@ -82,6 +80,9 @@ class WireSegment
     bufferMasters_.push_back(name);
   }
 
+  void setWl2FirstBuffer(int wl) { wl2FirstBuffer_ = wl; }
+  void setLastWl(int wl) { lastWl_ = wl; }
+
   double getPower() const { return power_; }
   unsigned getDelay() const { return delay_; }
   uint8_t getInputCap() const { return inputCap_; }
@@ -89,6 +90,8 @@ class WireSegment
   uint8_t getLength() const { return length_; }
   uint8_t getLoad() const { return load_; }
   uint8_t getOutputSlew() const { return outputSlew_; }
+  int getWl2FirstBuffer() const { return wl2FirstBuffer_; }
+  int getLastWl() const { return lastWl_; }
   bool isBuffered() const { return !bufferLocations_.empty(); }
   unsigned getNumBuffers() const { return bufferLocations_.size(); }
   const std::vector<double>& getBufferLocations() { return bufferLocations_; }
@@ -120,6 +123,8 @@ class WireSegment
 
   std::vector<double> bufferLocations_;
   std::vector<std::string> bufferMasters_;
+  int wl2FirstBuffer_ = 0;
+  int lastWl_ = 0;
 };
 
 //-----------------------------------------------------------------------------
@@ -133,7 +138,7 @@ class TechChar
            rsz::Resizer* resizer,
            est::EstimateParasitics* estimate_parasitics,
            sta::dbNetwork* db_network,
-           Logger* logger);
+           utl::Logger* logger);
 
   void create();
 
@@ -311,7 +316,7 @@ class TechChar
   sta::dbSta* openSta_;
   std::unique_ptr<sta::dbSta> openStaChar_;
   sta::dbNetwork* db_network_;
-  Logger* logger_;
+  utl::Logger* logger_;
   sta::PathAnalysisPt* charPathAnalysis_ = nullptr;
   sta::Corner* charCorner_ = nullptr;
   odb::dbBlock* charBlock_ = nullptr;

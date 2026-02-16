@@ -10,7 +10,9 @@
 #include "db/obj/frInst.h"
 #include "db/obj/frMTerm.h"
 #include "db/obj/frNet.h"
+#include "db/obj/frShape.h"
 #include "frBaseTypes.h"
+#include "odb/geom.h"
 
 namespace drt {
 class frNet;
@@ -43,9 +45,11 @@ class frInstTerm : public frBlockObject
   frAccessPoint* getAccessPoint(frCoord x, frCoord y, frLayerNum lNum);
   bool hasAccessPoint(frCoord x, frCoord y, frLayerNum lNum);
   void getShapes(std::vector<frRect>& outShapes) const;
-  Rect getBBox() const;
+  odb::Rect getBBox() const;
   void setIndexInOwner(int in) { index_in_owner_ = in; }
   int getIndexInOwner() const { return index_in_owner_; }
+  bool isStubborn() const { return is_stubborn_; }
+  void setStubborn(bool in) { is_stubborn_ = in; }
 
  private:
   // Place this first so it is adjacent to "int id_" inherited from
@@ -55,6 +59,7 @@ class frInstTerm : public frBlockObject
   frMTerm* term_;
   frNet* net_{nullptr};
   std::vector<frAccessPoint*> ap_;  // follows pin index
+  bool is_stubborn_{false};
 };
 
 }  // namespace drt

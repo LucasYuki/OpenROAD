@@ -3,7 +3,7 @@
 
 #include "delay_optimization_strategy.h"
 
-#include <string.h>
+#include <string.h>  // NOLINT(modernize-deprecated-headers): for strdup()
 
 #include <cstring>
 #include <mutex>
@@ -13,6 +13,7 @@
 #include "map/mio/mio.h"
 #include "map/scl/sclLib.h"
 #include "map/scl/sclSize.h"
+#include "utils.h"
 #include "utl/Logger.h"
 #include "utl/deleter.h"
 
@@ -37,11 +38,6 @@ extern void Abc_FrameSetDrivingCell(char* pName);
 }  // namespace abc
 
 namespace rmp {
-
-utl::UniquePtrWithDeleter<abc::Abc_Ntk_t> WrapUnique(abc::Abc_Ntk_t* ntk)
-{
-  return utl::UniquePtrWithDeleter<abc::Abc_Ntk_t>(ntk, &abc::Abc_NtkDelete);
-}
 
 void AbcPrintStats(const abc::Abc_Ntk_t* ntk)
 {

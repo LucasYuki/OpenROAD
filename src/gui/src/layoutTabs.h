@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include <QColor>
 #include <QTabWidget>
+#include <QWidget>
 #include <functional>
 #include <map>
 #include <memory>
@@ -69,7 +71,7 @@ class LayoutTabs : public QTabWidget
   void clearNetTracks();
 
  signals:
-  void setCurrentBlock(odb::dbBlock* block);
+  void setCurrentChip(odb::dbChip* chip);
   void newViewer(LayoutViewer* viewer);
 
   // These are just forwarding from the LayoutViewer(s).  Only the
@@ -83,6 +85,7 @@ class LayoutTabs : public QTabWidget
   void focusNetsChanged();
   void routeGuidesChanged();
   void netTracksChanged();
+  void viewUpdated();
 
  public slots:
   void tabChange(int index);
@@ -93,7 +96,8 @@ class LayoutTabs : public QTabWidget
   void zoomIn();
   void zoomOut();
   void zoomTo(const odb::Rect& rect_dbu);
-  void blockLoaded(odb::dbBlock* block);
+  void zoomTo(const odb::Point& focus, int diameter);
+  void chipLoaded(odb::dbChip* chip);
   void fit();
   void fullRepaint();
   void startRulerBuild();

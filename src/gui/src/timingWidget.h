@@ -13,7 +13,10 @@
 #include <QSettings>
 #include <QSpinBox>
 #include <QSplitter>
+#include <QString>
 #include <QTableView>
+#include <QVariant>
+#include <QWidget>
 #include <memory>
 #include <set>
 #include <string>
@@ -22,6 +25,8 @@
 #include "gui/gui.h"
 #include "odb/db.h"
 #include "sta/Clock.hh"
+#include "sta/SdcClass.hh"
+#include "staGuiInterface.h"
 
 namespace sta {
 class Pin;
@@ -67,6 +72,8 @@ class TimingWidget : public QDockWidget
   void updatePaths();
   void reportSlackHistogramPaths(const std::set<const sta::Pin*>& report_pins,
                                  const std::string& path_group_name);
+  void showWorstTimingPath(bool setup);
+  void clearSelection();
 
  signals:
   void highlightTimingPath(TimingPath* timing_path);
@@ -103,6 +110,8 @@ class TimingWidget : public QDockWidget
   void writePathReportCommand(const QModelIndex& selected_index,
                               const CommandType& type);
   void writePathDef(const QModelIndex& selected_index, const CommandType& type);
+  void focusNets(const QModelIndex& selected_index,
+                 const TimingPath::PathSection& path_section);
   void showCommandsMenu(const QPoint& pos);
 
  private slots:
@@ -121,7 +130,7 @@ class TimingWidget : public QDockWidget
                              const std::vector<std::set<const sta::Pin*>>& thru,
                              const std::set<const sta::Pin*>& to,
                              const std::string& path_group_name,
-                             sta::ClockSet* clks = nullptr);
+                             const sta::ClockSet* clks = nullptr);
   void setInitialColumnsVisibility(const QVariant& columns_visibility);
   QVariantList getColumnsVisibility() const;
 

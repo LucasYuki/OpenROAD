@@ -15,6 +15,10 @@
 #include "db/obj/frBlockObject.h"
 #include "db/obj/frShape.h"
 #include "frBaseTypes.h"
+#include "odb/geom.h"
+namespace odb {
+class dbAccessPoint;
+}
 
 namespace drt {
 class frViaDef;
@@ -24,7 +28,7 @@ class frAccessPoint : public frBlockObject
 {
  public:
   // constructors
-  frAccessPoint(const Point& point, frLayerNum layerNum)
+  frAccessPoint(const odb::Point& point, frLayerNum layerNum)
       : point_(point), layerNum_(layerNum)
   {
   }
@@ -42,7 +46,7 @@ class frAccessPoint : public frBlockObject
   }
   frAccessPoint& operator=(const frAccessPoint&) = delete;
   // getters
-  const Point& getPoint() const { return point_; }
+  const odb::Point& getPoint() const { return point_; }
   frLayerNum getLayerNum() const { return layerNum_; }
   bool hasAccess() const
   {
@@ -116,7 +120,7 @@ class frAccessPoint : public frBlockObject
     };
 
     for (auto& viaDefsLayer : viaDefs_) {
-      std::sort(viaDefsLayer.begin(), viaDefsLayer.end(), cmp);
+      std::ranges::sort(viaDefsLayer, cmp);
     }
   }
   // e.g., getViaDef()     --> get best one-cut viadef
@@ -138,7 +142,7 @@ class frAccessPoint : public frBlockObject
   }
   bool isViaAllowed() const { return allow_via_; }
   // setters
-  void setPoint(const Point& in) { point_ = in; }
+  void setPoint(const odb::Point& in) { point_ = in; }
   void setLayer(const frLayerNum& layerNum) { layerNum_ = layerNum; }
   void setAccess(const frDirEnum& dir, bool isValid = true)
   {
@@ -190,9 +194,11 @@ class frAccessPoint : public frBlockObject
 
   void addPathSeg(const frPathSeg& ps) { pathSegs_.emplace_back(ps); }
   std::vector<frPathSeg>& getPathSegs() { return pathSegs_; }
+  void setDbAccessPoint(odb::dbAccessPoint* in) { db_ap_ = in; }
+  odb::dbAccessPoint* getDbAccessPoint() const { return db_ap_; }
 
  private:
-  Point point_;
+  odb::Point point_;
   frLayerNum layerNum_{0};
   // 0 = E, 1 = S, 2 = W, 3 = N, 4 = U, 5 = D
   std::vector<bool> accesses_ = std::vector<bool>(6, false);
@@ -203,6 +209,7 @@ class frAccessPoint : public frBlockObject
   frPinAccess* aps_{nullptr};
   std::vector<frPathSeg> pathSegs_;
   bool allow_via_{false};
+  odb::dbAccessPoint* db_ap_{nullptr};
   template <class Archive>
   void serialize(Archive& ar, unsigned int version);
   friend class boost::serialization::access;
@@ -239,6 +246,7 @@ class frPinAccess : public frBlockObject
   void setPin(frPin* in) { pin_ = in; }
   // others
   frBlockObjectEnum typeId() const override { return frcPinAccess; }
+  void clearAccessPoints() { aps_.clear(); }
 
  private:
   std::vector<std::unique_ptr<frAccessPoint>> aps_;

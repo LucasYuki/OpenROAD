@@ -10,11 +10,18 @@
 
 #include "boost/geometry/geometry.hpp"
 #include "boost/polygon/polygon.hpp"
+#include "db/gcObj/gcPin.h"
+#include "db/gcObj/gcShape.h"
 #include "db/obj/frMarker.h"
+#include "db/tech/frConstraint.h"
 #include "frBaseTypes.h"
 #include "frProfileTask.h"
+#include "gc/FlexGC.h"
 #include "gc/FlexGC_impl.h"
 #include "odb/dbTypes.h"
+#include "odb/geom.h"
+
+using odb::dbTechLayerType;
 
 namespace drt {
 
@@ -543,10 +550,10 @@ void FlexGCWorker::Impl::checkMetalEndOfLine_eol_hasEol_helper(
   }
 
   auto marker = std::make_unique<frMarker>();
-  Rect box(gtl::xl(markerRect),
-           gtl::yl(markerRect),
-           gtl::xh(markerRect),
-           gtl::yh(markerRect));
+  odb::Rect box(gtl::xl(markerRect),
+                gtl::yl(markerRect),
+                gtl::xh(markerRect),
+                gtl::yh(markerRect));
   marker->setBBox(box);
   marker->setLayerNum(layerNum);
   marker->setConstraint(constraint);
@@ -559,19 +566,19 @@ void FlexGCWorker::Impl::checkMetalEndOfLine_eol_hasEol_helper(
       = std::max(edge1->getLowCorner()->x(), edge1->getHighCorner()->x());
   frCoord ury
       = std::max(edge1->getLowCorner()->y(), edge1->getHighCorner()->y());
-  marker->addVictim(
-      net1->getOwner(),
-      std::make_tuple(
-          edge1->getLayerNum(), Rect(llx, lly, urx, ury), edge1->isFixed()));
+  marker->addVictim(net1->getOwner(),
+                    std::make_tuple(edge1->getLayerNum(),
+                                    odb::Rect(llx, lly, urx, ury),
+                                    edge1->isFixed()));
   marker->addSrc(net2->getOwner());
   llx = std::min(edge2->getLowCorner()->x(), edge2->getHighCorner()->x());
   lly = std::min(edge2->getLowCorner()->y(), edge2->getHighCorner()->y());
   urx = std::max(edge2->getLowCorner()->x(), edge2->getHighCorner()->x());
   ury = std::max(edge2->getLowCorner()->y(), edge2->getHighCorner()->y());
-  marker->addAggressor(
-      net2->getOwner(),
-      std::make_tuple(
-          edge2->getLayerNum(), Rect(llx, lly, urx, ury), edge2->isFixed()));
+  marker->addAggressor(net2->getOwner(),
+                       std::make_tuple(edge2->getLayerNum(),
+                                       odb::Rect(llx, lly, urx, ury),
+                                       edge2->isFixed()));
   addMarker(std::move(marker));
 }
 
@@ -1002,10 +1009,10 @@ void FlexGCWorker::Impl::checkMetalEOLkeepout_helper(
   gtl::generalized_intersect(markerRect, rect2);
 
   auto marker = std::make_unique<frMarker>();
-  Rect box(gtl::xl(markerRect),
-           gtl::yl(markerRect),
-           gtl::xh(markerRect),
-           gtl::yh(markerRect));
+  odb::Rect box(gtl::xl(markerRect),
+                gtl::yl(markerRect),
+                gtl::xh(markerRect),
+                gtl::yh(markerRect));
   marker->setBBox(box);
   marker->setLayerNum(edge->getLayerNum());
   marker->setConstraint(constraint);
@@ -1014,12 +1021,12 @@ void FlexGCWorker::Impl::checkMetalEOLkeepout_helper(
   marker->addVictim(
       net1->getOwner(),
       std::make_tuple(
-          edge->getLayerNum(), Rect(llx, lly, urx, ury), edge->isFixed()));
+          edge->getLayerNum(), odb::Rect(llx, lly, urx, ury), edge->isFixed()));
   marker->addSrc(net2->getOwner());
-  marker->addAggressor(
-      net2->getOwner(),
-      std::make_tuple(
-          rect->getLayerNum(), Rect(llx2, lly2, urx2, ury2), rect->isFixed()));
+  marker->addAggressor(net2->getOwner(),
+                       std::make_tuple(rect->getLayerNum(),
+                                       odb::Rect(llx2, lly2, urx2, ury2),
+                                       rect->isFixed()));
   addMarker(std::move(marker));
 }
 void FlexGCWorker::Impl::checkMetalEOLkeepout_main(
@@ -1199,10 +1206,10 @@ void FlexGCWorker::Impl::checkMetalEndOfLine_ext_helper(
   gtl::set_points(edgeRect, edge1->low(), edge1->high());
   gtl::generalized_intersect(markerRect, edgeRect);
   auto marker = std::make_unique<frMarker>();
-  Rect box(gtl::xl(markerRect),
-           gtl::yl(markerRect),
-           gtl::xh(markerRect),
-           gtl::yh(markerRect));
+  odb::Rect box(gtl::xl(markerRect),
+                gtl::yl(markerRect),
+                gtl::xh(markerRect),
+                gtl::yh(markerRect));
   marker->setBBox(box);
   marker->setLayerNum(edge1->getLayerNum());
   marker->setConstraint(constraint);
@@ -1215,19 +1222,19 @@ void FlexGCWorker::Impl::checkMetalEndOfLine_ext_helper(
       = std::max(edge1->getLowCorner()->x(), edge1->getHighCorner()->x());
   frCoord ury
       = std::max(edge1->getLowCorner()->y(), edge1->getHighCorner()->y());
-  marker->addVictim(
-      edge1->getNet()->getOwner(),
-      std::make_tuple(
-          edge1->getLayerNum(), Rect(llx, lly, urx, ury), edge1->isFixed()));
+  marker->addVictim(edge1->getNet()->getOwner(),
+                    std::make_tuple(edge1->getLayerNum(),
+                                    odb::Rect(llx, lly, urx, ury),
+                                    edge1->isFixed()));
   marker->addSrc(edge2->getNet()->getOwner());
   llx = std::min(edge2->getLowCorner()->x(), edge2->getHighCorner()->x());
   lly = std::min(edge2->getLowCorner()->y(), edge2->getHighCorner()->y());
   urx = std::max(edge2->getLowCorner()->x(), edge2->getHighCorner()->x());
   ury = std::max(edge2->getLowCorner()->y(), edge2->getHighCorner()->y());
-  marker->addAggressor(
-      edge2->getNet()->getOwner(),
-      std::make_tuple(
-          edge2->getLayerNum(), Rect(llx, lly, urx, ury), edge2->isFixed()));
+  marker->addAggressor(edge2->getNet()->getOwner(),
+                       std::make_tuple(edge2->getLayerNum(),
+                                       odb::Rect(llx, lly, urx, ury),
+                                       edge2->isFixed()));
   addMarker(std::move(marker));
 }
 
@@ -1322,10 +1329,8 @@ void FlexGCWorker::Impl::checkMetalEndOfLine()
 {
   if (targetNet_) {
     // layer --> net --> polygon
-    for (int i = std::max((frLayerNum) (getTech()->getBottomLayerNum()),
-                          minLayerNum_);
-         i
-         <= std::min((frLayerNum) (getTech()->getTopLayerNum()), maxLayerNum_);
+    for (int i = std::max(getTech()->getBottomLayerNum(), minLayerNum_);
+         i <= std::min(getTech()->getTopLayerNum(), maxLayerNum_);
          i++) {
       auto currLayer = getTech()->getLayer(i);
       if (currLayer->getType() != dbTechLayerType::ROUTING) {
@@ -1337,10 +1342,8 @@ void FlexGCWorker::Impl::checkMetalEndOfLine()
     }
   } else {
     // layer --> net --> polygon
-    for (int i = std::max((frLayerNum) (getTech()->getBottomLayerNum()),
-                          minLayerNum_);
-         i
-         <= std::min((frLayerNum) (getTech()->getTopLayerNum()), maxLayerNum_);
+    for (int i = std::max(getTech()->getBottomLayerNum(), minLayerNum_);
+         i <= std::min(getTech()->getTopLayerNum(), maxLayerNum_);
          i++) {
       auto currLayer = getTech()->getLayer(i);
       if (currLayer->getType() != dbTechLayerType::ROUTING) {

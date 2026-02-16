@@ -15,6 +15,7 @@
 #include "gui/gui.h"
 #include "pa/AbstractPAGraphics.h"
 #include "pa/FlexPA.h"
+#include "pa/FlexPA_unique.h"
 
 namespace odb {
 class dbDatabase;
@@ -98,7 +99,7 @@ class FlexPAGraphics : public gui::Renderer, public AbstractPAGraphics
   std::vector<const frVia*> pa_vias_;
   std::vector<const frPathSeg*> pa_segs_;
   const std::vector<std::unique_ptr<frMarker>>* pa_markers_;
-  std::vector<std::pair<Rect, frLayerNum>> shapes_;
+  std::vector<std::pair<odb::Rect, frLayerNum>> shapes_;
 };
 
 }  // namespace drt

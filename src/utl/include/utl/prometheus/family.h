@@ -33,8 +33,10 @@
 #include <utility>
 #include <vector>
 
+#include "utl/prometheus/client_metric.h"
 #include "utl/prometheus/collectable.h"
 #include "utl/prometheus/hash.h"
+#include "utl/prometheus/metric_family.h"
 #include "utl/prometheus/prometheus_metric.h"
 
 namespace utl {
@@ -123,7 +125,7 @@ class Family : public Collectable
     if (isLocaleIndependentDigit(cur_name.front())) {
       return false;  // must not start with a digit
     }
-    if (cur_name.compare(0, 2, "__") == 0) {
+    if (cur_name.starts_with("__")) {
       return false;  // must not start with "__"
     }
     return true;
@@ -227,7 +229,7 @@ class Family : public Collectable
   {
     std::lock_guard<std::mutex> lock{mutex};
 
-    if (labels_reverse_lookup.count(metric) == 0) {
+    if (!labels_reverse_lookup.contains(metric)) {
       return;
     }
 

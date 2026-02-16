@@ -20,11 +20,10 @@
 #include "dst/JobCallBack.h"
 #include "dst/JobMessage.h"
 #include "utl/Logger.h"
-namespace dst {
-const int kMaxTries = 5;
-}
 
-using namespace dst;
+namespace dst {
+
+constexpr int kMaxTries = 5;
 
 Distributed::Distributed(utl::Logger* logger) : logger_(logger)
 {
@@ -36,11 +35,6 @@ Distributed::~Distributed()
     delete cb;
   }
   callbacks_.clear();
-}
-
-void Distributed::init(utl::Logger* logger)
-{
-  logger_ = logger;
 }
 
 void Distributed::runWorker(const char* ip,
@@ -264,3 +258,5 @@ void Distributed::addCallBack(JobCallBack* cb)
 {
   callbacks_.push_back(cb);
 }
+
+}  // namespace dst

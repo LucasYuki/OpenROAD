@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2019-2025, The OpenROAD Authors
 
+#include "gc/FlexGC.h"
+
 #include <limits>
 #include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "db/drObj/drShape.h"
+#include "db/gcObj/gcNet.h"
+#include "db/gcObj/gcPin.h"
 #include "db/obj/frBlockObject.h"
 #include "db/obj/frMarker.h"
 #include "db/tech/frTechObject.h"
+#include "dr/FlexDR.h"
 #include "frBaseTypes.h"
 #include "frDesign.h"
 #include "gc/FlexGC_impl.h"
@@ -58,7 +64,7 @@ FlexGCWorker::Impl::Impl(frTechObject* techIn,
 
 void FlexGCWorker::Impl::addMarker(std::unique_ptr<frMarker> in)
 {
-  Rect bbox = in->getBBox();
+  odb::Rect bbox = in->getBBox();
   auto layerNum = in->getLayerNum();
   auto con = in->getConstraint();
   if (mapMarkers_.find({bbox, layerNum, con, in->getSrcs()})
@@ -104,12 +110,12 @@ void FlexGCWorker::initPA1()
   impl_->initPA1();
 }
 
-void FlexGCWorker::setExtBox(const Rect& in)
+void FlexGCWorker::setExtBox(const odb::Rect& in)
 {
   impl_->extBox_ = in;
 }
 
-void FlexGCWorker::setDrcBox(const Rect& in)
+void FlexGCWorker::setDrcBox(const odb::Rect& in)
 {
   impl_->drcBox_ = in;
 }

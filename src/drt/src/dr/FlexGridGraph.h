@@ -20,6 +20,7 @@
 #include "db/drObj/drPin.h"
 #include "db/infra/frBox.h"
 #include "db/obj/frTrackPattern.h"
+#include "db/tech/frConstraint.h"
 #include "db/tech/frLayer.h"
 #include "db/tech/frTechObject.h"
 #include "dr/FlexMazeTypes.h"
@@ -27,13 +28,15 @@
 #include "frBaseTypes.h"
 #include "frDesign.h"
 #include "global.h"
+#include "odb/dbTypes.h"
 #include "utl/Logger.h"
 
 namespace drt {
 
 using frLayerCoordTrackPatternMap = boost::container::
     flat_map<frLayerNum, boost::container::flat_map<frCoord, frTrackPattern*>>;
-using frLayerDirMap = boost::container::flat_map<frLayerNum, dbTechLayerDir>;
+using frLayerDirMap
+    = boost::container::flat_map<frLayerNum, odb::dbTechLayerDir>;
 
 class FlexDRWorker;
 class AbstractDRGraphics;
@@ -98,7 +101,7 @@ class FlexGridGraph
     return nodes_[getIdx(x, y, z)].hasGridCostUp;
   }
 
-  void getBBox(Rect& in) const
+  void getBBox(odb::Rect& in) const
   {
     if (!xCoords_.empty() && !yCoords_.empty()) {
       in.init(
@@ -112,7 +115,7 @@ class FlexGridGraph
     zDim = zCoords_.size();
   }
   // unsafe access
-  Point& getPoint(Point& in, frMIdx x, frMIdx y) const
+  odb::Point& getPoint(odb::Point& in, frMIdx x, frMIdx y) const
   {
     in = {xCoords_[x], yCoords_[y]};
     return in;
@@ -126,41 +129,41 @@ class FlexGridGraph
 
   bool hasMazeXIdx(frCoord in) const
   {
-    return std::binary_search(xCoords_.begin(), xCoords_.end(), in);
+    return std::ranges::binary_search(xCoords_, in);
   }
   bool hasMazeYIdx(frCoord in) const
   {
-    return std::binary_search(yCoords_.begin(), yCoords_.end(), in);
+    return std::ranges::binary_search(yCoords_, in);
   }
   bool hasMazeZIdx(frLayerNum in) const
   {
-    return std::binary_search(zCoords_.begin(), zCoords_.end(), in);
+    return std::ranges::binary_search(zCoords_, in);
   }
-  bool hasIdx(const Point& p, frLayerNum lNum) const
+  bool hasIdx(const odb::Point& p, frLayerNum lNum) const
   {
     return (hasMazeXIdx(p.x()) && hasMazeYIdx(p.y()) && hasMazeZIdx(lNum));
   }
-  bool hasMazeIdx(const Point& p, frLayerNum lNum) const
+  bool hasMazeIdx(const odb::Point& p, frLayerNum lNum) const
   {
     return (hasMazeXIdx(p.x()) && hasMazeYIdx(p.y()) && hasMazeZIdx(lNum));
   }
   frMIdx getMazeXIdx(frCoord in) const
   {
-    auto it = std::lower_bound(xCoords_.begin(), xCoords_.end(), in);
+    auto it = std::ranges::lower_bound(xCoords_, in);
     return it - xCoords_.begin();
   }
   frMIdx getMazeYIdx(frCoord in) const
   {
-    auto it = std::lower_bound(yCoords_.begin(), yCoords_.end(), in);
+    auto it = std::ranges::lower_bound(yCoords_, in);
     return it - yCoords_.begin();
   }
   frMIdx getMazeZIdx(frLayerNum in) const
   {
-    auto it = std::lower_bound(zCoords_.begin(), zCoords_.end(), in);
+    auto it = std::ranges::lower_bound(zCoords_, in);
     return it - zCoords_.begin();
   }
   FlexMazeIdx& getMazeIdx(FlexMazeIdx& mIdx,
-                          const Point& p,
+                          const odb::Point& p,
                           frLayerNum layerNum) const
   {
     mIdx.set(getMazeXIdx(p.x()), getMazeYIdx(p.y()), getMazeZIdx(layerNum));
@@ -178,13 +181,11 @@ class FlexGridGraph
 
   void getIdxBox(FlexMazeIdx& mIdx1,
                  FlexMazeIdx& mIdx2,
-                 const Rect& box,
+                 const odb::Rect& box,
                  getIdxBox_EnclosureType enclosureOption = uncertain) const
   {
-    mIdx1.set(std::lower_bound(xCoords_.begin(), xCoords_.end(), box.xMin())
-                  - xCoords_.begin(),
-              std::lower_bound(yCoords_.begin(), yCoords_.end(), box.yMin())
-                  - yCoords_.begin(),
+    mIdx1.set(std::ranges::lower_bound(xCoords_, box.xMin()) - xCoords_.begin(),
+              std::ranges::lower_bound(yCoords_, box.yMin()) - yCoords_.begin(),
               mIdx1.z());
     if (enclosureOption == 1) {
       if (xCoords_[mIdx1.x()] > box.xMin()) {
@@ -195,11 +196,9 @@ class FlexGridGraph
       }
     }
     const int ux
-        = std::upper_bound(xCoords_.begin(), xCoords_.end(), box.xMax())
-          - xCoords_.begin();
+        = std::ranges::upper_bound(xCoords_, box.xMax()) - xCoords_.begin();
     const int uy
-        = std::upper_bound(yCoords_.begin(), yCoords_.end(), box.yMax())
-          - yCoords_.begin();
+        = std::ranges::upper_bound(yCoords_, box.yMax()) - yCoords_.begin();
     mIdx2.set(
         frMIdx(std::max(0, ux - 1)), frMIdx(std::max(0, uy - 1)), mIdx2.z());
     if (enclosureOption == 2) {
@@ -212,7 +211,10 @@ class FlexGridGraph
     }
   }
   frCoord getZHeight(frMIdx in) const { return zHeights_[in]; }
-  dbTechLayerDir getZDir(frMIdx in) const { return layerRouteDirections_[in]; }
+  odb::dbTechLayerDir getZDir(frMIdx in) const
+  {
+    return layerRouteDirections_[in];
+  }
   int getLayerCount() { return zCoords_.size(); }
   bool hasEdge(frMIdx x, frMIdx y, frMIdx z, frDirEnum dir) const
   {
@@ -391,7 +393,7 @@ class FlexGridGraph
                    frMIdx y,
                    frMIdx z,
                    frDirEnum dir,
-                   const Rect& box,
+                   const odb::Rect& box,
                    bool initDR) const
   {
     bool sol = false;
@@ -401,7 +403,7 @@ class FlexGridGraph
       auto y1 = y;
       auto z1 = z;
       reverse(x1, y1, z1, dir);
-      Point pt, pt1;
+      odb::Point pt, pt1;
       getPoint(pt, x, y);
       getPoint(pt1, x1, y1);
       sol = box.intersects(pt) && box.intersects(pt1);
@@ -416,7 +418,7 @@ class FlexGridGraph
                frMIdx y,
                frMIdx z,
                frDirEnum dir,
-               const Rect& box,
+               const odb::Rect& box,
                bool initDR)
   {
     bool sol = false;
@@ -634,16 +636,19 @@ class FlexGridGraph
           currCost *= d;
           currCost = std::max(0, currCost);
           node.markerCostPlanar = currCost;
+          break;
         case frDirEnum::N:
           currCost = node.markerCostPlanar;
           currCost *= d;
           currCost = std::max(0, currCost);
           node.markerCostPlanar = currCost;
+          break;
         case frDirEnum::U:
           currCost = node.markerCostVia;
           currCost *= d;
           currCost = std::max(0, currCost);
           node.markerCostVia = currCost;
+          break;
         default:;
       }
     }
@@ -831,22 +836,22 @@ class FlexGridGraph
     if (x2 < x1 || y2 < y1) {
       return;
     }
-    switch (getZDir(z)) {
-      case dbTechLayerDir::HORIZONTAL:
+    switch (getZDir(z).getValue()) {
+      case odb::dbTechLayerDir::HORIZONTAL:
         for (int i = y1; i <= y2; i++) {
           auto idx1 = getIdx(x1, i, z);
           auto idx2 = getIdx(x2, i, z);
           std::fill(guides_.begin() + idx1, guides_.begin() + idx2 + 1, 1);
         }
         break;
-      case dbTechLayerDir::VERTICAL:
+      case odb::dbTechLayerDir::VERTICAL:
         for (int i = x1; i <= x2; i++) {
           auto idx1 = getIdx(i, y1, z);
           auto idx2 = getIdx(i, y2, z);
           std::fill(guides_.begin() + idx1, guides_.begin() + idx2 + 1, 1);
         }
         break;
-      case dbTechLayerDir::NONE:
+      case odb::dbTechLayerDir::NONE:
         std::cout << "Error: Invalid preferred direction on layer " << z << ".";
         break;
     }
@@ -856,22 +861,22 @@ class FlexGridGraph
     if (x2 < x1 || y2 < y1) {
       return;
     }
-    switch (getZDir(z)) {
-      case dbTechLayerDir::HORIZONTAL:
+    switch (getZDir(z).getValue()) {
+      case odb::dbTechLayerDir::HORIZONTAL:
         for (int i = y1; i <= y2; i++) {
           auto idx1 = getIdx(x1, i, z);
           auto idx2 = getIdx(x2, i, z);
           std::fill(guides_.begin() + idx1, guides_.begin() + idx2 + 1, 0);
         }
         break;
-      case dbTechLayerDir::VERTICAL:
+      case odb::dbTechLayerDir::VERTICAL:
         for (int i = x1; i <= x2; i++) {
           auto idx1 = getIdx(i, y1, z);
           auto idx2 = getIdx(i, y2, z);
           std::fill(guides_.begin() + idx1, guides_.begin() + idx2 + 1, 0);
         }
         break;
-      case dbTechLayerDir::NONE:
+      case odb::dbTechLayerDir::NONE:
         std::cout << "Error: Invalid preferred direction on layer " << z << ".";
         break;
     }
@@ -895,8 +900,8 @@ class FlexGridGraph
   const frBox3D* getDstTaperBox() const { return dstTaperBox_; }
   // functions
   void init(const frDesign* design,
-            const Rect& routeBBox,
-            const Rect& extBBox,
+            const odb::Rect& routeBBox,
+            const odb::Rect& extBBox,
             frLayerCoordTrackPatternMap& xMap,
             frLayerCoordTrackPatternMap& yMap,
             bool initDR,
@@ -911,7 +916,7 @@ class FlexGridGraph
               std::vector<FlexMazeIdx>& path,
               FlexMazeIdx& ccMazeIdx1,
               FlexMazeIdx& ccMazeIdx2,
-              const Point& centerPt,
+              const odb::Point& centerPt,
               std::map<FlexMazeIdx, frBox3D*>& mazeIdx2TaperBox,
               bool route_with_jumpers);
   void setCost(frUInt4 drcCostIn,
@@ -1059,8 +1064,8 @@ class FlexGridGraph
   frVector<frCoord> yCoords_;
   frVector<frLayerNum> zCoords_;
   frVector<frCoord> zHeights_;  // accumulated Z diff
-  std::vector<dbTechLayerDir> layerRouteDirections_;
-  Rect dieBox_;
+  std::vector<odb::dbTechLayerDir> layerRouteDirections_;
+  odb::Rect dieBox_;
   frUInt4 ggDRCCost_ = 0;
   frUInt4 ggMarkerCost_ = 0;
   frUInt4 ggFixedShapeCost_ = 0;
@@ -1074,7 +1079,7 @@ class FlexGridGraph
       = nullptr;  // taper box for the current dest pin in the search
 
   // locations of access points. The vector is indexed by layer number.
-  frVector<std::set<Point>> ap_locs_;
+  frVector<std::set<odb::Point>> ap_locs_;
   std::ofstream dump_file_;
   bool debug_{false};
   frUInt4 curr_id_{1};
@@ -1123,7 +1128,7 @@ class FlexGridGraph
     auto xSize = xCoords_.size();
     auto ySize = yCoords_.size();
 
-    frMIdx zDirModifier = (getZDir(zIdx) == dbTechLayerDir::HORIZONTAL)
+    frMIdx zDirModifier = (getZDir(zIdx) == odb::dbTechLayerDir::HORIZONTAL)
                               ? (xIdx + yIdx * xSize)
                               : (yIdx + xIdx * ySize);
     frMIdx partialCoordinates = zIdx * xSize * ySize;
@@ -1244,7 +1249,7 @@ class FlexGridGraph
                   frLayerCoordTrackPatternMap& horLoc2TrackPatterns,
                   frLayerCoordTrackPatternMap& vertLoc2TrackPatterns,
                   frLayerDirMap& layerNum2PreRouteDir,
-                  const Rect& bbox);
+                  const odb::Rect& bbox);
   void initGrids(const frLayerCoordTrackPatternMap& xMap,
                  const frLayerCoordTrackPatternMap& yMap,
                  const frLayerDirMap& zMap,
@@ -1253,7 +1258,7 @@ class FlexGridGraph
                  frLayerCoordTrackPatternMap& xMap,
                  frLayerCoordTrackPatternMap& yMap,
                  const frLayerDirMap& zMap,
-                 const Rect& bbox,
+                 const odb::Rect& bbox,
                  bool initDR);
   frCost getEstCost(const FlexMazeIdx& src,
                     const FlexMazeIdx& dstMazeIdx1,
@@ -1271,7 +1276,7 @@ class FlexGridGraph
   void expandWavefront(FlexWavefrontGrid& currGrid,
                        const FlexMazeIdx& dstMazeIdx1,
                        const FlexMazeIdx& dstMazeIdx2,
-                       const Point& centerPt,
+                       const odb::Point& centerPt,
                        bool route_with_jumpers);
   bool isExpandable(const FlexWavefrontGrid& currGrid, frDirEnum dir) const;
   FlexMazeIdx getTailIdx(const FlexMazeIdx& currIdx,
@@ -1280,7 +1285,7 @@ class FlexGridGraph
               const frDirEnum& dir,
               const FlexMazeIdx& dstMazeIdx1,
               const FlexMazeIdx& dstMazeIdx2,
-              const Point& centerPt,
+              const odb::Point& centerPt,
               bool route_with_jumpers);
   bool hasAlignedUpDefTrack(
       frLayerNum layerNum,
@@ -1288,7 +1293,7 @@ class FlexGridGraph
       const std::map<frLayerNum, frTrackPattern*>& ySubMap) const;
 
  private:
-  bool outOfDieVia(frMIdx x, frMIdx y, frMIdx z, const Rect& dieBox);
+  bool outOfDieVia(frMIdx x, frMIdx y, frMIdx z, const odb::Rect& dieBox);
   bool hasOutOfDieViol(frMIdx x, frMIdx y, frMIdx z);
   bool isWorkerBorder(frMIdx v, bool isVert);
 

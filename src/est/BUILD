@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025, The OpenROAD Authors
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
 
@@ -19,7 +20,10 @@ cc_library(
         "src/SteinerRenderer.h",
     ],
     visibility = ["//visibility:private"],
-    deps = ["//src/sta:opensta_lib"],
+    deps = [
+        "//src/grt:groute",
+        "//src/sta:opensta_lib",
+    ],
 )
 
 cc_library(
@@ -44,6 +48,7 @@ cc_library(
         "//src/dbSta:SpefWriter",
         "//src/dbSta:dbNetwork",
         "//src/grt",
+        "//src/grt:groute",
         "//src/odb",
         "//src/sta:opensta_lib",
         "//src/stt",

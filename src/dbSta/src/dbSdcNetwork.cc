@@ -3,16 +3,18 @@
 
 #include "dbSdcNetwork.hh"
 
-#include <spdlog/fmt/fmt.h>
-
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
 
+#include "spdlog/fmt/fmt.h"
+#include "sta/NetworkClass.hh"
 #include "sta/ParseBus.hh"
 #include "sta/PatternMatch.hh"
+#include "sta/SdcNetwork.hh"
+#include "sta/StringUtil.hh"
 
 namespace sta {
 

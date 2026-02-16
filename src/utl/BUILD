@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025, The OpenROAD Authors
 
+load("@openroad_rules_python//python:defs.bzl", "py_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//bazel:python_wrap_cc.bzl", "PYTHON_STABLE_API_DEFINE", "python_wrap_cc")
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
@@ -22,15 +25,16 @@ cc_library(
         "src/CommandLineProgress.cpp",
         "src/CommandLineProgress.h",
         "src/Logger.cpp",
-        "src/LoggerCommon.cpp",
         "src/Metrics.cpp",
         "src/Progress.cpp",
         "src/ScopedTemporaryFile.cpp",
+        "src/SuppressStdout.cpp",
         "src/decode.cpp",
         "src/histogram.cpp",
         "src/mem_stats.cpp",
         "src/prometheus/metrics_server.cpp",
         "src/timer.cpp",
+        "src/unionFind.cpp",
     ],
     hdrs = [
         "include/utl/CFileUtils.h",
@@ -40,12 +44,14 @@ cc_library(
         "include/utl/Metrics.h",
         "include/utl/Progress.h",
         "include/utl/ScopedTemporaryFile.h",
+        "include/utl/SuppressStdout.h",
         "include/utl/algorithms.h",
         "include/utl/decode.h",
         "include/utl/deleter.h",
         "include/utl/exception.h",
         "include/utl/histogram.h",
         "include/utl/mem_stats.h",
+        "include/utl/options.h",
         "include/utl/prometheus/atomic_floating.h",
         "include/utl/prometheus/benchmark.h",
         "include/utl/prometheus/builder.h",
@@ -67,9 +73,9 @@ cc_library(
         "include/utl/prometheus/time_window_quantiles.h",
         "include/utl/scope.h",
         "include/utl/timer.h",
+        "include/utl/unionFind.h",
         "include/utl/unique_name.h",
         "include/utl/validation.h",
-        "src/LoggerCommon.h",
     ],
     includes = [
         "include",
@@ -122,6 +128,7 @@ py_library(
 cc_library(
     name = "ui",
     srcs = [
+        "src/LoggerCommon.cpp",
         "src/LoggerCommon.h",
         "src/MakeLogger.cpp",
         ":swig",

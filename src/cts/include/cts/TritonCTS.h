@@ -13,10 +13,8 @@
 #include <vector>
 
 #include "odb/db.h"
-
-namespace utl {
-class Logger;
-}
+#include "odb/geom.h"
+#include "utl/Logger.h"
 
 namespace est {
 class EstimateParasitics;
@@ -39,11 +37,10 @@ class Pin;
 
 namespace stt {
 class SteinerTreeBuilder;
-}
+struct Tree;
+}  // namespace stt
 
 namespace cts {
-
-using utl::Logger;
 
 class ClockInst;
 class CtsOptions;
@@ -57,32 +54,32 @@ class HTreeBuilder;
 class TritonCTS
 {
  public:
-  TritonCTS();
-  ~TritonCTS();
-
-  void init(utl::Logger* logger,
+  TritonCTS(utl::Logger* logger,
             odb::dbDatabase* db,
             sta::dbNetwork* network,
             sta::dbSta* sta,
             stt::SteinerTreeBuilder* st_builder,
             rsz::Resizer* resizer,
             est::EstimateParasitics* estimate_parasitics);
+  ~TritonCTS();
+
   void runTritonCts();
   void reportCtsMetrics();
   CtsOptions* getParms() { return options_; }
   TechChar* getCharacterization() { return techChar_.get(); }
+  odb::dbBlock* getBlock() { return db_->getChip()->getBlock(); }
   int setClockNets(const char* names);
   void setBufferList(const char* buffers);
   void setRootBuffer(const char* buffers);
+  std::string getRootBufferToString();
+  void resetRootBuffer() { rootBuffers_.clear(); }
   void setSinkBuffer(const char* buffers);
 
  private:
-  bool isClockCellCandidate(sta::LibertyCell* cell);
   std::string selectRootBuffer(std::vector<std::string>& buffers);
   std::string selectSinkBuffer(std::vector<std::string>& buffers);
   std::string selectBestMaxCapBuffer(const std::vector<std::string>& buffers,
                                      float totalCap);
-  void inferBufferList(std::vector<std::string>& buffers);
   TreeBuilder* addBuilder(CtsOptions* options,
                           Clock& net,
                           odb::dbNet* topInputNet,
@@ -123,6 +120,11 @@ class TritonCTS
   void incrementNumClocks() { ++numberOfClocks_; }
   void clearNumClocks() { numberOfClocks_ = 0; }
   unsigned getNumClocks() const { return numberOfClocks_; }
+  void cloneClockGaters(odb::dbNet* clkNet);
+  void findLongEdges(
+      stt::Tree& clkSteiner,
+      odb::Point driverPt,
+      std::map<odb::Point, std::vector<odb::dbITerm*>>& point2pin);
   void initOneClockTree(odb::dbNet* driverNet,
                         odb::dbNet* clkInputNet,
                         const std::string& sdcClockName,
@@ -186,8 +188,8 @@ class TritonCTS
   double computeInsertionDelay(const std::string& name,
                                odb::dbInst* inst,
                                odb::dbMTerm* mterm);
-  void writeDummyLoadsToDb(Clock& clockNet,
-                           std::unordered_set<odb::dbInst*>& dummies);
+  int writeDummyLoadsToDb(Clock& clockNet,
+                          std::unordered_set<odb::dbInst*>& dummies);
   bool computeIdealOutputCaps(Clock& clockNet);
   void findCandidateDummyCells(std::vector<sta::LibertyCell*>& dummyCandidates);
   odb::dbInst* insertDummyCell(
@@ -206,26 +208,10 @@ class TritonCTS
   void setAllClocksPropagated();
   void repairClockNets();
   void balanceMacroRegisterLatencies();
-  float getVertexClkArrival(sta::Vertex* sinkVertex,
-                            odb::dbNet* topNet,
-                            odb::dbITerm* iterm);
-  void computeAveSinkArrivals(TreeBuilder* builder, sta::Graph* graph);
-  void computeSinkArrivalRecur(odb::dbNet* topClokcNet,
-                               odb::dbITerm* iterm,
-                               float& sumArrivals,
-                               unsigned& numSinks,
-                               sta::Graph* graph);
-  bool propagateClock(odb::dbITerm* input);
-  void adjustLatencies(TreeBuilder* macroBuilder, TreeBuilder* registerBuilder);
-  void computeTopBufferDelay(TreeBuilder* builder);
-  odb::dbInst* insertDelayBuffer(odb::dbInst* driver,
-                                 const std::string& clockName,
-                                 int locX,
-                                 int locY);
 
   sta::dbSta* openSta_ = nullptr;
   sta::dbNetwork* network_ = nullptr;
-  Logger* logger_ = nullptr;
+  utl::Logger* logger_ = nullptr;
   CtsOptions* options_ = nullptr;
   std::unique_ptr<TechChar> techChar_;
   rsz::Resizer* resizer_ = nullptr;
@@ -235,6 +221,7 @@ class TritonCTS
   std::set<odb::dbNet*> visitedClockNets_;
   std::map<odb::dbInst*, ClockInst*> inst2clkbuf_;
   std::map<ClockInst*, ClockSubNet*> driver2subnet_;
+  std::map<odb::dbNet*, TreeBuilder*> net2builder_;
 
   // db vars
   odb::dbDatabase* db_ = nullptr;

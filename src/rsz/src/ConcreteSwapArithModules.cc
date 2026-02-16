@@ -8,23 +8,37 @@
 #include <cstring>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "db_sta/dbSta.hh"
 #include "odb/db.h"
-#include "sta/Corner.hh"
+#include "rsz/Resizer.hh"
+#include "sta/Delay.hh"
 #include "sta/Graph.hh"
-#include "sta/Liberty.hh"
+#include "sta/Network.hh"
+#include "sta/Path.hh"
 #include "sta/PathEnd.hh"
 #include "sta/PathExpanded.hh"
 #include "sta/PortDirection.hh"
 #include "sta/Search.hh"
 #include "sta/Sta.hh"
+#include "utl/Logger.h"
 
 namespace rsz {
 
+using odb::dbBlock;
+using odb::dbInst;
 using odb::dbModInst;
 using odb::dbModule;
+using odb::dbStringProperty;
+using sta::Instance;
+using sta::Path;
 using sta::PathExpanded;
+using sta::Pin;
+using sta::Slack;
+using sta::Vertex;
+using sta::VertexSet;
 using std::pair;
 using std::vector;
 using utl::RSZ;
@@ -43,12 +57,17 @@ ConcreteSwapArithModules::ConcreteSwapArithModules(Resizer* resizer)
 
 void ConcreteSwapArithModules::init()
 {
+  if (init_) {
+    return;
+  }
+
   logger_ = resizer_->logger_;
   dbStaState::init(resizer_->sta_);
   db_network_ = resizer_->db_network_;
+  init_ = true;
 }
 
-void ConcreteSwapArithModules::replaceArithModules(const int path_count,
+bool ConcreteSwapArithModules::replaceArithModules(const int path_count,
                                                    const std::string& target,
                                                    const float slack_threshold)
 {
@@ -65,11 +84,11 @@ void ConcreteSwapArithModules::replaceArithModules(const int path_count,
   std::set<dbModInst*> arithInsts;
   findCriticalInstances(path_count, target, slack_threshold, arithInsts);
   if (arithInsts.empty()) {
-    return;
+    return false;
   }
 
   // Replace arithmetic instances to improve target QoR
-  doSwapInstances(arithInsts, target);
+  return doSwapInstances(arithInsts, target);
 }
 
 void ConcreteSwapArithModules::findCriticalInstances(
@@ -93,11 +112,10 @@ void ConcreteSwapArithModules::findCriticalInstances(
       violating_ends.emplace_back(end, end_slack);
     }
   }
-  std::stable_sort(violating_ends.begin(),
-                   violating_ends.end(),
-                   [](const auto& end_slack1, const auto& end_slack2) {
-                     return end_slack1.second < end_slack2.second;
-                   });
+  std::ranges::stable_sort(violating_ends,
+                           [](const auto& end_slack1, const auto& end_slack2) {
+                             return end_slack1.second < end_slack2.second;
+                           });
 
   logger_->info(
       RSZ, 153, "Identified {} violating endpoints", violating_ends.size());
@@ -162,6 +180,8 @@ bool ConcreteSwapArithModules::isArithInstance(const Instance* inst,
   if (inst == nullptr) {
     return false;
   }
+
+  init();
   mod_inst = nullptr;
 
   const Instance* curr_inst = inst;
@@ -204,7 +224,7 @@ bool ConcreteSwapArithModules::hasArithOperatorProperty(
     return false;
   }
 
-  odb::dbStringProperty* prop = odb::dbStringProperty::find(
+  dbStringProperty* prop = dbStringProperty::find(
       const_cast<dbModInst*>(mod_inst), "implements_operator");
   if (prop) {
     debugRAPrint2(
@@ -225,11 +245,11 @@ bool ConcreteSwapArithModules::hasArithOperatorProperty(
   return false;
 }
 
-void ConcreteSwapArithModules::doSwapInstances(
-    const std::set<dbModInst*>& insts,
-    const std::string& target)
+bool ConcreteSwapArithModules::doSwapInstances(std::set<dbModInst*>& insts,
+                                               const std::string& target)
 {
   int swapped_count = 0;
+  std::set<dbModInst*> swappedInsts;
 
   for (dbModInst* inst : insts) {
     dbModule* old_master = inst->getMaster();
@@ -238,6 +258,7 @@ void ConcreteSwapArithModules::doSwapInstances(
           RSZ, 157, "Instance {} has no master module", inst->getName());
       continue;
     }
+
     std::string old_name(old_master->getName());
     std::string new_name;
     produceNewModuleName(old_name, new_name, target);
@@ -261,16 +282,25 @@ void ConcreteSwapArithModules::doSwapInstances(
                     inst->getName(),
                     old_name,
                     new_name);
-      inst->swapMaster(new_master);
-      swapped_count++;
+      dbModInst* new_inst = inst->swapMaster(new_master);
+      if (new_inst) {
+        swapped_count++;
+        swappedInsts.insert(new_inst);
+      }
     }
   }
+
+  insts.clear();
+  insts.insert(swappedInsts.begin(), swappedInsts.end());
 
   logger_->info(RSZ,
                 160,
                 "{} arithmetic instances have swapped to improve '{}' target",
                 swapped_count,
                 target);
+  logger_->metric("design__instance__count__swapped_arithmetic_operator",
+                  swapped_count);
+  return (swapped_count > 0);
 }
 
 void ConcreteSwapArithModules::produceNewModuleName(const std::string& old_name,
@@ -286,9 +316,9 @@ void ConcreteSwapArithModules::produceNewModuleName(const std::string& old_name,
     const std::string ALU_TARGET("KOGGE_STONE");
     const std::string MACC_TARGET("BASE");
     size_t pos;
-    if (old_name.compare(0, 4, "ALU_") == 0) {
+    if (old_name.starts_with("ALU_")) {
       // Swap ALU to KOGGE_STONE for best timing
-      const vector<std::string> alu_types
+      const std::vector<std::string> alu_types
           = {"HAN_CARLSON", "BRENT_KUNG", "SKLANSKY"};
       for (const std::string& alu_type : alu_types) {
         pos = old_name.find(alu_type);
@@ -297,7 +327,7 @@ void ConcreteSwapArithModules::produceNewModuleName(const std::string& old_name,
           return;
         }
       }
-    } else if (old_name.compare(0, 5, "MACC_") == 0) {
+    } else if (old_name.starts_with("MACC_")) {
       // Swap multiplier to Han-Carlson BASE for best timing
       pos = old_name.find("BOOTH");
       if (pos != std::string::npos) {

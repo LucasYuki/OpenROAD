@@ -3,13 +3,18 @@
 
 #include "painter.h"
 
+#include <QColor>
 #include <QFont>
+#include <QString>
+#include <QTransform>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <string>
 
+#include "gui/gui.h"
 #include "odb/geom.h"
 #include "utl/Logger.h"
 
@@ -55,7 +60,7 @@ Painter::Color Painter::stringToColor(const std::string& color,
   }
 
   if (color[0] == '#' && (color.size() == 7 || color.size() == 9)) {
-    uint hex_color = 0;
+    uint32_t hex_color = 0;
     for (int i = 1; i < color.size(); i++) {
       const char c = std::tolower(color[i]);
       hex_color *= 16;

@@ -15,7 +15,9 @@ constexpr int GRFRACSIZE = 1;
 #include <map>
 #include <vector>
 
+#include "db/grObj/grNode.h"
 #include "db/grObj/grPin.h"
+#include "db/obj/frGCellPattern.h"
 #include "db/tech/frTechObject.h"
 #include "dr/FlexMazeTypes.h"
 #include "frBaseTypes.h"
@@ -72,7 +74,7 @@ class FlexGRGridGraph
     zDim = zCoords_.size();
   }
 
-  Point& getPoint(frMIdx x, frMIdx y, Point& in) const
+  odb::Point& getPoint(frMIdx x, frMIdx y, odb::Point& in) const
   {
     in = {xCoords_[x], yCoords_[y]};
     return in;
@@ -581,7 +583,7 @@ class FlexGRGridGraph
               std::vector<FlexMazeIdx>& path,
               FlexMazeIdx& ccMazeIdx1,
               FlexMazeIdx& ccMazeIdx2,
-              const Point& centerPt);
+              const odb::Point& centerPt);
 
   void cleanup()
   {
@@ -644,20 +646,20 @@ class FlexGRGridGraph
   }
   frMIdx getMazeXIdx(frCoord in) const
   {
-    auto it = std::lower_bound(xCoords_.begin(), xCoords_.end(), in);
+    auto it = std::ranges::lower_bound(xCoords_, in);
     return it - xCoords_.begin();
   }
   frMIdx getMazeYIdx(frCoord in) const
   {
-    auto it = std::lower_bound(yCoords_.begin(), yCoords_.end(), in);
+    auto it = std::ranges::lower_bound(yCoords_, in);
     return it - yCoords_.begin();
   }
   frMIdx getMazeZIdx(frLayerNum in) const
   {
-    auto it = std::lower_bound(zCoords_.begin(), zCoords_.end(), in);
+    auto it = std::ranges::lower_bound(zCoords_, in);
     return it - zCoords_.begin();
   }
-  FlexMazeIdx& getMazeIdx(const Point& p,
+  FlexMazeIdx& getMazeIdx(const odb::Point& p,
                           frLayerNum layerNum,
                           FlexMazeIdx& mIdx) const
   {
@@ -790,7 +792,7 @@ class FlexGRGridGraph
   void expandWavefront(FlexGRWavefrontGrid& currGrid,
                        const FlexMazeIdx& dstMazeIdx1,
                        const FlexMazeIdx& dstMazeIdx2,
-                       const Point& centerPt);
+                       const odb::Point& centerPt);
   bool isExpandable(const FlexGRWavefrontGrid& currGrid, frDirEnum dir);
   FlexMazeIdx getTailIdx(const FlexMazeIdx& currIdx,
                          const FlexGRWavefrontGrid& currGrid);
@@ -798,7 +800,7 @@ class FlexGRGridGraph
               const frDirEnum& dir,
               const FlexMazeIdx& dstMazeIdx1,
               const FlexMazeIdx& dstMazeIdx2,
-              const Point& centerPt);
+              const odb::Point& centerPt);
 
   friend class FlexGRWorker;
 };

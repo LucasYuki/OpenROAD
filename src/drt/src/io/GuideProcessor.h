@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "boost/icl/interval_set.hpp"
+#include "db/infra/frPoint.h"
 #include "db/obj/frBlockObject.h"
 #include "db/obj/frInstTerm.h"
 #include "db/tech/frTechObject.h"
@@ -64,7 +65,7 @@ class GuideProcessor
                                  frCoord& GCELLOFFSETX,
                                  frCoord& GCELLOFFSETY);
 
-  std::vector<std::pair<frBlockObject*, Point>> genGuides(
+  std::vector<std::pair<frBlockObject*, odb::Point>> genGuides(
       frNet* net,
       std::vector<frRect> rects);
   void genGuides_addCoverGuide(frNet* net, std::vector<frRect>& rects);
@@ -91,6 +92,25 @@ class GuideProcessor
                           const Point3D& best_pin_loc_idx,
                           const Point3D& best_pin_loc_coords,
                           int closest_guide_idx);
+  /**
+   * @brief Connects the guides with the best pin shape location (on the 2D
+   * plane only)
+   *
+   * The function creates a patch guide that connects the closest guide to
+   * best_pin_loc_coords (without consideration to different layers)
+   *
+   * @param guide_pt The center of the gcell on the guide that is closest to
+   * best_pin_loc_coords
+   * @param best_pin_loc_coords The gcell center point of the chosen pin shape
+   * @param gcell_half_size_horz Half the horizontal size of the gcell
+   * @param gcell_half_size_vert Half the vertical size of the gcell
+   */
+  void connectGuidesWithBestPinLoc(Point3D& guide_pt,
+                                   const odb::Point& best_pin_loc_coords,
+                                   frCoord gcell_half_size_horz,
+                                   frCoord gcell_half_size_vert,
+                                   frNet* net,
+                                   std::vector<frRect>& guides);
   /**
    * @brief Patches guides to cover part of the pin if needed.
    *
@@ -306,7 +326,7 @@ class GuidePathFinder
    * @param pin_gcell_map A map of pins and their corresponding GCell indices.
    * @returns A vector of pin-gcell pair to be updated.
    */
-  std::vector<std::pair<frBlockObject*, Point>> commitPathToGuides(
+  std::vector<std::pair<frBlockObject*, odb::Point>> commitPathToGuides(
       std::vector<frRect>& rects,
       const frBlockObjectMap<std::set<Point3D>>& pin_gcell_map);
 
@@ -416,7 +436,7 @@ class GuidePathFinder
    * @param pin_to_gcell A vector mapping pins to their GCell locations.
    * @returns A vector of pin-to-gcell pairs to be updated.
    */
-  std::vector<std::pair<frBlockObject*, Point>> getGRPins(
+  std::vector<std::pair<frBlockObject*, odb::Point>> getGRPins(
       const std::vector<frBlockObject*>& pins,
       const std::vector<std::vector<Point3D>>& pin_to_gcell) const;
   /**

@@ -70,10 +70,11 @@ bool EPlace::initPlacer()
     return true;
   }
   // Init PlacerBaseCommon
-  gpl::PlacerBaseVars pbVars;
-  // pbVars.padLeft = padLeft_;
-  // pbVars.padRight = padRight_;
-  // pbVars.skipIoMode = skipIoMode_;
+  int padLeft = 0;
+  int padRight = 0;
+  bool skipIoMode = false;
+  gpl::PlacerBaseVars pbVars(padLeft, padRight, skipIoMode, true);
+
   pbc_ = std::make_shared<gpl::PlacerBaseCommon>(db_, pbVars, log_);
   if (pbc_->placeInsts().size() == 0) {
     log_->warn(EPL, 1, "No placeable instances - skipping placement.");

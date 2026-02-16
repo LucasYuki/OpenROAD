@@ -10,9 +10,15 @@
 
 #include "boost/geometry/geometry.hpp"
 #include "db/obj/frBlockObject.h"
+#include "db/taObj/taFig.h"
+#include "db/taObj/taPin.h"
+#include "db/taObj/taShape.h"
+#include "db/taObj/taVia.h"
+#include "db/tech/frConstraint.h"
 #include "frBaseTypes.h"
 #include "frDesign.h"
 #include "frRTree.h"
+#include "odb/geom.h"
 #include "ta/FlexTA.h"
 
 namespace drt {
@@ -46,43 +52,43 @@ frDesign* FlexTAWorkerRegionQuery::getDesign() const
 
 void FlexTAWorkerRegionQuery::add(taPinFig* fig)
 {
-  Rect box;
+  odb::Rect box;
   if (fig->typeId() == tacPathSeg) {
     auto obj = static_cast<taPathSeg*>(fig);
     auto [bp, ep] = obj->getPoints();
-    box = Rect(bp, ep);
+    box = odb::Rect(bp, ep);
     impl_->shapes.at(obj->getLayerNum()).insert(std::make_pair(box, obj));
   } else if (fig->typeId() == tacVia) {
     auto obj = static_cast<taVia*>(fig);
     auto bp = obj->getOrigin();
-    box = Rect(bp, bp);
+    box = odb::Rect(bp, bp);
     impl_->shapes.at(obj->getViaDef()->getCutLayerNum())
         .insert(std::make_pair(box, obj));
   } else {
-    std::cout << "Error: unsupported region query add" << std::endl;
+    std::cout << "Error: unsupported region query add\n";
   }
 }
 
 void FlexTAWorkerRegionQuery::remove(taPinFig* fig)
 {
-  Rect box;
+  odb::Rect box;
   if (fig->typeId() == tacPathSeg) {
     auto obj = static_cast<taPathSeg*>(fig);
     auto [bp, ep] = obj->getPoints();
-    box = Rect(bp, ep);
+    box = odb::Rect(bp, ep);
     impl_->shapes.at(obj->getLayerNum()).remove(std::make_pair(box, obj));
   } else if (fig->typeId() == tacVia) {
     auto obj = static_cast<taVia*>(fig);
     auto bp = obj->getOrigin();
-    box = Rect(bp, bp);
+    box = odb::Rect(bp, bp);
     impl_->shapes.at(obj->getViaDef()->getCutLayerNum())
         .remove(std::make_pair(box, obj));
   } else {
-    std::cout << "Error: unsupported region query add" << std::endl;
+    std::cout << "Error: unsupported region query add\n";
   }
 }
 
-void FlexTAWorkerRegionQuery::query(const Rect& box,
+void FlexTAWorkerRegionQuery::query(const odb::Rect& box,
                                     const frLayerNum layerNum,
                                     frOrderedIdSet<taPin*>& result) const
 {
@@ -105,7 +111,7 @@ void FlexTAWorkerRegionQuery::init()
   impl_->via_costs.resize(numLayers);
 }
 
-void FlexTAWorkerRegionQuery::addCost(const Rect& box,
+void FlexTAWorkerRegionQuery::addCost(const odb::Rect& box,
                                       const frLayerNum layerNum,
                                       frBlockObject* obj,
                                       frConstraint* con)
@@ -114,7 +120,7 @@ void FlexTAWorkerRegionQuery::addCost(const Rect& box,
       std::make_pair(box, std::make_pair(obj, con)));
 }
 
-void FlexTAWorkerRegionQuery::removeCost(const Rect& box,
+void FlexTAWorkerRegionQuery::removeCost(const odb::Rect& box,
                                          const frLayerNum layerNum,
                                          frBlockObject* obj,
                                          frConstraint* con)
@@ -124,7 +130,7 @@ void FlexTAWorkerRegionQuery::removeCost(const Rect& box,
 }
 
 void FlexTAWorkerRegionQuery::queryCost(
-    const Rect& box,
+    const odb::Rect& box,
     const frLayerNum layerNum,
     std::vector<rq_box_value_t<std::pair<frBlockObject*, frConstraint*>>>&
         result) const
@@ -133,7 +139,7 @@ void FlexTAWorkerRegionQuery::queryCost(
                                         back_inserter(result));
 }
 
-void FlexTAWorkerRegionQuery::addViaCost(const Rect& box,
+void FlexTAWorkerRegionQuery::addViaCost(const odb::Rect& box,
                                          const frLayerNum layerNum,
                                          frBlockObject* obj,
                                          frConstraint* con)
@@ -142,7 +148,7 @@ void FlexTAWorkerRegionQuery::addViaCost(const Rect& box,
       std::make_pair(box, std::make_pair(obj, con)));
 }
 
-void FlexTAWorkerRegionQuery::removeViaCost(const Rect& box,
+void FlexTAWorkerRegionQuery::removeViaCost(const odb::Rect& box,
                                             const frLayerNum layerNum,
                                             frBlockObject* obj,
                                             frConstraint* con)
@@ -152,7 +158,7 @@ void FlexTAWorkerRegionQuery::removeViaCost(const Rect& box,
 }
 
 void FlexTAWorkerRegionQuery::queryViaCost(
-    const Rect& box,
+    const odb::Rect& box,
     const frLayerNum layerNum,
     std::vector<rq_box_value_t<std::pair<frBlockObject*, frConstraint*>>>&
         result) const

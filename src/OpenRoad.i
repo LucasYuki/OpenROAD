@@ -199,6 +199,13 @@ getSteinerTreeBuilder()
   return openroad->getSteinerTreeBuilder();
 }
 
+ram::RamGen*
+getRamGen()
+{
+  OpenRoad *openroad = getOpenRoad();
+  return openroad->getRamGen();
+}
+
 epl::EPlace*
 getEPlace()
 {
@@ -363,10 +370,52 @@ write_cdl_cmd(const char *outFilename,
 }
 
 void
+read_3dbv_cmd(const char *filename)
+{
+  OpenRoad *ord = getOpenRoad();
+  ord->read3Dbv(filename);
+}
+
+void
+read_3dbx_cmd(const char *filename)
+{
+  OpenRoad *ord = getOpenRoad();
+  ord->read3Dbx(filename);
+}
+
+void
+read_3dblox_bmap_cmd(const char *filename)
+{
+  OpenRoad *ord = getOpenRoad();
+  ord->read3DBloxBMap(filename);
+}
+
+void
+check_3dblox_cmd()
+{
+  OpenRoad *ord = getOpenRoad();
+  ord->check3DBlox();
+}
+
+void
+write_3dbv_cmd(const char *filename)
+{
+  OpenRoad *ord = getOpenRoad();
+  ord->write3Dbv(filename);
+}
+
+void
+write_3dbx_cmd(const char *filename)
+{
+  OpenRoad *ord = getOpenRoad();
+  ord->write3Dbx(filename);
+}
+
+void
 read_db_cmd(const char *filename, bool hierarchy)
 {
   OpenRoad *ord = getOpenRoad();
-  ord->readDb(filename,hierarchy);
+  ord->readDb(filename, hierarchy);
 }
 
 void
@@ -409,6 +458,9 @@ set_debug_level(const char* tool_name,
   auto id = utl::Logger::findToolId(tool_name);
   if (id == utl::UKN) {
     logger->error(utl::ORD, 15, "Unknown tool name {}", tool_name);
+  }
+  if (id == utl::STA) {
+    getSta()->setDebugLevel(group, level);
   }
   logger->setDebugLevel(id, group, level);
 }
@@ -476,20 +528,10 @@ microns_to_dbu(double microns)
 
 // Common check for placement tools.
 bool
-db_has_rows()
+db_has_core_rows()
 {
   dbDatabase *db = OpenRoad::openRoad()->getDb();
-  if (!db->getChip() || !db->getChip()->getBlock()) {
-    return false;
-  }
-
-  for (odb::dbRow* row : db->getChip()->getBlock()->getRows()) {
-    if (row->getSite()->getClass() != odb::dbSiteClass::PAD) {
-      return true;
-    }
-  }
-
-  return false;
+  return dbHasCoreRows(db);
 }
 
 bool

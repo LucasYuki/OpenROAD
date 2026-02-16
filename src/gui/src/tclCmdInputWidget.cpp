@@ -7,7 +7,10 @@
 #include <QCoreApplication>
 #include <QMimeData>
 #include <QScrollBar>
+#include <QSettings>
+#include <QTextCursor>
 #include <QTextStream>
+#include <QWidget>
 #include <functional>
 #include <memory>
 #include <regex>
@@ -15,9 +18,12 @@
 #include <string>
 #include <utility>
 
+#include "cmdInputWidget.h"
 #include "gui/gui.h"
 #include "ord/OpenRoad.hh"
 #include "spdlog/formatter.h"
+#include "tcl.h"
+#include "tclCmdHighlighter.h"
 
 namespace gui {
 
@@ -645,7 +651,7 @@ const swig_class* TclCmdInputWidget::swigBeforeCursor()
       swig_instance* inst = static_cast<swig_instance*>(info_ptr.objClientData);
       if (inst != nullptr && inst->classptr != nullptr) {
         // make sure cls is in the arguments
-        if (swig_arguments_.count(inst->classptr) != 0) {
+        if (swig_arguments_.contains(inst->classptr)) {
           return inst->classptr;
         }
       }

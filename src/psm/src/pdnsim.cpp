@@ -9,12 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
+#include "debug_gui.h"
 #include "dpl/Opendp.h"
 #include "heatMap.h"
 #include "ir_network.h"
 #include "ir_solver.h"
+#include "node.h"
 #include "odb/db.h"
 #include "odb/dbShape.h"
 #include "odb/dbTypes.h"
@@ -29,15 +30,11 @@ using odb::dbSigType;
 
 namespace psm {
 
-PDNSim::PDNSim() = default;
-
-PDNSim::~PDNSim() = default;
-
-void PDNSim::init(utl::Logger* logger,
-                  odb::dbDatabase* db,
-                  sta::dbSta* sta,
-                  est::EstimateParasitics* estimate_parasitics,
-                  dpl::Opendp* opendp)
+PDNSim::PDNSim(utl::Logger* logger,
+               odb::dbDatabase* db,
+               sta::dbSta* sta,
+               est::EstimateParasitics* estimate_parasitics,
+               dpl::Opendp* opendp)
 {
   db_ = db;
   sta_ = sta;
@@ -47,6 +44,8 @@ void PDNSim::init(utl::Logger* logger,
   heatmap_ = std::make_unique<IRDropDataSource>(this, sta, logger_);
   heatmap_->registerHeatMap();
 }
+
+PDNSim::~PDNSim() = default;
 
 void PDNSim::setDebugGui(bool enable)
 {
@@ -207,6 +206,9 @@ void PDNSim::setGeneratedSourceSettings(const GeneratedSourceSettings& settings)
   if (settings.strap_track_pitch > 0) {
     generated_source_settings_.strap_track_pitch = settings.strap_track_pitch;
   }
+  if (settings.resistance > 0) {
+    generated_source_settings_.resistance = settings.resistance;
+  }
 }
 
 void PDNSim::clearSolvers()
@@ -234,6 +236,21 @@ void PDNSim::inDbBTermPostDisConnect(odb::dbBTerm*, odb::dbNet*)
   clearSolvers();
 }
 
+void PDNSim::inDbBPinCreate(odb::dbBPin*)
+{
+  clearSolvers();
+}
+
+void PDNSim::inDbBPinAddBox(odb::dbBox*)
+{
+  clearSolvers();
+}
+
+void PDNSim::inDbBPinRemoveBox(odb::dbBox*)
+{
+  clearSolvers();
+}
+
 void PDNSim::inDbBPinDestroy(odb::dbBPin*)
 {
   clearSolvers();
@@ -255,7 +272,7 @@ void PDNSim::inDbSWirePostDestroySBoxes(odb::dbSWire*)
 }
 
 // Functions of decap cells
-void PDNSim::addDecapMaster(dbMaster* decap_master, double decap_cap)
+void PDNSim::addDecapMaster(odb::dbMaster* decap_master, double decap_cap)
 {
   opendp_->addDecapMaster(decap_master, decap_cap);
 }

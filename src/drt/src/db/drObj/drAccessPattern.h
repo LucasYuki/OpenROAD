@@ -9,6 +9,7 @@
 #include "db/infra/frPoint.h"
 #include "dr/FlexMazeTypes.h"
 #include "frBaseTypes.h"
+#include "odb/geom.h"
 
 namespace drt {
 
@@ -19,7 +20,7 @@ class drAccessPattern : public drBlockObject
 {
  public:
   // getters
-  Point getPoint() const { return beginPoint_; }
+  odb::Point getPoint() const { return beginPoint_; }
   frLayerNum getBeginLayerNum() const { return beginLayerNum_; }
   frCoord getBeginArea() const { return beginArea_; }
   drPin* getPin() const { return pin_; }
@@ -30,16 +31,22 @@ class drAccessPattern : public drBlockObject
   {
     return (dir == frDirEnum::U) ? vU_ : vD_;
   }
-  const frViaDef* getAccessViaDef(const frDirEnum& dir = frDirEnum::U)
+  const frViaDef* getAccessViaDef()
   {
-    return (dir == frDirEnum::U) ? (*vU_)[vUIdx_] : (*vD_)[vDIdx_];
+    if (hasAccessViaDef(frDirEnum::U)) {
+      return (*vU_)[vUIdx_];
+    }
+    if (hasAccessViaDef(frDirEnum::D)) {
+      return (*vD_)[vDIdx_];
+    }
+    return nullptr;
   }
   bool nextAccessViaDef(const frDirEnum& dir = frDirEnum::U);
   bool prevAccessViaDef(const frDirEnum& dir = frDirEnum::U);
   bool isOnTrack(bool isX) const { return (isX) ? onTrackX_ : onTrackY_; }
   frUInt4 getPinCost() const { return pinCost_; }
   // setters
-  void setPoint(const Point& bpIn) { beginPoint_ = bpIn; }
+  void setPoint(const odb::Point& bpIn) { beginPoint_ = bpIn; }
   void setBeginLayerNum(frLayerNum in) { beginLayerNum_ = in; }
   void setBeginArea(frCoord in) { beginArea_ = in; }
   void setMazeIdx(const FlexMazeIdx& in) { mazeIdx_.set(in); }
@@ -69,7 +76,7 @@ class drAccessPattern : public drBlockObject
   frBlockObjectEnum typeId() const override { return drcAccessPattern; }
 
  protected:
-  Point beginPoint_;
+  odb::Point beginPoint_;
   frLayerNum beginLayerNum_{0};
   frCoord beginArea_{0};
   FlexMazeIdx mazeIdx_;

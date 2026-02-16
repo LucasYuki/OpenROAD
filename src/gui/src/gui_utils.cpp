@@ -3,9 +3,12 @@
 
 #include "gui_utils.h"
 
+#include <QColor>
 #include <QFileDialog>
 #include <QImageWriter>
 #include <QPainter>
+#include <QString>
+#include <QWidget>
 #include <algorithm>
 
 #include "utl/Logger.h"
@@ -31,9 +34,9 @@ QString Utils::fixImagePath(const QString& path, utl::Logger* logger)
 
   QString fixed_path = path;
 
-  if (!std::any_of(
-          valid_extensions.begin(),
-          valid_extensions.end(),
+  if (!std::ranges::any_of(
+          valid_extensions,
+
           [path](const QString& ext) { return path.endsWith("." + ext); })) {
     fixed_path += ".png";
     if (logger != nullptr) {

@@ -24,10 +24,10 @@ class RoutingCongestionDataSource : public gui::GlobalRoutingDataSource,
   bool populateMap() override;
   void combineMapData(bool base_has_value,
                       double& base,
-                      const double new_data,
-                      const double data_area,
-                      const double intersection_area,
-                      const double rect_area) override;
+                      double new_data,
+                      double data_area,
+                      double intersection_area,
+                      double rect_area) override;
   void correctMapScale(HeatMapDataSource::Map& map) override;
   std::string formatValue(double value, bool legend) const override;
 
@@ -47,14 +47,14 @@ class RoutingCongestionDataSource : public gui::GlobalRoutingDataSource,
 
   bool populateMapForLayer(odb::dbTechLayer* layer, odb::dbGCellGrid* grid);
   bool populateMapForDirection(Direction direction, odb::dbGCellGrid* grid);
-  double defineValue(int capacity,
-                     int usage,
+  double defineValue(double capacity,
+                     double usage,
                      double congestion,
                      bool show_data);
   void setCongestionValues(const odb::dbGCellGrid::GCellData& hor_cong_data,
                            const odb::dbGCellGrid::GCellData& ver_cong_data,
-                           int& capacity,
-                           int& usage,
+                           double& capacity,
+                           double& usage,
                            double& congestion);
 
   odb::dbDatabase* db_;

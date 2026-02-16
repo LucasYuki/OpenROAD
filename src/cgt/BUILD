@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025, The OpenROAD Authors
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//bazel:tcl_encode_or.bzl", "tcl_encode")
 load("//bazel:tcl_wrap_cc.bzl", "tcl_wrap_cc")
 
@@ -15,16 +16,17 @@ cc_library(
     name = "cgt",
     srcs = [
         "src/ClockGating.cpp",
+        "src/ClockGatingImpl.h",
         "src/MakeClockGating.cpp",
         "src/NetworkBuilder.cpp",
+        "src/NetworkBuilder.h",
+        "src/RandomBits.h",
         ":swig",
         ":tcl",
     ],
     hdrs = [
         "include/cgt/ClockGating.h",
         "include/cgt/MakeClockGating.h",
-        "include/cgt/NetworkBuilder.h",
-        "include/cgt/RandomBits.h",
     ],
     defines = [
         "ABC_NAMESPACE=abc",
@@ -39,8 +41,8 @@ cc_library(
         "//src/odb",
         "//src/sta:opensta_lib",
         "//src/utl",
+        "@abc",
         "@boost.stacktrace",
-        "@edu_berkeley_abc//:abc-lib",
         "@tk_tcl//:tcl",
     ],
 )

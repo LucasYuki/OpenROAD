@@ -3,9 +3,6 @@
 
 #include "dr/FlexDR.h"
 
-#include <dst/JobMessage.h>
-#include <omp.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -16,6 +13,7 @@
 #include <iomanip>
 #include <ios>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -38,21 +36,28 @@
 #include "db/obj/frShape.h"
 #include "db/obj/frVia.h"
 #include "distributed/RoutingJobDescription.h"
+#include "distributed/drUpdate.h"
 #include "distributed/frArchive.h"
 #include "dr/AbstractDRGraphics.h"
 #include "dr/FlexDR_conn.h"
 #include "dst/BalancerJobDescription.h"
 #include "dst/Distributed.h"
+#include "dst/JobMessage.h"
 #include "frBaseTypes.h"
 #include "frDesign.h"
 #include "frProfileTask.h"
 #include "gc/FlexGC.h"
 #include "io/io.h"
 #include "odb/dbTypes.h"
+#include "odb/geom.h"
+#include "omp.h"
 #include "serialization.h"
+#include "utl/Logger.h"
 #include "utl/Progress.h"
 #include "utl/ScopedTemporaryFile.h"
 #include "utl/exception.h"
+
+using odb::dbTechLayerType;
 
 BOOST_CLASS_EXPORT(drt::RoutingJobDescription)
 
@@ -104,7 +109,8 @@ FlexDR::FlexDR(TritonRoute* router,
                utl::Logger* loggerIn,
                odb::dbDatabase* dbIn,
                RouterConfiguration* router_cfg)
-    : router_(router),
+    : flow_state_machine_(std::make_unique<FlexDRFlow>()),
+      router_(router),
       design_(designIn),
       logger_(loggerIn),
       db_(dbIn),
@@ -215,7 +221,7 @@ int FlexDRWorker::main(frDesign* design)
     skipRouting_ = true;
   }
   if (debugSettings_->debugDumpDR
-      && (debugSettings_->box == Rect(-1, -1, -1, -1)
+      && (debugSettings_->box == odb::Rect(-1, -1, -1, -1)
           || routeBox_.intersects(debugSettings_->box))
       && !skipRouting_
       && (debugSettings_->iter == getDRIter()
@@ -332,7 +338,7 @@ void FlexDR::initFromTA()
           auto [bp, ep] = static_cast<frPathSeg*>(ps.get())->getPoints();
 
           // skip TA dummy segment
-          if (Point::manhattanDistance(ep, bp) != 1) {
+          if (odb::Point::manhattanDistance(ep, bp) != 1) {
             net->addShape(std::move(ps));
           }
         } else {
@@ -351,10 +357,10 @@ void FlexDR::initGCell2BoundaryPin()
   auto& xgp = gCellPatterns.at(0);
   auto& ygp = gCellPatterns.at(1);
   auto tmpVec = std::vector<
-      frOrderedIdMap<frNet*, std::set<std::pair<Point, frLayerNum>>>>(
+      frOrderedIdMap<frNet*, std::set<std::pair<odb::Point, frLayerNum>>>>(
       (int) ygp.getCount());
   gcell2BoundaryPin_ = std::vector<std::vector<
-      frOrderedIdMap<frNet*, std::set<std::pair<Point, frLayerNum>>>>>(
+      frOrderedIdMap<frNet*, std::set<std::pair<odb::Point, frLayerNum>>>>>(
       (int) xgp.getCount(), tmpVec);
   for (auto& net : topBlock->getNets()) {
     auto netPtr = net.get();
@@ -365,12 +371,12 @@ void FlexDR::initGCell2BoundaryPin()
           auto [bp, ep] = ps->getPoints();
           frLayerNum layerNum = ps->getLayerNum();
           // skip TA dummy segment
-          auto mdist = Point::manhattanDistance(ep, bp);
+          auto mdist = odb::Point::manhattanDistance(ep, bp);
           if (mdist == 1 || mdist == 0) {
             continue;
           }
-          Point idx1 = design_->getTopBlock()->getGCellIdx(bp);
-          Point idx2 = design_->getTopBlock()->getGCellIdx(ep);
+          odb::Point idx1 = design_->getTopBlock()->getGCellIdx(bp);
+          odb::Point idx2 = design_->getTopBlock()->getGCellIdx(ep);
 
           // update gcell2BoundaryPin
           // horizontal
@@ -379,17 +385,17 @@ void FlexDR::initGCell2BoundaryPin()
             int x2 = idx2.x();
             int y = idx1.y();
             for (auto x = x1; x <= x2; ++x) {
-              Rect gcellBox = topBlock->getGCellBox(Point(x, y));
+              odb::Rect gcellBox = topBlock->getGCellBox(odb::Point(x, y));
               frCoord leftBound = gcellBox.xMin();
               frCoord rightBound = gcellBox.xMax();
               const bool hasLeftBound = bp.x() < leftBound;
               const bool hasRightBound = ep.x() >= rightBound;
               if (hasLeftBound) {
-                Point boundaryPt(leftBound, bp.y());
+                odb::Point boundaryPt(leftBound, bp.y());
                 gcell2BoundaryPin_[x][y][netPtr].emplace(boundaryPt, layerNum);
               }
               if (hasRightBound) {
-                Point boundaryPt(rightBound, ep.y());
+                odb::Point boundaryPt(rightBound, ep.y());
                 gcell2BoundaryPin_[x][y][netPtr].emplace(boundaryPt, layerNum);
               }
             }
@@ -398,17 +404,17 @@ void FlexDR::initGCell2BoundaryPin()
             int y1 = idx1.y();
             int y2 = idx2.y();
             for (auto y = y1; y <= y2; ++y) {
-              Rect gcellBox = topBlock->getGCellBox(Point(x, y));
+              odb::Rect gcellBox = topBlock->getGCellBox(odb::Point(x, y));
               frCoord bottomBound = gcellBox.yMin();
               frCoord topBound = gcellBox.yMax();
               const bool hasBottomBound = bp.y() < bottomBound;
               const bool hasTopBound = ep.y() >= topBound;
               if (hasBottomBound) {
-                Point boundaryPt(bp.x(), bottomBound);
+                odb::Point boundaryPt(bp.x(), bottomBound);
                 gcell2BoundaryPin_[x][y][netPtr].emplace(boundaryPt, layerNum);
               }
               if (hasTopBound) {
-                Point boundaryPt(ep.x(), topBound);
+                odb::Point boundaryPt(ep.x(), topBound);
                 gcell2BoundaryPin_[x][y][netPtr].emplace(boundaryPt, layerNum);
               }
             }
@@ -436,8 +442,8 @@ void FlexDR::init_halfViaEncArea()
       auto viaDef = getTech()->getLayer(i + 1)->getDefaultViaDef();
       if (viaDef) {
         frVia via(viaDef);
-        Rect layer1Box = via.getLayer1BBox();
-        Rect layer2Box = via.getLayer2BBox();
+        odb::Rect layer1Box = via.getLayer1BBox();
+        odb::Rect layer2Box = via.getLayer2BBox();
         auto layer1HalfArea = layer1Box.area() / 2;
         auto layer2HalfArea = layer2Box.area() / 2;
         halfViaEncArea.emplace_back(layer1HalfArea, layer2HalfArea);
@@ -520,13 +526,13 @@ void FlexDR::removeGCell2BoundaryPin()
   gcell2BoundaryPin_.shrink_to_fit();
 }
 
-frOrderedIdMap<frNet*, std::set<std::pair<Point, frLayerNum>>>
+frOrderedIdMap<frNet*, std::set<std::pair<odb::Point, frLayerNum>>>
 FlexDR::initDR_mergeBoundaryPin(int startX,
                                 int startY,
                                 int size,
-                                const Rect& routeBox) const
+                                const odb::Rect& routeBox) const
 {
-  frOrderedIdMap<frNet*, std::set<std::pair<Point, frLayerNum>>> bp;
+  frOrderedIdMap<frNet*, std::set<std::pair<odb::Point, frLayerNum>>> bp;
   auto gCellPatterns = getDesign()->getTopBlock()->getGCellPatterns();
   auto& xgp = gCellPatterns.at(0);
   auto& ygp = gCellPatterns.at(1);
@@ -555,27 +561,27 @@ void FlexDR::getBatchInfo(int& batchStepX, int& batchStepY)
 std::unique_ptr<FlexDRWorker> FlexDR::createWorker(const int x_offset,
                                                    const int y_offset,
                                                    const SearchRepairArgs& args,
-                                                   const Rect& routeBoxIn)
+                                                   const odb::Rect& routeBoxIn)
 {
   auto worker = std::make_unique<FlexDRWorker>(
       &via_data_, getDesign(), logger_, router_cfg_);
-  Rect route_box(routeBoxIn);
-  if (route_box == Rect(0, 0, 0, 0)) {
+  odb::Rect route_box(routeBoxIn);
+  if (route_box == odb::Rect(0, 0, 0, 0)) {
     auto gCellPatterns = getDesign()->getTopBlock()->getGCellPatterns();
     auto& xgp = gCellPatterns.at(0);
     auto& ygp = gCellPatterns.at(1);
-    Rect routeBox1
-        = getDesign()->getTopBlock()->getGCellBox(Point(x_offset, y_offset));
+    odb::Rect routeBox1 = getDesign()->getTopBlock()->getGCellBox(
+        odb::Point(x_offset, y_offset));
     const int max_i
         = std::min((int) xgp.getCount() - 1, x_offset + args.size - 1);
     const int max_j = std::min((int) ygp.getCount(), y_offset + args.size - 1);
-    Rect routeBox2
-        = getDesign()->getTopBlock()->getGCellBox(Point(max_i, max_j));
+    odb::Rect routeBox2
+        = getDesign()->getTopBlock()->getGCellBox(odb::Point(max_i, max_j));
     route_box.init(
         routeBox1.xMin(), routeBox1.yMin(), routeBox2.xMax(), routeBox2.yMax());
   }
-  Rect extBox;
-  Rect drcBox;
+  odb::Rect extBox;
+  odb::Rect drcBox;
   route_box.bloat(router_cfg_->MTSAFEDIST, extBox);
   route_box.bloat(router_cfg_->DRCSAFEDIST, drcBox);
   worker->setRouteBox(route_box);
@@ -605,7 +611,7 @@ std::unique_ptr<FlexDRWorker> FlexDR::createWorker(const int x_offset,
 namespace {
 void printIteration(utl::Logger* logger,
                     const int iter,
-                    const bool stubborn_flow)
+                    const std::string& flow_name)
 {
   std::string suffix;
   if (iter == 1 || (iter > 20 && iter % 10 == 1)) {
@@ -617,12 +623,7 @@ void printIteration(utl::Logger* logger,
   } else {
     suffix = "th";
   }
-  logger->info(DRT,
-               195,
-               "Start {}{} {} iteration.",
-               iter,
-               suffix,
-               stubborn_flow ? "stubborn tiles" : "optimization");
+  logger->info(DRT, 195, "Start {}{} {} iteration.", iter, suffix, flow_name);
 }
 
 void printIterationProgress(utl::Logger* logger,
@@ -651,7 +652,7 @@ void FlexDR::reportIterationViolations() const
                   getDesign()->getTopBlock()->getNumMarkers());
     if (getDesign()->getTopBlock()->getNumMarkers() > 0) {
       // report violations
-      std::map<std::string, std::map<frLayerNum, uint>> violations;
+      std::map<std::string, std::map<frLayerNum, uint32_t>> violations;
       std::set<frLayerNum> layers;
       const std::map<std::string, std::string> relabel
           = {{"Lef58SpacingEndOfLine", "EOL"},
@@ -805,9 +806,9 @@ void FlexDR::endWorkersBatch(
   workers_batch.clear();
 }
 
-Rect FlexDR::getDRVBBox(const Rect& drv_rect) const
+odb::Rect FlexDR::getDRVBBox(const odb::Rect& drv_rect) const
 {
-  Rect route_box = drv_rect;
+  odb::Rect route_box = drv_rect;
   auto min_idx = getDesign()->getTopBlock()->getGCellIdx(route_box.ll());
   auto max_idx = getDesign()->getTopBlock()->getGCellIdx(route_box.ur());
   return {min_idx, max_idx};
@@ -826,15 +827,15 @@ namespace stub_tiles {
  * the violations.
  * @returns a list of merged boxes.
  */
-std::vector<Rect> mergeBoxes(std::vector<Rect>& drv_boxes)
+std::vector<odb::Rect> mergeBoxes(std::vector<odb::Rect>& drv_boxes)
 {
-  std::vector<Rect> merge_boxes{drv_boxes};
+  std::vector<odb::Rect> merge_boxes{drv_boxes};
   bool merged;
   do {
     merged = false;
     for (auto it1 = merge_boxes.begin(); it1 != merge_boxes.end(); ++it1) {
       for (auto it2 = it1 + 1; it2 != merge_boxes.end(); ++it2) {
-        Rect merge_box = (*it1);
+        odb::Rect merge_box = (*it1);
         merge_box.merge((*it2));
         if (merge_box.dx() > 4 || merge_box.dy() > 4) {
           continue;
@@ -862,7 +863,7 @@ std::vector<Rect> mergeBoxes(std::vector<Rect>& drv_boxes)
  * rectangle.
  */
 bool hasOtherRect(const std::vector<std::vector<int>>& grid,
-                  const Rect& rect,
+                  const odb::Rect& rect,
                   const int rect_id)
 {
   return std::any_of(grid.begin() + rect.xMin(),
@@ -890,7 +891,7 @@ bool hasOtherRect(const std::vector<std::vector<int>>& grid,
  * @param dir The direction of the expansion (East, West, North, South).
  * @return The number of expanded gcells (less than or equal to max_expansion)
  */
-int expandBox(Rect& box,
+int expandBox(odb::Rect& box,
               const int id,
               const std::vector<std::vector<int>>& grid,
               const frDirEnum dir,
@@ -921,7 +922,7 @@ int expandBox(Rect& box,
       default:
         break;
     }
-    Rect expanded_box = {min_idx, max_idx};
+    odb::Rect expanded_box = {min_idx, max_idx};
     if (hasOtherRect(grid, expanded_box, id)) {
       return i - 1;
     }
@@ -931,7 +932,7 @@ int expandBox(Rect& box,
 }
 
 void populateGrid(std::vector<std::vector<int>>& grid,
-                  const Rect& box,
+                  const odb::Rect& box,
                   const int id)
 {
   for (auto x = box.xMin(); x <= box.xMax(); x++) {
@@ -970,7 +971,8 @@ struct Wavefront
  * way we try to balance the resulting boxes so that each DRV box optimally has
  * the same number of expanded boxes.
  */
-std::vector<std::set<Rect>> expandBoxes(std::vector<Rect>& merged_boxes)
+std::vector<std::set<odb::Rect>> expandBoxes(
+    std::vector<odb::Rect>& merged_boxes)
 {
   frUInt4 min_x_idx = std::numeric_limits<frUInt4>::max();
   frUInt4 min_y_idx = std::numeric_limits<frUInt4>::max();
@@ -993,7 +995,7 @@ std::vector<std::set<Rect>> expandBoxes(std::vector<Rect>& merged_boxes)
     populateGrid(grid, box, id++);
   }
 
-  std::vector<std::set<Rect>> expanded_boxes;
+  std::vector<std::set<odb::Rect>> expanded_boxes;
   std::priority_queue<Wavefront> expansions;
   // first we create route boxes centering the violations
   id = 0;
@@ -1052,30 +1054,22 @@ std::vector<std::set<Rect>> expandBoxes(std::vector<Rect>& merged_boxes)
  */
 std::vector<std::vector<int>> getWorkerBatchesBoxes(
     frDesign* design,
-    std::vector<std::set<Rect>>& expanded_boxes,
+    std::vector<std::set<odb::Rect>>& expanded_boxes,
     const frCoord bloating_dist)
 {
   if (expanded_boxes.empty()) {
     return {};
   }
-  std::vector<Rect> boxes_max;
+  std::vector<odb::Rect> boxes_max;
+  boxes_max.resize(expanded_boxes.size());
   int id = 0;
   for (auto& boxes : expanded_boxes) {
-    bool first = true;
-    for (auto& box : boxes) {
-      auto min_idx = box.ll();
-      auto max_idx = box.ur();
-      Rect rect(design->getTopBlock()->getGCellBox(min_idx).ll(),
-                design->getTopBlock()->getGCellBox(max_idx).ur());
+    boxes_max[id].mergeInit();
+    for (auto rect : boxes) {
       rect.bloat(bloating_dist, rect);
-      if (first) {
-        boxes_max.emplace_back(rect);
-        first = false;
-        continue;
-      }
       boxes_max[id].merge(rect);
     }
-    id++;
+    ++id;
   }
   std::vector<std::vector<int>> batches;
   batches.push_back({0});
@@ -1110,15 +1104,35 @@ void FlexDR::stubbornTilesFlow(const SearchRepairArgs& args,
   if (graphics_) {
     graphics_->startIter(iter_, router_cfg_);
   }
-  std::vector<Rect> drv_boxes;
+  std::vector<odb::Rect> drv_boxes;
   for (const auto& marker : getDesign()->getTopBlock()->getMarkers()) {
     auto box = marker->getBBox();
     drv_boxes.push_back(getDRVBBox(box));
   }
   auto merged_boxes = stub_tiles::mergeBoxes(drv_boxes);
   auto expanded_boxes = stub_tiles::expandBoxes(merged_boxes);
+
+  // Convert gcell indices to actual coordinates
+  std::vector<std::set<odb::Rect>> expanded_boxes_coords;
+  expanded_boxes_coords.reserve(expanded_boxes.size());
+  std::ranges::transform(
+      expanded_boxes,
+      std::back_inserter(expanded_boxes_coords),
+      [this](const auto& box_set) {
+        std::set<odb::Rect> coord_set;
+        std::ranges::transform(
+            box_set,
+            std::inserter(coord_set, coord_set.end()),
+            [this](const auto& gcell_box) {
+              return odb::Rect(
+                  getDesign()->getTopBlock()->getGCellBox(gcell_box.ll()).ll(),
+                  getDesign()->getTopBlock()->getGCellBox(gcell_box.ur()).ur());
+            });
+        return coord_set;
+      });
+
   auto route_boxes_batches = stub_tiles::getWorkerBatchesBoxes(
-      getDesign(), expanded_boxes, router_cfg_->MTSAFEDIST);
+      getDesign(), expanded_boxes_coords, router_cfg_->MTSAFEDIST);
   std::vector<frUInt4> drc_costs
       = {args.workerDRCCost, args.workerDRCCost / 2, args.workerDRCCost * 2};
   std::vector<frUInt4> marker_costs = {args.workerMarkerCost,
@@ -1130,11 +1144,7 @@ void FlexDR::stubbornTilesFlow(const SearchRepairArgs& args,
   for (int batch_id = 0; batch_id < route_boxes_batches.size(); batch_id++) {
     auto& batch = route_boxes_batches[batch_id];
     for (const auto worker_id : batch) {
-      for (auto gcell_box : expanded_boxes[worker_id]) {
-        auto min_idx = gcell_box.ll();
-        auto max_idx = gcell_box.ur();
-        Rect route_box(getDesign()->getTopBlock()->getGCellBox(min_idx).ll(),
-                       getDesign()->getTopBlock()->getGCellBox(max_idx).ur());
+      for (const auto& route_box : expanded_boxes_coords[worker_id]) {
         for (auto drc_cost : drc_costs) {
           for (auto marker_cost : marker_costs) {
             auto worker_args = args;
@@ -1170,12 +1180,92 @@ void FlexDR::stubbornTilesFlow(const SearchRepairArgs& args,
     }
     batch.clear();
   }
-  if (!changed) {
-    control_.skip_till_changed = true;
-    control_.last_args = args;
-  }
+  flow_state_machine_->setLastIterationEffective(changed);
 }
 
+void FlexDR::guideTilesFlow(const SearchRepairArgs& args,
+                            IterationProgress& iter_prog)
+{
+  if (graphics_) {
+    graphics_->startIter(iter_, router_cfg_);
+  }
+  std::vector<odb::Rect> workers;
+  for (const auto& marker : getDesign()->getTopBlock()->getMarkers()) {
+    for (auto src : marker->getSrcs()) {
+      if (src->typeId() == frcNet) {
+        auto net = static_cast<frNet*>(src);
+        if (net->getOrigGuides().empty()) {
+          continue;
+        }
+        for (const auto& guide : net->getOrigGuides()) {
+          if (!guide.getBBox().intersects(marker->getBBox())) {
+            continue;
+          }
+          workers.push_back(guide.getBBox());
+        }
+      }
+    }
+  }
+  if (workers.empty()) {
+    iter_prog.total_num_workers = 1;
+    iter_prog.cnt_done_workers = 1;
+    flow_state_machine_->setLastIterationEffective(false);
+    return;
+  }
+
+  for (auto itr1 = workers.begin(); itr1 != workers.end(); ++itr1) {
+    for (auto itr2 = itr1 + 1; itr2 != workers.end(); ++itr2) {
+      if (itr1->getDir() == itr2->getDir() && itr1->intersects(*itr2)) {
+        itr1->merge(*itr2);
+        workers.erase(itr2);
+        itr2 = itr1;
+      }
+    }
+  }
+  std::vector<std::set<odb::Rect>> boxes_set;
+  boxes_set.reserve(workers.size());
+  for (auto& worker : workers) {
+    boxes_set.push_back({worker});
+  }
+  auto route_boxes_batches = stub_tiles::getWorkerBatchesBoxes(
+      getDesign(), boxes_set, router_cfg_->MTSAFEDIST);
+  std::vector<std::vector<std::unique_ptr<FlexDRWorker>>> workers_batches(
+      route_boxes_batches.size());
+  iter_prog.total_num_workers = 0;
+  for (int batch_id = 0; batch_id < route_boxes_batches.size(); batch_id++) {
+    auto& batch = route_boxes_batches[batch_id];
+    for (const auto worker_id : batch) {
+      for (auto route_box : boxes_set[worker_id]) {
+        workers_batches[batch_id].emplace_back(
+            createWorker(0, 0, args, route_box));
+        workers_batches[batch_id].back()->setWorkerId(worker_id);
+        iter_prog.total_num_workers++;
+      }
+    }
+  }
+  bool changed = false;
+  omp_set_num_threads(router_cfg_->MAX_THREADS);
+  for (auto& batch : workers_batches) {
+    processWorkersBatch(batch, iter_prog);
+    std::map<int, FlexDRWorker*>
+        worker_best_result;  // holds the best worker in results
+    for (auto& worker : batch) {
+      const int worker_id = worker->getWorkerId();
+      if (worker_best_result.find(worker_id) == worker_best_result.end()
+          || worker->getBestNumMarkers()
+                 < worker_best_result[worker_id]->getBestNumMarkers()) {
+        worker_best_result[worker_id] = worker.get();
+      }
+    }
+    for (auto [_, worker] : worker_best_result) {
+      changed
+          |= (worker->end(getDesign())
+              && worker->getBestNumMarkers() != worker->getInitNumMarkers());
+    }
+    batch.clear();
+  }
+  flow_state_machine_->setLastIterationEffective(changed);
+}
 void FlexDR::optimizationFlow(const SearchRepairArgs& args,
                               IterationProgress& iter_prog)
 {
@@ -1250,6 +1340,11 @@ void FlexDR::optimizationFlow(const SearchRepairArgs& args,
 
 void FlexDR::searchRepair(const SearchRepairArgs& args)
 {
+  // Calculate flow state
+  const auto flow_state = flow_state_machine_->determineNextFlow(
+      {.num_violations = getDesign()->getTopBlock()->getNumMarkers(),
+       .args = args});
+
   const RipUpMode ripupMode = args.ripupMode;
   if ((ripupMode == RipUpMode::DRC || ripupMode == RipUpMode::NEARDRC)
       && getDesign()->getTopBlock()->getMarkers().empty()) {
@@ -1263,20 +1358,32 @@ void FlexDR::searchRepair(const SearchRepairArgs& args)
       router_->writeGlobals(router_cfg_path_);
     }
   }
+
+  if (router_cfg_->VERBOSE > 0) {
+    if (flow_state != FlexDRFlow::State::SKIP) {
+      printIteration(logger_, iter_, flow_state_machine_->getFlowName());
+    } else {
+      logger_->info(DRT, 200, "Skipping iteration {}", iter_);
+    }
+  }
   // start timer for the current iteration
   IterationProgress iter_prog;
-  auto block = getDesign()->getTopBlock();
-  const auto num_drvs = block->getNumMarkers();
-  const bool stubborn_flow = num_drvs <= 11 && ripupMode != RipUpMode::ALL
-                             && ripupMode != RipUpMode::INCR
-                             && !control_.fixing_max_spacing;
-  if (router_cfg_->VERBOSE > 0) {
-    printIteration(logger_, iter_, stubborn_flow);
-  }
-  if (stubborn_flow) {
-    stubbornTilesFlow(args, iter_prog);
-  } else {
-    optimizationFlow(args, iter_prog);
+
+  switch (flow_state) {
+    case FlexDRFlow::State::GUIDES:
+      guideTilesFlow(args, iter_prog);
+      break;
+
+    case FlexDRFlow::State::STUBBORN:
+      stubbornTilesFlow(args, iter_prog);
+      break;
+
+    case FlexDRFlow::State::OPTIMIZATION:
+      optimizationFlow(args, iter_prog);
+      break;
+
+    case FlexDRFlow::State::SKIP:
+      return;
   }
 
   if (router_cfg_->VERBOSE > 0) {
@@ -1288,7 +1395,7 @@ void FlexDR::searchRepair(const SearchRepairArgs& args)
   FlexDRConnectivityChecker checker(
       router_, logger_, router_cfg_, graphics_.get(), dist_on_);
   checker.check(iter_);
-  control_.fixing_max_spacing = false;
+  flow_state_machine_->setFixingMaxSpacing(false);
   if (getDesign()->getTopBlock()->getNumMarkers() == 0
       && getTech()->hasMaxSpacingConstraints()) {
     fixMaxSpacing();
@@ -1330,7 +1437,7 @@ void FlexDR::end(bool done)
         auto obj = static_cast<frPathSeg*>(shape.get());
         auto [bp, ep] = obj->getPoints();
         auto lNum = obj->getLayerNum();
-        frCoord psLen = Point::manhattanDistance(ep, bp);
+        frCoord psLen = odb::Point::manhattanDistance(ep, bp);
         wlen[lNum] += psLen;
       }
     }
@@ -1446,15 +1553,11 @@ void FlexDR::end(bool done)
         << std::setw((int) std::to_string(totSCut).length()) << totSCut;
     if (totMCut) {
       msg << " (" << std::setw(5)
-          << (double) ((totSCut + totMCut)
-                           ? totSCut * 100.0 / (totSCut + totMCut)
-                           : 0.0)
+          << ((totSCut + totMCut) ? totSCut * 100.0 / (totSCut + totMCut) : 0.0)
           << "%)";
       msg << "    " << std::setw((int) std::to_string(totMCut).length())
           << totMCut << " (" << std::setw(5)
-          << (double) ((totSCut + totMCut)
-                           ? totMCut * 100.0 / (totSCut + totMCut)
-                           : 0.0)
+          << ((totSCut + totMCut) ? totMCut * 100.0 / (totSCut + totMCut) : 0.0)
           << "%)    "
           << std::setw((int) std::to_string(totSCut + totMCut).length())
           << totSCut + totMCut;
@@ -1538,7 +1641,8 @@ std::vector<FlexDR::SearchRepairArgs> strategy(const frUInt4 shapeCost,
   // clang-format on
 }
 
-void addRectToPolySet(gtl::polygon_90_set_data<frCoord>& polySet, Rect rect)
+void addRectToPolySet(gtl::polygon_90_set_data<frCoord>& polySet,
+                      odb::Rect rect)
 {
   gtl::polygon_90_data<frCoord> poly;
   std::vector<gtl::point_data<frCoord>> points;
@@ -1682,10 +1786,15 @@ void FlexDR::fixMaxSpacing()
         auto result = getLonelyVias(
             layer.get(), rule->getMaxSpacing(), rule->getCutClassIdx());
         lonely_vias.insert(lonely_vias.end(), result.begin(), result.end());
+        for (const auto via_def : layer->getViaDefs()) {
+          if (via_def->getCutClassIdx() == rule->getCutClassIdx()) {
+            router_->addAvoidViaDefPA(via_def);
+          }
+        }
       }
     }
   }
-  std::vector<Rect> lonely_vias_regions;
+  std::vector<odb::Rect> lonely_vias_regions;
   lonely_vias_regions.reserve(lonely_vias.size());
   for (const auto& via : lonely_vias) {
     // Create LEF58_MAXSPACING Markers for the lonely vias
@@ -1708,7 +1817,7 @@ void FlexDR::fixMaxSpacing()
     auto origin = via->getOrigin();
     auto block = getDesign()->getTopBlock();
     auto gcell_idx = block->getGCellIdx(origin);
-    Rect region, tmp_box;
+    odb::Rect region, tmp_box;
     tmp_box = block->getGCellBox({gcell_idx.x() - 1, gcell_idx.y() - 1});
     region.set_xlo(tmp_box.xMin());
     region.set_ylo(tmp_box.yMin());
@@ -1716,12 +1825,34 @@ void FlexDR::fixMaxSpacing()
     region.set_xhi(tmp_box.xMax());
     region.set_yhi(tmp_box.yMax());
     lonely_vias_regions.emplace_back(region);
+    if (via->isBottomConnected() || via->isTopConnected()) {
+      // get pins connected to the via
+      frRegionQuery::Objects<frBlockObject> result;
+      getRegionQuery()->query(
+          via->isTopConnected() ? via->getLayer2BBox() : via->getLayer1BBox(),
+          via->isTopConnected() ? via->getViaDef()->getLayer2Num()
+                                : via->getViaDef()->getLayer1Num(),
+          result);
+      for (auto& [bx, obj] : result) {
+        if (obj->typeId() == frcInstTerm) {
+          auto inst_term = static_cast<frInstTerm*>(obj);
+          if (inst_term->getNet() != via->getNet()) {
+            continue;
+          }
+          inst_term->setStubborn(true);
+          router_->addInstancePAData(inst_term->getInst());
+        }
+      }
+    }
   }
+  router_->updateDirtyPAData();
   // merge intersecting regions
   std::sort(lonely_vias_regions.begin(),
             lonely_vias_regions.end(),
-            [](const Rect& a, const Rect& b) { return a.xMin() < b.xMin(); });
-  std::vector<Rect> merged_regions;
+            [](const odb::Rect& a, const odb::Rect& b) {
+              return a.xMin() < b.xMin();
+            });
+  std::vector<odb::Rect> merged_regions;
   for (const auto& region : lonely_vias_regions) {
     bool found = false;
     for (auto& merged_region : merged_regions) {
@@ -1742,8 +1873,8 @@ void FlexDR::fixMaxSpacing()
     auto route_box = merged_regions.at(i);
     auto worker = std::make_unique<FlexDRWorker>(
         &via_data_, design_, logger_, router_cfg_);
-    Rect ext_box;
-    Rect drc_box;
+    odb::Rect ext_box;
+    odb::Rect drc_box;
     route_box.bloat(router_cfg_->MTSAFEDIST, ext_box);
     route_box.bloat(router_cfg_->DRCSAFEDIST, drc_box);
     worker->setRouteBox(route_box);
@@ -1759,7 +1890,7 @@ void FlexDR::fixMaxSpacing()
       worker->end(getDesign());
     }
   }
-  control_.fixing_max_spacing = true;
+  flow_state_machine_->setFixingMaxSpacing(true);
 }
 
 std::vector<frVia*> FlexDR::getLonelyVias(frLayer* layer,
@@ -1771,7 +1902,7 @@ std::vector<frVia*> FlexDR::getLonelyVias(frLayer* layer,
     return lonely_vias;
   }
   auto vias = getRegionQuery()->getVias(layer->getLayerNum());
-  std::vector<Point> via_positions;
+  std::vector<odb::Point> via_positions;
   via_positions.reserve(vias.size());
   for (auto [obj, box] : vias) {
     via_positions.emplace_back(box.xCenter(), box.yCenter());
@@ -1860,15 +1991,6 @@ int FlexDR::main()
         args.ripupMode = RipUpMode::INCR;
       }
     }
-    if (control_.skip_till_changed
-        && args.isEqualIgnoringSizeAndOffset(control_.last_args)) {
-      if (router_cfg_->VERBOSE > 0) {
-        logger_->info(DRT, 200, "Skipping iteration {}", iter_);
-      }
-      ++iter_;
-      continue;
-    }
-    control_.skip_till_changed = false;
     searchRepair(args);
     if (getDesign()->getTopBlock()->getNumMarkers() == 0) {
       break;
@@ -2010,7 +2132,7 @@ void FlexDRWorker::serialize(Archive& ar, const unsigned int version)
     while (sz--) {
       frBlockObject* obj;
       serializeBlockObject(ar, obj);
-      std::set<std::pair<Point, frLayerNum>> val;
+      std::set<std::pair<odb::Point, frLayerNum>> val;
       (ar) & val;
       boundaryPin_[(frNet*) obj] = std::move(val);
     }

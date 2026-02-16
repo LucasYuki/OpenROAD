@@ -13,8 +13,11 @@
 
 #include "boost/tokenizer.hpp"
 #include "detailed_manager.h"
+#include "dpl/Opendp.h"
 #include "infrastructure/Objects.h"
 #include "objective/detailed_hpwl.h"
+#include "optimization/detailed_generator.h"
+#include "util/utility.h"
 #include "utl/Logger.h"
 
 namespace dpl {
@@ -128,7 +131,7 @@ void DetailedGlobalSwap::globalSwap()
 
   traversal_ = 0;
   edgeMask_.resize(network_->getNumEdges());
-  std::fill(edgeMask_.begin(), edgeMask_.end(), 0);
+  std::ranges::fill(edgeMask_, 0);
 
   mgr_->resortSegments();
 
@@ -231,8 +234,8 @@ bool DetailedGlobalSwap::getRange(Node* nd, odb::Rect& nodeBbox)
   // Get the median values.
   mid = t >> 1;
 
-  std::sort(xpts_.begin(), xpts_.end());
-  std::sort(ypts_.begin(), ypts_.end());
+  std::ranges::sort(xpts_);
+  std::ranges::sort(ypts_);
 
   nodeBbox.set_xlo(xpts_[mid - 1]);
   nodeBbox.set_xhi(xpts_[mid]);
@@ -372,7 +375,7 @@ void DetailedGlobalSwap::init(DetailedMgr* mgr)
 
   traversal_ = 0;
   edgeMask_.resize(network_->getNumEdges());
-  std::fill(edgeMask_.begin(), edgeMask_.end(), 0);
+  std::ranges::fill(edgeMask_, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

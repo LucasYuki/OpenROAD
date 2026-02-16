@@ -10,13 +10,19 @@
 #include <vector>
 
 #include "ClockDomain.hh"
+#include "OneBitScanCell.hh"
+#include "ScanCell.hh"
 #include "Utils.hh"
 #include "db_sta/dbNetwork.hh"
+#include "db_sta/dbSta.hh"
 #include "odb/db.h"
 #include "sta/Clock.hh"
 #include "sta/FuncExpr.hh"
 #include "sta/Liberty.hh"
+#include "sta/LibertyClass.hh"
+#include "sta/NetworkClass.hh"
 #include "sta/Sequential.hh"
+#include "utl/Logger.h"
 
 namespace dft {
 
@@ -206,11 +212,9 @@ std::vector<std::unique_ptr<ScanCell>> CollectScanCells(odb::dbDatabase* db,
   CollectScanCells(chip->getBlock(), sta, logger, scan_cells);
 
   // To keep preview_dft consistent between calls and rollbacks
-  std::sort(scan_cells.begin(),
-            scan_cells.end(),
-            [](const auto& lhs, const auto& rhs) {
-              return lhs->getName() < rhs->getName();
-            });
+  std::ranges::sort(scan_cells, [](const auto& lhs, const auto& rhs) {
+    return lhs->getName() < rhs->getName();
+  });
 
   return scan_cells;
 }

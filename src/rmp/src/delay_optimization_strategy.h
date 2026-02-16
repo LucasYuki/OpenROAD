@@ -4,14 +4,12 @@
 #pragma once
 
 #include "base/abc/abc.h"
-#include "db_sta/dbSta.hh"
 #include "logic_optimization_strategy.h"
 #include "utl/Logger.h"
 #include "utl/deleter.h"
 
 namespace rmp {
 
-utl::UniquePtrWithDeleter<abc::Abc_Ntk_t> WrapUnique(abc::Abc_Ntk_t* ntk);
 void AbcPrintStats(const abc::Abc_Ntk_t* ntk);
 utl::UniquePtrWithDeleter<abc::Abc_Ntk_t> BufferNetwork(
     abc::Abc_Ntk_t* ntk,

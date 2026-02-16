@@ -8,17 +8,19 @@
 #include "db/obj/frInst.h"
 #include "db/obj/frInstTerm.h"
 #include "frBaseTypes.h"
+#include "odb/dbTransform.h"
+#include "odb/geom.h"
 
 namespace drt {
 
-Rect frRPin::getBBox()
+odb::Rect frRPin::getBBox()
 {
-  Point pt;
+  odb::Point pt;
 
   switch (term_->typeId()) {
     case frcInstTerm: {
       auto inst = static_cast<frInstTerm*>(term_)->getInst();
-      dbTransform shiftXform = inst->getNoRotationTransform();
+      odb::dbTransform shiftXform = inst->getNoRotationTransform();
 
       pt = accessPoint_->getPoint();
       shiftXform.apply(pt);
@@ -28,11 +30,11 @@ Rect frRPin::getBBox()
       pt = accessPoint_->getPoint();
       break;
     default:
-      std::cout << "ERROR: Invalid term type in frRPin." << std::endl;
+      std::cout << "ERROR: Invalid term type in frRPin.\n";
       break;
   }
 
-  return Rect(pt.x(), pt.y(), pt.x(), pt.y());
+  return odb::Rect(pt.x(), pt.y(), pt.x(), pt.y());
 }
 
 frLayerNum frRPin::getLayerNum()

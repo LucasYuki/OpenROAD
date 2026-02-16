@@ -4,7 +4,10 @@
 #include "clockWidget.h"
 
 #include <QApplication>
+#include <QColor>
+#include <QComboBox>
 #include <QFontMetrics>
+#include <QGraphicsItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsSceneHoverEvent>
 #include <QGraphicsTextItem>
@@ -14,9 +17,15 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPaintEvent>
+#include <QPainter>
+#include <QPolygonF>
+#include <QPushButton>
+#include <QString>
 #include <QToolTip>
 #include <QVBoxLayout>
+#include <QVariant>
 #include <QWheelEvent>
+#include <QWidget>
 #include <QWidgetAction>
 #include <QtAlgorithms>
 #include <algorithm>
@@ -33,13 +42,18 @@
 #include "dbDescriptors.h"
 #include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
+#include "gui/gui.h"
 #include "gui_utils.h"
 #include "odb/db.h"
 #include "sta/Corner.hh"
+#include "sta/Delay.hh"
 #include "sta/FuncExpr.hh"
 #include "sta/Liberty.hh"
+#include "sta/MinMax.hh"
 #include "sta/Sdc.hh"
+#include "sta/Transition.hh"
 #include "sta/Units.hh"
+#include "staGuiInterface.h"
 #include "utl/Logger.h"
 
 Q_DECLARE_METATYPE(odb::dbBTerm*);
@@ -795,8 +809,7 @@ ClockTreeView::ClockTreeView(std::shared_ptr<ClockTree> tree,
 
   sta::Unit* unit = sta_->getSTA()->units()->timeUnit();
   unit_scale_ = unit->scale();
-  unit_suffix_ = unit->scaleAbbreviation();
-  unit_suffix_ += unit->suffix();
+  unit_suffix_ = QString::fromStdString(unit->scaleAbbrevSuffix());
 
   build();
 
@@ -809,7 +822,7 @@ ClockTreeView::ClockTreeView(std::shared_ptr<ClockTree> tree,
           &ClockTreeScene::clearPath,
           this,
           &ClockTreeView::clearHighlightTo);
-  connect(scene_, &ClockTreeScene::save, [=] { save(); });
+  connect(scene_, &ClockTreeScene::save, [this] { save(); });
   connect(scene_,
           &ClockTreeScene::colorDepth,
           this,
@@ -1150,8 +1163,7 @@ QString ClockTreeView::convertDelayToString(sta::Delay delay) const
   const sta::Unit* unit = tree_->getNetwork()->units()->timeUnit();
   std::string sdelay = unit->asString(delay, 3);
   sdelay += " ";
-  sdelay += unit->scaleAbbreviation();
-  sdelay += unit->suffix();
+  sdelay += unit->scaleAbbrevSuffix();
   return QString::fromStdString(sdelay);
 }
 
@@ -1558,7 +1570,7 @@ ClockWidget::ClockWidget(QWidget* parent)
   container->setLayout(layout);
   setWidget(container);
 
-  connect(update_button_, &QPushButton::clicked, [=] { populate(); });
+  connect(update_button_, &QPushButton::clicked, [this] { populate(); });
   connect(fit_button_, &QPushButton::clicked, this, &ClockWidget::fit);
 
   update_button_->setEnabled(false);

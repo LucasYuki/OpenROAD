@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,9 +27,8 @@ class Worker;
 class Distributed
 {
  public:
-  Distributed(utl::Logger* logger = nullptr);
+  Distributed(utl::Logger* logger);
   ~Distributed();
-  void init(utl::Logger* logger);
   void runWorker(const char* ip, unsigned short port, bool interactive);
   void runLoadBalancer(const char* ip,
                        unsigned short port,
@@ -50,8 +50,8 @@ class Distributed
   struct EndPoint
   {
     std::string ip;
-    unsigned short port;
-    EndPoint(std::string ip_in, unsigned short port_in)
+    uint16_t port;
+    EndPoint(const std::string& ip_in, uint16_t port_in)
         : ip(ip_in), port(port_in)
     {
     }

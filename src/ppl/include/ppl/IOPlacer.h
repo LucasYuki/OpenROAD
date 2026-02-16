@@ -14,11 +14,8 @@
 #include "odb/db.h"
 #include "odb/geom.h"
 #include "ppl/Parameters.h"
+#include "utl/Logger.h"
 #include "utl/validation.h"
-
-namespace utl {
-class Logger;
-}
 
 namespace odb {
 class dbBTerm;
@@ -38,11 +35,6 @@ class SimulatedAnnealing;
 struct Constraint;
 struct Section;
 struct Slot;
-
-using odb::Point;
-using odb::Rect;
-
-using utl::Logger;
 
 // A list of pins that will be placed together in the die boundary
 using PinSet = std::set<odb::dbBTerm*>;
@@ -84,9 +76,8 @@ using int64 = std::int64_t;
 class IOPlacer
 {
  public:
-  IOPlacer();
+  IOPlacer(odb::dbDatabase* db, utl::Logger* logger);
   ~IOPlacer();
-  void init(odb::dbDatabase* db, Logger* logger);
   void clear();
   void clearConstraints();
   void runHungarianMatching();
@@ -152,10 +143,10 @@ class IOPlacer
                  Edge edge,
                  odb::Line line,
                  bool is_die_polygon);
-  std::vector<Point> findLayerSlots(int layer,
-                                    Edge edge,
-                                    odb::Line line,
-                                    bool is_die_polygon);
+  std::vector<odb::Point> findLayerSlots(int layer,
+                                         Edge edge,
+                                         odb::Line line,
+                                         bool is_die_polygon);
   void initTopLayerGrid();
   void findSlotsForTopLayer();
   void filterObstructedSlotsForTopLayer();
@@ -221,8 +212,8 @@ class IOPlacer
                       int layer,
                       int width,
                       int height,
-                      const Rect& die_boundary);
-  Interval getIntervalFromPin(IOPin& io_pin, const Rect& die_boundary);
+                      const odb::Rect& die_boundary);
+  Interval getIntervalFromPin(IOPin& io_pin, const odb::Rect& die_boundary);
   bool checkBlocked(Edge edge, odb::Line, const odb::Point& pos, int layer);
   std::vector<Interval> findBlockedIntervals(const odb::Rect& die_area,
                                              const odb::Rect& box);
@@ -238,8 +229,8 @@ class IOPlacer
 
   // db functions
   void findConstraintRegion(const Interval& interval,
-                            const Rect& constraint_box,
-                            Rect& region);
+                            const odb::Rect& constraint_box,
+                            odb::Rect& region);
   void commitIOPlacementToDB(std::vector<IOPin>& assignment);
   void commitIOPinToDB(const IOPin& pin);
   void initCore(const std::set<int>& hor_layer_idxs,
@@ -271,7 +262,7 @@ class IOPlacer
   FallbackPins fallback_pins_;
   std::map<int, std::vector<odb::Rect>> layer_fixed_pins_shapes_;
 
-  Logger* logger_ = nullptr;
+  utl::Logger* logger_ = nullptr;
   std::unique_ptr<utl::Validator> validator_;
   std::unique_ptr<Parameters> parms_;
   std::vector<Slot> slots_;

@@ -3,8 +3,6 @@
 
 #include "ord/Timing.h"
 
-#include <tcl.h>
-
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -19,8 +17,15 @@
 #include "ord/OpenRoad.hh"
 #include "ord/Tech.h"
 #include "rsz/Resizer.hh"
+#include "sta/Clock.hh"
 #include "sta/Corner.hh"
+#include "sta/DelayFloat.hh"
+#include "sta/Graph.hh"
 #include "sta/Liberty.hh"
+#include "sta/LibertyClass.hh"
+#include "sta/MinMax.hh"
+#include "sta/PowerClass.hh"
+#include "sta/SdcClass.hh"
 #include "sta/Search.hh"
 #include "sta/TimingArc.hh"
 #include "sta/TimingRole.hh"

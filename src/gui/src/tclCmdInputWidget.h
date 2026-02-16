@@ -3,15 +3,15 @@
 
 #pragma once
 
-#include <tcl.h>
-
 #include <QCompleter>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QString>
 #include <QStringList>
 #include <QStringListModel>
+#include <QWidget>
 #include <functional>
 #include <map>
 #include <memory>
@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "cmdInputWidget.h"
+#include "tcl.h"
 #include "tclCmdHighlighter.h"
 
 #if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION < 7) && !defined(Tcl_Size)
@@ -49,10 +50,11 @@ class TclCmdInputWidget : public CmdInputWidget
   void readSettings(QSettings* settings);
   void writeSettings(QSettings* settings);
 
+  // Bring the overloads into scope.
+  using CmdInputWidget::executeCommand;
+
  public slots:
-  void executeCommand(const QString& cmd,
-                      bool echo = true,
-                      bool silent = false) override;
+  void executeCommand(const QString& cmd, bool echo, bool silent) override;
 
  private slots:
   void updateHighlighting();

@@ -10,10 +10,18 @@
 
 #include "boost/geometry/geometry.hpp"
 #include "boost/polygon/polygon.hpp"
+#include "db/gcObj/gcPin.h"
+#include "db/gcObj/gcShape.h"
 #include "db/obj/frMarker.h"
+#include "db/tech/frConstraint.h"
 #include "frBaseTypes.h"
 #include "frProfileTask.h"
+#include "gc/FlexGC.h"
 #include "gc/FlexGC_impl.h"
+#include "odb/dbTypes.h"
+#include "odb/geom.h"
+
+using odb::dbTechLayerType;
 
 namespace drt {
 
@@ -89,10 +97,10 @@ void FlexGCWorker::Impl::checkOrthRectsMetSpcTblInf(
         gtl::rectangle_data<frCoord> markerRect(rect1);
         gtl::generalized_intersect(markerRect, rect2);
         auto marker = std::make_unique<frMarker>();
-        Rect box(gtl::xl(markerRect),
-                 gtl::yl(markerRect),
-                 gtl::xh(markerRect),
-                 gtl::yh(markerRect));
+        odb::Rect box(gtl::xl(markerRect),
+                      gtl::yl(markerRect),
+                      gtl::xh(markerRect),
+                      gtl::yh(markerRect));
         marker->setBBox(box);
         marker->setLayerNum(lNum);
         marker->setConstraint(
@@ -100,18 +108,18 @@ void FlexGCWorker::Impl::checkOrthRectsMetSpcTblInf(
         marker->addSrc(rects[i]->getNet()->getOwner());
         marker->addVictim(rects[i]->getNet()->getOwner(),
                           std::make_tuple(lNum,
-                                          Rect(gtl::xl(rect1),
-                                               gtl::yl(rect1),
-                                               gtl::xh(rect1),
-                                               gtl::yh(rect1)),
+                                          odb::Rect(gtl::xl(rect1),
+                                                    gtl::yl(rect1),
+                                                    gtl::xh(rect1),
+                                                    gtl::yh(rect1)),
                                           rects[i]->isFixed()));
         marker->addSrc(rects[j]->getNet()->getOwner());
         marker->addAggressor(rects[j]->getNet()->getOwner(),
                              std::make_tuple(lNum,
-                                             Rect(gtl::xl(rect2),
-                                                  gtl::yl(rect2),
-                                                  gtl::xh(rect2),
-                                                  gtl::yh(rect2)),
+                                             odb::Rect(gtl::xl(rect2),
+                                                       gtl::yl(rect2),
+                                                       gtl::xh(rect2),
+                                                       gtl::yh(rect2)),
                                              rects[j]->isFixed()));
         addMarker(std::move(marker));
       } else {
@@ -183,9 +191,9 @@ void FlexGCWorker::Impl::checkRectMetSpcTblInf(
       continue;  // At least two orthogonal rectangle are required for checking
     }
     if (dir == gtl::HORIZONTAL) {
-      std::sort(rects.begin(), rects.end(), compareHorizontal);
+      std::ranges::sort(rects, compareHorizontal);
     } else {
-      std::sort(rects.begin(), rects.end(), compareVertical);
+      std::ranges::sort(rects, compareVertical);
     }
     // <rects> should be a sorted vector of all the wires found in the region
     // It should be sorted in the orientation we are checking
@@ -203,10 +211,8 @@ void FlexGCWorker::Impl::checkPinMetSpcTblInf(gcPin* pin)
 void FlexGCWorker::Impl::checkMetalSpacingTableInfluence()
 {
   if (targetNet_) {
-    for (int i = std::max((frLayerNum) (getTech()->getBottomLayerNum()),
-                          minLayerNum_);
-         i
-         <= std::min((frLayerNum) (getTech()->getTopLayerNum()), maxLayerNum_);
+    for (int i = std::max(getTech()->getBottomLayerNum(), minLayerNum_);
+         i <= std::min(getTech()->getTopLayerNum(), maxLayerNum_);
          i++) {
       auto currLayer = getTech()->getLayer(i);
       if (currLayer->getType() != dbTechLayerType::ROUTING) {
@@ -221,10 +227,8 @@ void FlexGCWorker::Impl::checkMetalSpacingTableInfluence()
     }
   } else {
     // layer --> net --> polygon
-    for (int i = std::max((frLayerNum) (getTech()->getBottomLayerNum()),
-                          minLayerNum_);
-         i
-         <= std::min((frLayerNum) (getTech()->getTopLayerNum()), maxLayerNum_);
+    for (int i = std::max(getTech()->getBottomLayerNum(), minLayerNum_);
+         i <= std::min(getTech()->getTopLayerNum(), maxLayerNum_);
          i++) {
       auto currLayer = getTech()->getLayer(i);
       if (currLayer->getType() != dbTechLayerType::ROUTING) {
