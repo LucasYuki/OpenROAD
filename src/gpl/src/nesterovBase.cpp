@@ -21,11 +21,13 @@
 #include <utility>
 #include <vector>
 
+#include "gpl/Replace.h"
 #include "gpl/fft.h"
 #include "gpl/placerBase.h"
 #include "nesterovPlace.h"
 #include "odb/db.h"
 #include "omp.h"
+#include "point.h"
 #include "utl/Logger.h"
 
 #define REPLACE_SQRT2 1.414213562373095048801L
