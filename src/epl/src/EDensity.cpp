@@ -23,6 +23,7 @@ void EDensity::clear()
   grid_.reset();
   filler_area_ = 0;
   fillers_.clear();
+  place_instances_.clear();
   return;
 }
 
@@ -33,6 +34,13 @@ void EDensity::init()
 
   initFillers();
   initGrid();
+
+  for (auto& inst : pb_->placeInsts()) {
+    place_instances_.push_back(inst);
+  }
+  for (auto& inst : fillers_) {
+    place_instances_.push_back(&inst);
+  }
 
   updateDensity();
 }
@@ -82,7 +90,7 @@ void EDensity::initFillers()
   std::vector<int> size_x(n_insts), size_y(n_insts);
   int curr_idx = 0;
   for (auto& inst : insts) {
-    if (inst->isMacro()) { 
+    if (inst->isMacro()) {
       continue;
     }
     size_x.push_back(inst->dx());
@@ -165,12 +173,10 @@ void EDensity::initGrid()
 void EDensity::updateDensity()
 {
   grid_->clearMovable();
-  for (auto inst : pb_->placeInsts()) {
+  for (auto inst : place_instances_) {
     grid_->addMovableInst(inst);
   }
-  for (auto inst : fillers_) {
-    grid_->addMovableInst(&inst);
-  }
+  grid_->doFFT();
 }
 
 }  // namespace epl

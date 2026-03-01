@@ -38,6 +38,7 @@ target_sources(epl
     src/EPlace.cpp
     src/EDensity.cpp
     src/WAwirelength.cpp
+    src/Nesterov.cpp
     src/Grid.cpp
 )
 

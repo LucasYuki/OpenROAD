@@ -37,7 +37,7 @@ void EPlace::init(odb::dbDatabase* db, utl::Logger* logger)
 
 bool EPlace::initEPlace(float density, bool uniform_density)
 {
-  if (wa_wirelength_) {
+  if (nesterov_) {
     log_->warn(EPL, 3, "EPlacer already initialized.");
     return true;
   }
@@ -47,19 +47,27 @@ bool EPlace::initEPlace(float density, bool uniform_density)
   }
 
   // Init wa_wirelength_
+  debugPrint(log_, EPL, "initEPlace", 3, "Init wa_wirelength_");
   WAwirelengthVars waVars;
   int threads = 1;
   wa_wirelength_ = std::make_shared<WAwirelength>(
       waVars, pbc_, log_, threads, gpl::Clusters());
 
   // Init e_density
+  debugPrint(log_, EPL, "initEPlace", 1, "Init e_density");
   EDensityVars edVars;
   edVars.target_density = density;
   edVars.uniform_density = uniform_density;
   for (auto pb : pbVec_) {
-    e_density_vec_.push_back(std::make_shared<EDensity>(
-        edVars, pb, wa_wirelength_, log_));
+    e_density_vec_.push_back(
+        std::make_shared<EDensity>(edVars, pb, wa_wirelength_, log_));
   }
+
+  // Init nesterov_
+  debugPrint(log_, EPL, "initEPlace", 1, "Init nesterov_");
+  nesterov_ = std::make_shared<NesterovOptimizer>(
+      wa_wirelength_, e_density_vec_, log_);
+
   return true;
 }
 
@@ -95,6 +103,7 @@ bool EPlace::initPlacer()
 void EPlace::clear()
 {
   // clear instances
+  nesterov_.reset();
   wa_wirelength_.reset();
   e_density_vec_.clear();
   pbc_.reset();
@@ -103,25 +112,26 @@ void EPlace::clear()
 
 void EPlace::place(int threads, float density, bool uniform_density)
 {
-  debugPrint(log_,
-             EPL,
-             "place",
-             1,
-             "place: number of threads {}",
-             threads);
+  debugPrint(log_, EPL, "place", 1, "place: number of threads {}", threads);
   if (!initEPlace(density, uniform_density)) {
     return;
   }
 
-  bool debug = true;
   /*
-  std::unique_ptr<gpl::Graphics> graphics = nullptr;
-  if (debug && gpl::Graphics::guiActive()) {
-    graphics = std::make_unique<gpl::Graphics>(log_, pbc_, pbVec_);
+  // bool debug = true;
+  for (int i = 0; i < 100; i++) {
+    debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
+    nesterov_->step();
   }
 
-  if (debug && gpl::Graphics::guiActive()) {
-    graphics->cellPlot(true);
+  // update_db
+  auto insts = pbc_->placeInsts();
+  int n_inst = insts.size();
+#pragma omp parallel for num_threads(threads)
+  for (int i = 0; i < n_inst; i++) {
+    auto inst = insts[i];
+    inst->dbSetLocation();
+    inst->dbSetPlaced();
   }
   */
 }

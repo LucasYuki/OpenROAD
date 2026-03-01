@@ -33,13 +33,18 @@ class EDensity
   ~EDensity() = default;
 
   void clear();
-  void init();
-  void step();
+  void updateDensity();
+  std::pair<float, float> getElectroForce(gpl::Instance* inst) const
+  {
+    return grid_->getElectroForce(inst);
+  };
+
+  std::vector<gpl::Instance*> placeInsts() { return place_instances_; };
 
  private:
+  void init();
   void initFillers();
   void initGrid();
-  void updateDensity();
 
  private:
   EDensityVars edVars_;
@@ -52,5 +57,6 @@ class EDensity
   double target_density_;
   int64_t filler_area_;
   std::vector<gpl::Instance> fillers_;
+  std::vector<gpl::Instance*> place_instances_;
 };
 }  // namespace epl

@@ -57,7 +57,7 @@ class EPlace
   std::shared_ptr<gpl::PlacerBaseCommon> pbc_;
   std::vector<std::shared_ptr<gpl::PlacerBase>> pbVec_;
 
-  std::shared_ptr<NesterovOptimizer> nesterov;
+  std::shared_ptr<NesterovOptimizer> nesterov_;
 };
 
 }  // namespace epl

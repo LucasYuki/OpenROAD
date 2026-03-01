@@ -16,7 +16,7 @@ class Rect;
 
 namespace epl {
 
-class Grid : gpl::FFT
+class Grid : public gpl::FFT
 {
  public:
   Grid(utl::Logger* log,
@@ -30,6 +30,7 @@ class Grid : gpl::FFT
   void clearMovable();
   void addFixedInst(const gpl::Instance* inst);
   void addMovableInst(const gpl::Instance* inst);
+  std::pair<float, float> getElectroForce(gpl::Instance* inst) const;
   float total_overflow();
 
   void setTargetDensity(float density) { target_density_ = density; };
@@ -37,6 +38,10 @@ class Grid : gpl::FFT
  private:
   std::pair<int, int> getMinMaxIdxX(const gpl::Instance* inst) const;
   std::pair<int, int> getMinMaxIdxY(const gpl::Instance* inst) const;
+  std::pair<float, odb::Rect> smoothScaleInst(
+      const gpl::Instance* inst,
+      const std::pair<int, int>& idxX,
+      const std::pair<int, int>& idxY) const;
 
   odb::Rect getBin(int x, int y) const
   {
