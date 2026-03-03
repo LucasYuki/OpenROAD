@@ -110,16 +110,27 @@ void EPlace::clear()
   pbVec_.clear();
 }
 
-void EPlace::place(int threads, float density, bool uniform_density)
+void EPlace::place(int threads,
+                   float density,
+                   bool uniform_density,
+                   int iterations)
 {
   debugPrint(log_, EPL, "place", 1, "place: number of threads {}", threads);
   if (!initEPlace(density, uniform_density)) {
     return;
   }
+  debugPrint(log_,
+             EPL,
+             "place",
+             1,
+             "core size: ({} {}) ({} {})",
+             pbc_->getDie().coreLx(),
+             pbc_->getDie().coreLy(),
+             pbc_->getDie().coreUx(),
+             pbc_->getDie().coreUy());
 
-  /*
   // bool debug = true;
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < iterations; i++) {
     debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
     nesterov_->step();
   }
@@ -133,7 +144,6 @@ void EPlace::place(int threads, float density, bool uniform_density)
     inst->dbSetLocation();
     inst->dbSetPlaced();
   }
-  */
 }
 
 void EPlace::randomPlace(int threads)

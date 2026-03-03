@@ -17,21 +17,15 @@ NesterovOptimizer::NesterovOptimizer(
 
 void NesterovOptimizer::init()
 {
-  debugPrint(log_, utl::EPL, "initEPlace", 1, "NesterovOptimizer::Init");
   for (auto ed : e_density_vec_) {
     auto gpl_insts = ed->placeInsts();
-    debugPrint(log_, utl::EPL, "initEPlace", 1, "A?");
     std::vector<NesterovInst> instances;
-    debugPrint(log_, utl::EPL, "initEPlace", 1, "B?");
     instances.reserve(gpl_insts.size());
     for (auto inst : gpl_insts) {
       instances.push_back(NesterovInst(inst));
     }
-    debugPrint(log_, utl::EPL, "initEPlace", 1, "C?");
     inst_ed_vec_.push_back(instances);
-    debugPrint(log_, utl::EPL, "initEPlace", 1, "AAAAAAAAA");
   }
-  debugPrint(log_, utl::EPL, "initEPlace", 1, "Init NesterovOptimizer end");
 }
 
 bool NesterovOptimizer::step()
@@ -47,6 +41,25 @@ bool NesterovOptimizer::step()
     for (auto& inst : inst_ed_vec_[idx++]) {
       // Density Force
       auto [force_e_x, force_e_y] = ed->getElectroForce(inst.gplInst());
+      /*
+      debugPrint(log_,
+                 utl::EPL,
+                 "initEPlace",
+                 1,
+                 "force ({:g} {:g})",
+                 force_e_x,
+                 force_e_y);
+      debugPrint(log_,
+                 utl::EPL,
+                 "initEPlace",
+                 1,
+                 "Instance : ({} {}) {}",
+                 inst.gplInst()->cx(),
+                 inst.gplInst()->cy(),
+                 inst.gplInst()->isDummy()
+                     ? "Dummy"
+                     : inst.gplInst()->dbInst()->getDebugName());
+      */
 
       // WA force
       // auto [force_wa_x, force_wa_y] =

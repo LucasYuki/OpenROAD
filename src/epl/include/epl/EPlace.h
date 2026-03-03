@@ -42,7 +42,7 @@ class EPlace
   void clear();
   void init(odb::dbDatabase* db, utl::Logger* logger);
   bool initEPlace(float density, bool uniform_density);
-  void place(int threads, float density, bool uniform_density);
+  void place(int threads, float density, bool uniform_density, int iterations);
   void randomPlace(int threads);
 
  private:

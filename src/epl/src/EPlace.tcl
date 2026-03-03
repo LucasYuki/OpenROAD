@@ -22,16 +22,18 @@ namespace eval epl {
 
 sta::define_cmd_args "eplace_place" { \
     [-density] \
+    [-iterations]
 }
 
 proc eplace_place { args } {
   sta::parse_key_args "global_placement" args \
-    keys {-density} \
+    keys {-density -iterations} \
     flags {}
   
   # density settings
   set target_density 0
   set uniform_mode 1
+  set iterations 100
 
   if { [info exists keys(-density)] } {
     set target_density $keys(-density)
@@ -46,7 +48,11 @@ proc eplace_place { args } {
     }
   }
 
-  epl::eplace_place_cmd $target_density $uniform_mode
+  if { [info exists keys(-iterations)] } {
+    set iterations $keys(-iterations)
+  }
+
+  epl::eplace_place_cmd $target_density $uniform_mode $iterations
 }
 
 

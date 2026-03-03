@@ -40,6 +40,7 @@ class EDensity
   };
 
   std::vector<gpl::Instance*> placeInsts() { return place_instances_; };
+  void printInfo();
 
  private:
   void init();

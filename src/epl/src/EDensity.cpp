@@ -35,8 +35,17 @@ void EDensity::init()
   initFillers();
   initGrid();
 
+  std::mt19937 randVal(0);
+  std::uniform_int_distribution<> distr_x(
+      pb_->getDie().coreLx() + pb_->getDie().coreDx() / 4,
+      pb_->getDie().coreUx() - pb_->getDie().coreDx() / 4);
+  std::uniform_int_distribution<> distr_y(
+      pb_->getDie().coreLy() + pb_->getDie().coreDy() / 4,
+      pb_->getDie().coreUy() - pb_->getDie().coreDy() / 4);
   for (auto& inst : pb_->placeInsts()) {
     place_instances_.push_back(inst);
+    int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
+    inst->setCenterLocation(pos_x, pos_y);
   }
   for (auto& inst : fillers_) {
     place_instances_.push_back(&inst);
@@ -156,7 +165,9 @@ void EDensity::initGrid()
   double y = std::sqrt(n_movable_intances / ratio);
   double x = y * ratio;
 
-  int binCntX = std::ceil(x), binCntY = std::ceil(y);
+  // Change this approximation to a better one later
+  int binCntX = std::pow(2, std::ceil(std::log2(x)));
+  int binCntY = std::pow(2, std::ceil(std::log2(y)));
   float binSizeX = pb_->getDie().coreDx() / static_cast<float>(binCntX);
   float binSizeY = pb_->getDie().coreDy() / static_cast<float>(binCntY);
 
@@ -167,7 +178,6 @@ void EDensity::initGrid()
     grid_->addFixedInst(inst);
   }
   grid_->setTargetDensity(target_density_);
-  grid_->clearMovable();
 }
 
 void EDensity::updateDensity()
@@ -179,4 +189,20 @@ void EDensity::updateDensity()
   grid_->doFFT();
 }
 
+void EDensity::printInfo()
+{
+  pb_->printInfo();
+  log_->info(utl::EPL, 13, "Number of fillers: {}", fillers_.size());
+
+  for (auto inst : place_instances_) {
+    debugPrint(log_,
+               utl::EPL,
+               "initEPlace",
+               1,
+               "Instance : ({} {}) {}",
+               inst->cx(),
+               inst->cy(),
+               inst->isDummy() ? "Dummy" : inst->dbInst()->getDebugName());
+  }
+}
 }  // namespace epl
