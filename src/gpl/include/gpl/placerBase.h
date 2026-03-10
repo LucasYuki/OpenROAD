@@ -50,7 +50,11 @@ class Instance
  public:
   Instance();
   Instance(odb::dbInst* inst, PlacerBaseCommon* pbc, utl::Logger* logger);
-  Instance(int lx, int ly, int ux, int uy);  // dummy instance
+  Instance(int lx,
+           int ly,
+           int ux,
+           int uy,
+           bool is_fixed = true);  // dummy instance
   ~Instance();
 
   odb::dbInst* dbInst() const { return inst_; }
@@ -114,6 +118,7 @@ class Instance
   int extId_ = INT_MIN;
   bool is_macro_ = false;
   bool is_locked_ = false;
+  bool is_fixed_ = false;
 };
 
 class Pin

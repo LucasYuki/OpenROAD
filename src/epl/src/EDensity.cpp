@@ -132,7 +132,7 @@ void EDensity::initFillers()
   for (int i = 0; i < n_fillers; i++) {
     int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
     fillers_.push_back(gpl::Instance(
-        pos_x, pos_y, pos_x + filler_size_x, pos_y + filler_size_y));
+        pos_x, pos_y, pos_x + filler_size_x, pos_y + filler_size_y, false));
   }
   log_->info(utl::EPL,
              7,

@@ -51,13 +51,14 @@ class EPlace
  private:
   odb::dbDatabase* db_;
   utl::Logger* log_;
+
+  std::shared_ptr<NesterovOptimizer> nesterov_;
+
   std::shared_ptr<WAwirelength> wa_wirelength_;
   std::vector<std::shared_ptr<EDensity>> e_density_vec_;
 
   std::shared_ptr<gpl::PlacerBaseCommon> pbc_;
   std::vector<std::shared_ptr<gpl::PlacerBase>> pbVec_;
-
-  std::shared_ptr<NesterovOptimizer> nesterov_;
 };
 
 }  // namespace epl

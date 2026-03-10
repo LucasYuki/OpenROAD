@@ -40,6 +40,7 @@ target_sources(epl
     src/WAwirelength.cpp
     src/Nesterov.cpp
     src/Grid.cpp
+    src/Graphics.cpp
 )
 
 messages(TARGET epl)

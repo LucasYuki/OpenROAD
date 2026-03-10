@@ -23,7 +23,7 @@ class NesterovInst
   };
   ~NesterovInst(){};
 
-  gpl::Instance* gplInst() { return inst_; };
+  gpl::Instance* gplInst() const { return inst_; };
   std::pair<float, float> getForce() { return force_; };
   std::pair<float, float> getPos() { return u_; };
   std::pair<float, float> getRef() { return v_; };
@@ -55,6 +55,10 @@ class NesterovOptimizer
   ~NesterovOptimizer(){};
 
   bool step();
+  const std::vector<std::vector<NesterovInst>>& nesterovInsts()
+  {
+    return inst_ed_vec_;
+  };
 
  private:
   void init();

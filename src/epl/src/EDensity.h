@@ -39,8 +39,12 @@ class EDensity
     return grid_->getElectroForce(inst);
   };
 
-  std::vector<gpl::Instance*> placeInsts() { return place_instances_; };
+  const std::vector<gpl::Instance*>& placeInsts() { return place_instances_; };
+  const std::vector<gpl::Instance>& fillers() { return fillers_; };
   void printInfo();
+
+  const Grid* grid() { return grid_.get(); };
+  double targetDensity() { return target_density_; };
 
  private:
   void init();

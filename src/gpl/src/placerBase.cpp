@@ -82,13 +82,14 @@ Instance::Instance(odb::dbInst* db_inst,
 }
 
 // for dummy instances
-Instance::Instance(int lx, int ly, int ux, int uy) : Instance()
+Instance::Instance(int lx, int ly, int ux, int uy, bool is_fixed) : Instance()
 {
   inst_ = nullptr;
   lx_ = lx;
   ly_ = ly;
   ux_ = ux;
   uy_ = uy;
+  is_fixed_ = is_fixed;
 }
 
 Instance::~Instance()
@@ -114,9 +115,8 @@ void Instance::copyDbLocation(PlacerBaseCommon* pbc)
 
 bool Instance::isFixed() const
 {
-  // dummy instance is always fixed
   if (isDummy()) {
-    return true;
+    return is_fixed_;
   }
 
   return inst_->getPlacementStatus().isFixed();
