@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "Graphics.h"
 #include "Nesterov.h"
 #include "gpl/Replace.h"
 #include "odb/db.h"

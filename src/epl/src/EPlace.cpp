@@ -119,6 +119,13 @@ void EPlace::place(int threads,
   if (!initEPlace(density, uniform_density)) {
     return;
   }
+
+  Graphics gui(log_);
+  bool draw_bins = true;
+  gui.debug(
+      this, pbc_, wa_wirelength_, nesterov_, pbVec_, e_density_vec_, draw_bins);
+  gui.cellPlot(true);
+
   debugPrint(log_,
              EPL,
              "place",
@@ -133,6 +140,8 @@ void EPlace::place(int threads,
   for (int i = 0; i < iterations; i++) {
     debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
     nesterov_->step();
+
+    gui.cellPlot(true);
   }
 
   // update_db

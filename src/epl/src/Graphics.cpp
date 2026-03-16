@@ -455,18 +455,21 @@ void Graphics::reportSelected()
 
 void Graphics::addIter(const int iter, const double overflow)
 {
-  /*
   if (!gui::Gui::enabled()) {
     return;
   }
   odb::dbBlock* block = pbc_->db()->getChip()->getBlock();
-  main_chart_->addPoint(iter, {block->dbuToMicrons(nbc_->getHpwl()), overflow});
+  //main_chart_->addPoint(iter, {block->dbuToMicrons(nbc_->getHpwl()), overflow});
 
   if (density_chart_) {
     std::vector<double> values;
-    if (!nbVec_.empty() && nbVec_[0]) {
+    if (!edVec_.empty() && edVec_[0]) {
+      values.push_back(0.0);
+      values.push_back(0.0);
+      /*
       values.push_back((static_cast<double>(nbVec_[0]->getDensityPenalty())));
       values.push_back(static_cast<double>(nbVec_[0]->getStoredPhiCoef()));
+      */
     } else {
       values.push_back(0.0);
       values.push_back(0.0);
@@ -476,13 +479,19 @@ void Graphics::addIter(const int iter, const double overflow)
 
   if (stepLength_chart_) {
     std::vector<double> values;
-    if (!nbVec_.empty() && nbVec_[0]) {
+    if (!edVec_.empty() && edVec_[0]) {
+      values.push_back(0.0);
+      values.push_back(0.0);
+      values.push_back(0.0);
+      values.push_back(0.0);
+      /*
       values.push_back(static_cast<double>(nbVec_[0]->getStoredStepLength()));
       values.push_back(
           static_cast<double>(nbVec_[0]->getStoredCoordiDistance()));
       values.push_back(static_cast<double>(nbVec_[0]->getStoredGradDistance()));
       values.push_back(
           block->dbuAreaToMicrons(nbVec_[0]->getNesterovInstsArea()));
+      */
     } else {
       values.push_back(0.0);
       values.push_back(0.0);
@@ -491,7 +500,7 @@ void Graphics::addIter(const int iter, const double overflow)
     }
     stepLength_chart_->addPoint(iter, values);
   }
-
+  /*
   if (routing_chart_) {
     std::vector<double> values;
     if (!nbVec_.empty() && nbVec_[0]) {
@@ -518,13 +527,11 @@ void Graphics::addIter(const int iter, const double overflow)
 
 void Graphics::cellPlotImpl(bool pause)
 {
-  /*
   gui::Gui::get()->redraw();
   if (pause) {
     reportSelected();
     gui::Gui::get()->pause();
   }
-  */
 }
 
 gui::SelectionSet Graphics::select(odb::dbTechLayer* layer,
