@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <format>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -220,10 +221,10 @@ void Graphics::drawSingleGCell(const gpl::Instance* cell,
                                gui::Painter& painter,
                                size_t nb_index)
 {
-  int xl = cell->dx();
-  int yl = cell->dy();
-  int xh = cell->dx();
-  int yh = cell->dy();
+  int xl = cell->lx();
+  int yl = cell->ly();
+  int xh = cell->ux();
+  int yh = cell->uy();
 
   gui::Painter::Color color;
   if (cell->isFixed() || cell->isLocked()) {
@@ -256,8 +257,7 @@ void Graphics::drawNesterov(gui::Painter& painter)
       for (int x = 0; x < grid->binCntX(); x++) {
         for (int y = 0; y < grid->binCntY(); y++) {
           double curr_density = grid->getDensity(x, y);
-          int utilization
-              = (curr_density - target_density) / target_density * 235 + 20;
+          int utilization = curr_density / target_density * 235 + 20;
           gui::Painter::Color color;
           if (utilization > 255) {
             color = {255, 165, 0, 180};  // orange = out of the range
@@ -386,7 +386,7 @@ void Graphics::drawNesterov(gui::Painter& painter)
       painter.drawLine(
           cx, cy, cx + static_cast<int>(dx), cy + static_cast<int>(dy));
     }
-  } 
+  }
   */
 
   // Draw force direction lines
@@ -459,7 +459,8 @@ void Graphics::addIter(const int iter, const double overflow)
     return;
   }
   odb::dbBlock* block = pbc_->db()->getChip()->getBlock();
-  //main_chart_->addPoint(iter, {block->dbuToMicrons(nbc_->getHpwl()), overflow});
+  // main_chart_->addPoint(iter, {block->dbuToMicrons(nbc_->getHpwl()),
+  // overflow});
 
   if (density_chart_) {
     std::vector<double> values;

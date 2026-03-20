@@ -34,6 +34,7 @@ class EDensity
 
   void clear();
   void updateDensity();
+  void updateForce();
   std::pair<float, float> getElectroForce(gpl::Instance* inst) const
   {
     return grid_->getElectroForce(inst);

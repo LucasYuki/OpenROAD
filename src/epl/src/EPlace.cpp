@@ -124,7 +124,12 @@ void EPlace::place(int threads,
   bool draw_bins = true;
   gui.debug(
       this, pbc_, wa_wirelength_, nesterov_, pbVec_, e_density_vec_, draw_bins);
-  gui.cellPlot(true);
+  if (gui.enabled()) {
+    for (auto ed : e_density_vec_) {
+      ed->updateForce();
+    }
+    gui.cellPlot(true);
+  }
 
   debugPrint(log_,
              EPL,
@@ -139,9 +144,19 @@ void EPlace::place(int threads,
   // bool debug = true;
   for (int i = 0; i < iterations; i++) {
     debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
+    // eDensity force calc
+    for (auto ed : e_density_vec_) {
+      ed->updateForce();
+    }
     nesterov_->step();
 
-    gui.cellPlot(true);
+    // eDensity density calc
+    for (auto ed : e_density_vec_) {
+      ed->updateDensity();
+    }
+    if (gui.enabled()) {
+      gui.cellPlot(true);
+    }
   }
 
   // update_db

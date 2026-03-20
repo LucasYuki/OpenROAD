@@ -186,6 +186,10 @@ void EDensity::updateDensity()
   for (auto inst : place_instances_) {
     grid_->addMovableInst(inst);
   }
+}
+
+void EDensity::updateForce()
+{
   grid_->doFFT();
 }
 

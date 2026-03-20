@@ -29,16 +29,19 @@ Grid::Grid(utl::Logger* log,
              binCntY,
              binSizeX,
              binSizeY);
+  binArea_ = new float*[binCntX_];
   binAreaFixed_ = new int64_t*[binCntX_];
   binAreaFixedMacro_ = new int64_t*[binCntX_];
 
   for (int x = 0; x < binCntX_; x++) {
+    binArea_[x] = new float[binCntY_];
     binAreaFixed_[x] = new int64_t[binCntY_];
     binAreaFixedMacro_[x] = new int64_t[binCntY_];
 
     for (int y = 0; y < binCntY_; y++) {
-      binAreaFixed_[x][y] = 0.0f;
-      binAreaFixedMacro_[x][y] = 0.0f;
+      binArea_[x][y] = 0.0f;
+      binAreaFixed_[x][y] = 0;
+      binAreaFixedMacro_[x][y] = 0;
     }
   }
 }
@@ -53,13 +56,22 @@ Grid::~Grid()
   delete[] binAreaFixedMacro_;
 }
 
+void Grid::doFFT()
+{
+  for (int x = 0; x < binCntX_; x++) {
+    for (int y = 0; y < binCntY_; y++) {
+      binDensity_[x][y] = binArea_[x][y] / getBin(x, y).area();
+    }
+  }
+  gpl::FFT::doFFT();
+}
+
 void Grid::clearMovable()
 {
   for (int x = 0; x < binCntX_; x++) {
     for (int y = 0; y < binCntY_; y++) {
-      binDensity_[x][y]
-          = (binAreaFixed_[x][y] + binAreaFixedMacro_[x][y] * target_density_)
-            / getBin(x, y).area();
+      binArea_[x][y]
+          = (binAreaFixed_[x][y] + binAreaFixedMacro_[x][y] * target_density_);
     }
   }
 }
@@ -88,8 +100,7 @@ void Grid::addMovableInst(const gpl::Instance* inst)
 
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
-      binDensity_[x][y] += inst_rect.intersect(getBin(x, y)).area() * scaling
-                           / getBin(x, y).area();
+      binArea_[x][y] += inst_rect.intersect(getBin(x, y)).area() * scaling;
     }
   }
 }
@@ -104,7 +115,7 @@ std::pair<float, float> Grid::getElectroForce(gpl::Instance* inst) const
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
       float intersect_ratio
-          = inst_rect.intersect(getBin(x, y)).area() / getBin(x, y).area();
+          = float(inst_rect.intersect(getBin(x, y)).area()) / getBin(x, y).area();
       force_x += electroForceX_[x][y] * intersect_ratio;
       force_y += electroForceY_[x][y] * intersect_ratio;
     }

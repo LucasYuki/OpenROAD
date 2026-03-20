@@ -19,30 +19,43 @@ class NesterovInst
  public:
   NesterovInst(gpl::Instance* inst) : inst_(inst)
   {
-    u_ = v_ = std::make_pair(inst_->cx(), inst_->cy());
+    u_x_ = v_x_ = inst_->cx();
+    u_y_ = v_y_ = inst_->cy();
   };
-  ~NesterovInst(){};
+  ~NesterovInst() {};
 
   gpl::Instance* gplInst() const { return inst_; };
-  std::pair<float, float> getForce() { return force_; };
-  std::pair<float, float> getPos() { return u_; };
-  std::pair<float, float> getRef() { return v_; };
-  void setForce(float x, float y) { force_ = std::make_pair(x, y); };
+  std::pair<float, float> getForce()
+  {
+    return std::make_pair(force_x_, force_y_);
+  };
+  std::pair<float, float> getPos() { return std::make_pair(u_x_, u_y_); };
+  std::pair<float, float> getRef() { return std::make_pair(v_x_, v_y_); };
+  void setForce(float x, float y)
+  {
+    force_x_ = x;
+    force_y_ = y;
+  };
   void setPos(float x, float y)
   {
-    u_ = std::make_pair(x, y);
-    inst_->setCenterLocation(u_.first, u_.second);
+    u_x_ = x;
+    u_y_ = y;
+    inst_->setCenterLocation(x, y);
   };
-  void setRef(float x, float y) { v_ = std::make_pair(x, y); };
+  void setRef(float x, float y)
+  {
+    v_x_ = x;
+    v_y_ = y;
+  };
 
  private:
   gpl::Instance* inst_;
 
   // location in gpl::Instance* is int
   // but the fft calc and force calc is in float
-  std::pair<float, float> force_ = {0, 0};
-  std::pair<float, float> u_;
-  std::pair<float, float> v_;
+  float force_x_ = 0, force_y_ = 0;
+  float u_x_ = 0, u_y_ = 0;
+  float v_x_ = 0, v_y_ = 0;
 };
 
 class NesterovOptimizer
@@ -52,7 +65,7 @@ class NesterovOptimizer
       const std::shared_ptr<WAwirelength>& wa_wirelength,
       const std::vector<std::shared_ptr<EDensity>>& e_density_vec,
       utl::Logger* log);
-  ~NesterovOptimizer(){};
+  ~NesterovOptimizer() {};
 
   bool step();
   const std::vector<std::vector<NesterovInst>>& nesterovInsts()

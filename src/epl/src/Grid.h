@@ -27,11 +27,12 @@ class Grid : public gpl::FFT
        gpl::Die* die);
   ~Grid();
 
+  void doFFT();
   void clearMovable();
   void addFixedInst(const gpl::Instance* inst);
   void addMovableInst(const gpl::Instance* inst);
   std::pair<float, float> getElectroForce(gpl::Instance* inst) const;
-  float getDensity(int x, int y) const { return binDensity_[x][y]; };
+  float getDensity(int x, int y) const { return binArea_[x][y] / getBin(x, y).area(); };
   float total_overflow() const;
 
   void setTargetDensity(float density) { target_density_ = density; };
@@ -60,6 +61,7 @@ class Grid : public gpl::FFT
  private:
   utl::Logger* log_;
   gpl::Die* die_;
+  float** binArea_ = nullptr;
   int64_t** binAreaFixed_ = nullptr;
   int64_t** binAreaFixedMacro_ = nullptr;
   float target_density_ = 0;
