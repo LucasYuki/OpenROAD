@@ -24,7 +24,7 @@ class Grid : public gpl::FFT
        int binCntY,
        float binSizeX,
        float binSizeY,
-       gpl::Die* die);
+       const odb::Rect region);
   ~Grid();
 
   void doFFT();
@@ -39,10 +39,10 @@ class Grid : public gpl::FFT
 
   const odb::Rect getBin(int x, int y) const
   {
-    return odb::Rect(die_->coreLx() + std::round(x * binSizeX_),
-                     die_->coreLy() + std::round(y * binSizeY_),
-                     die_->coreLx() + std::round((x + 1) * binSizeX_),
-                     die_->coreLy() + std::round((y + 1) * binSizeY_));
+    return odb::Rect(region_.xMin() + std::round(x * binSizeX_),
+                     region_.yMin() + std::round(y * binSizeY_),
+                     region_.xMin() + std::round((x + 1) * binSizeX_),
+                     region_.yMin() + std::round((y + 1) * binSizeY_));
   }
 
   int binCntX() const { return binCntX_; };
@@ -60,7 +60,7 @@ class Grid : public gpl::FFT
 
  private:
   utl::Logger* log_;
-  gpl::Die* die_;
+  odb::Rect region_;
   float** binArea_ = nullptr;
   int64_t** binAreaFixed_ = nullptr;
   int64_t** binAreaFixedMacro_ = nullptr;

@@ -5,7 +5,7 @@ read_def ./designs/simple01.def
 
 set_debug_level EPL place 1
 set_debug_level EPL initEPlace 1
-epl::eplace_place -density 0.8 -i 10
+epl::eplace_place -density 0.8 -i 100
 
 set def_file [make_result_file $test_name.def]
 write_def $def_file

@@ -28,6 +28,28 @@ void NesterovOptimizer::init()
   }
 }
 
+std::pair<float, float> NesterovOptimizer::snapPosition(
+    const odb::Rect& region,
+    float x,
+    float y,
+    gpl::Instance* inst) const
+{
+  float xlo = std::max(x - inst->dx() / 2., static_cast<double>(region.xMin()));
+  float xhi = xlo + inst->dx();
+  if (xhi > region.xMax()) {
+    xlo = region.xMax() - inst->dx();
+    xhi = region.xMax();
+  }
+
+  float ylo = std::max(y - inst->dy() / 2., static_cast<double>(region.yMin()));
+  float yhi = ylo + inst->dy();
+  if (yhi > region.yMax()) {
+    ylo = region.yMax() - inst->dy();
+    yhi = region.yMax();
+  }
+  return std::make_pair<float, float>((xlo + xhi) / 2, (ylo + yhi) / 2);
+}
+
 bool NesterovOptimizer::step()
 {
   // update the force on each instance
@@ -67,19 +89,16 @@ bool NesterovOptimizer::step()
   }
 
   // Update the location
-  int a = 0;
+  idx = 0;
   for (auto& ed_insts : inst_ed_vec_) {
+    auto bbox = e_density_vec_[idx++]->getRegionBBox();
     for (auto& inst : ed_insts) {
       auto [x, y] = inst.getPos();
-      auto [dx, dy] = inst.getForce();
-      float density_penalty = 1;
-      inst.setPos(x + dx * density_penalty, y + dy * density_penalty);
-      if (a++ == 0) {
-        std::cout << x << " + " << dx << ", " << y << " + " << dy << " : "
-                  << std::log10(std::abs(dx + dy)) << std::endl;
-        auto [l, m] = inst.getPos();
-        std::cout << l << ", " << m << std::endl;
-      }
+      auto [fx, fy] = inst.getForce();
+      float step_size = 10;
+      auto [new_x, new_y] = snapPosition(
+          bbox, x + step_size * fx, y + step_size * fy, inst.gplInst());
+      inst.setPos(new_x, new_y);
     }
   }
   return true;

@@ -22,15 +22,15 @@ class NesterovInst
     u_x_ = v_x_ = inst_->cx();
     u_y_ = v_y_ = inst_->cy();
   };
-  ~NesterovInst() {};
+  ~NesterovInst(){};
 
   gpl::Instance* gplInst() const { return inst_; };
-  std::pair<float, float> getForce()
+  std::pair<float, float> const getForce()
   {
     return std::make_pair(force_x_, force_y_);
   };
-  std::pair<float, float> getPos() { return std::make_pair(u_x_, u_y_); };
-  std::pair<float, float> getRef() { return std::make_pair(v_x_, v_y_); };
+  std::pair<float, float> getPos() const { return std::make_pair(u_x_, u_y_); };
+  std::pair<float, float> getRef() const { return std::make_pair(v_x_, v_y_); };
   void setForce(float x, float y)
   {
     force_x_ = x;
@@ -65,13 +65,17 @@ class NesterovOptimizer
       const std::shared_ptr<WAwirelength>& wa_wirelength,
       const std::vector<std::shared_ptr<EDensity>>& e_density_vec,
       utl::Logger* log);
-  ~NesterovOptimizer() {};
+  ~NesterovOptimizer(){};
 
   bool step();
-  const std::vector<std::vector<NesterovInst>>& nesterovInsts()
+  const std::vector<std::vector<NesterovInst>>& nesterovInsts() const
   {
     return inst_ed_vec_;
   };
+  std::pair<float, float> snapPosition(const odb::Rect& region,
+                                       float x,
+                                       float y,
+                                       gpl::Instance* inst) const;
 
  private:
   void init();

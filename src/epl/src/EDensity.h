@@ -47,6 +47,8 @@ class EDensity
   const Grid* grid() { return grid_.get(); };
   double targetDensity() { return target_density_; };
 
+  const odb::Rect& getRegionBBox() const { return pb_->getRegionBBox(); }
+
  private:
   void init();
   void initFillers();

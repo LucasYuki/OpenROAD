@@ -172,7 +172,7 @@ void EDensity::initGrid()
   float binSizeY = pb_->getDie().coreDy() / static_cast<float>(binCntY);
 
   grid_ = std::make_unique<Grid>(
-      log_, binCntX, binCntY, binSizeX, binSizeY, &pb_->getDie());
+      log_, binCntX, binCntY, binSizeX, binSizeY, pb_->getRegionBBox());
 
   for (auto inst : pb_->nonPlaceInsts()) {
     grid_->addFixedInst(inst);

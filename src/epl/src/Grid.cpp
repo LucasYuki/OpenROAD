@@ -19,8 +19,8 @@ Grid::Grid(utl::Logger* log,
            int binCntY,
            float binSizeX,
            float binSizeY,
-           gpl::Die* die)
-    : gpl::FFT(binCntX, binCntY, binSizeX, binSizeY), log_(log), die_(die)
+           const odb::Rect region)
+    : gpl::FFT(binCntX, binCntY, binSizeX, binSizeY), log_(log), region_(region)
 {
   log_->info(utl::EPL,
              11,
@@ -114,8 +114,8 @@ std::pair<float, float> Grid::getElectroForce(gpl::Instance* inst) const
   float force_x = 0, force_y = 0;
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
-      float intersect_ratio
-          = float(inst_rect.intersect(getBin(x, y)).area()) / getBin(x, y).area();
+      float intersect_ratio = float(inst_rect.intersect(getBin(x, y)).area())
+                              / getBin(x, y).area();
       force_x += electroForceX_[x][y] * intersect_ratio;
       force_y += electroForceY_[x][y] * intersect_ratio;
     }
@@ -125,16 +125,16 @@ std::pair<float, float> Grid::getElectroForce(gpl::Instance* inst) const
 
 std::pair<int, int> Grid::getMinMaxIdxX(const gpl::Instance* inst) const
 {
-  int lowerIdx = (inst->lx() - die_->coreLx()) / binSizeX_;
-  int upperIdx = std::ceil((inst->ux() - die_->coreLx()) / binSizeX_);
+  int lowerIdx = (inst->lx() - region_.xMin()) / binSizeX_;
+  int upperIdx = std::ceil((inst->ux() - region_.xMin()) / binSizeX_);
 
   return std::make_pair(std::max(lowerIdx, 0), std::min(upperIdx, binCntX_));
 }
 
 std::pair<int, int> Grid::getMinMaxIdxY(const gpl::Instance* inst) const
 {
-  int lowerIdx = (inst->ly() - die_->coreLy()) / binSizeY_;
-  int upperIdx = std::ceil((inst->uy() - die_->coreLy()) / binSizeY_);
+  int lowerIdx = (inst->ly() - region_.yMin()) / binSizeY_;
+  int upperIdx = std::ceil((inst->uy() - region_.yMin()) / binSizeY_);
 
   return std::make_pair(std::max(lowerIdx, 0), std::min(upperIdx, binCntY_));
 }
@@ -149,12 +149,28 @@ std::pair<float, odb::Rect> Grid::smoothScaleInst(
   // Makes the instance at least the size of one bin
   odb::Rect inst_rect{inst->lx(), inst->ly(), inst->ux(), inst->uy()};
   if (inst_rect.dx() < binSizeX_) {
-    inst_rect.set_xlo(inst_rect.xCenter() - binSizeX_ / 2);
-    inst_rect.set_xhi(inst_rect.xMin() + binSizeX_);
+    int new_xlo = inst_rect.xCenter() - static_cast<int>(binSizeX_ / 2);
+    new_xlo = std::max(new_xlo, region_.xMin());
+
+    int new_xhi = new_xlo + binSizeX_;
+    if (new_xhi > region_.xMax()) {
+      new_xlo = region_.xMax() - binSizeX_;
+      new_xhi = region_.xMax();
+    }
+    inst_rect.set_xlo(new_xlo);
+    inst_rect.set_xhi(new_xhi);
   }
   if (inst_rect.dy() < binSizeY_) {
-    inst_rect.set_ylo(inst_rect.yCenter() - binSizeY_ / 2);
-    inst_rect.set_yhi(inst_rect.yMin() + binSizeY_);
+    int new_ylo = inst_rect.yCenter() - static_cast<int>(binSizeY_ / 2);
+    new_ylo = std::max(new_ylo, region_.yMin());
+
+    int new_yhi = inst_rect.yMin() + binSizeY_;
+    if (new_yhi > region_.yMax()) {
+      new_ylo = region_.yMax() - binSizeY_;
+      new_yhi = region_.yMax();
+    }
+    inst_rect.set_ylo(new_ylo);
+    inst_rect.set_yhi(new_yhi);
   }
 
   // Calculate the ratio between the original size and the inflated size
