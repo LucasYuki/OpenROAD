@@ -120,7 +120,7 @@ std::pair<float, float> Grid::getElectroForce(gpl::Instance* inst) const
       force_y += electroForceY_[x][y] * intersect_ratio;
     }
   }
-  return std::make_pair<float, float>(force_x * scaling, force_y * scaling);
+  return std::make_pair(force_x * scaling, force_y * scaling);
 }
 
 std::pair<int, int> Grid::getMinMaxIdxX(const gpl::Instance* inst) const

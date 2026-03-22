@@ -47,7 +47,7 @@ std::pair<float, float> NesterovOptimizer::snapPosition(
     ylo = region.yMax() - inst->dy();
     yhi = region.yMax();
   }
-  return std::make_pair<float, float>((xlo + xhi) / 2, (ylo + yhi) / 2);
+  return std::make_pair((xlo + xhi) / 2, (ylo + yhi) / 2);
 }
 
 bool NesterovOptimizer::step()
@@ -79,11 +79,17 @@ bool NesterovOptimizer::step()
       */
 
       // WA force
-      // auto [force_wa_x, force_wa_y] =
+      float force_wa_x = 0, force_wa_y = 0;
+      for (auto* pin : inst.gplInst()->getPins()) {
+        auto [tmp_x, tmp_y] = wa_wirelength_->getGradient(pin);
+        force_wa_x -= tmp_x;
+        force_wa_y -= tmp_y;
+      }
 
       // Compute the total force
-      float force_x = force_e_x;
-      float force_y = force_e_y;
+      float force_x = force_wa_x; //force_e_x;
+      float force_y = force_wa_y; //force_e_y;
+      //std::cout << force_x << " " << force_y << std::endl;
       inst.setForce(force_x, force_y);
     }
   }

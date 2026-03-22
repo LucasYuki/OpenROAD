@@ -50,8 +50,7 @@ bool EPlace::initEPlace(float density, bool uniform_density)
   debugPrint(log_, EPL, "initEPlace", 3, "Init wa_wirelength_");
   WAwirelengthVars waVars;
   int threads = 1;
-  wa_wirelength_ = std::make_shared<WAwirelength>(
-      waVars, pbc_, log_, threads, gpl::Clusters());
+  wa_wirelength_ = std::make_shared<WAwirelength>(waVars, pbc_, log_, threads);
 
   // Init e_density
   debugPrint(log_, EPL, "initEPlace", 1, "Init e_density");
@@ -141,9 +140,11 @@ void EPlace::place(int threads,
              pbc_->getDie().coreUx(),
              pbc_->getDie().coreUy());
 
+  wa_wirelength_->setGamma(1.0);
   // bool debug = true;
   for (int i = 0; i < iterations; i++) {
     debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
+    wa_wirelength_->update();
     // eDensity force calc
     for (auto ed : e_density_vec_) {
       ed->updateForce();
@@ -154,6 +155,9 @@ void EPlace::place(int threads,
     for (auto ed : e_density_vec_) {
       ed->updateDensity();
     }
+    std::cout << "WA: " << wa_wirelength_->getWA() << std::endl;
+    std::cout << "HPWL: " << wa_wirelength_->getHPWL() << std::endl;
+
     if (gui.enabled()) {
       gui.cellPlot(true);
     }

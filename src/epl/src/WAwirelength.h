@@ -24,9 +24,11 @@
 
 namespace gpl {
 class PlacerBaseCommon;
+class Net;
 }  // namespace gpl
 
 namespace epl {
+
 class WAwirelengthVars
 {
  public:
@@ -39,18 +41,32 @@ class WAwirelength
   WAwirelength(WAwirelengthVars waVars,
                std::shared_ptr<gpl::PlacerBaseCommon> pb,
                utl::Logger* log,
-               int num_threads,
-               const gpl::Clusters& clusters);
+               int num_threads);
 
-  /*
-    void clear();
-    void update(int threads);
-  */
+  void clear();
+  void update();
+
+  void setGamma(float gamma) { gamma_ = gamma; };
+  float getGamma(float gamma) const { return gamma; };
+  float getHPWL() const { return hpwl_; };
+  float getWA() const { return wa_; };
+
+  std::pair<float, float> getGradient(gpl::Pin* pin)
+  {
+    return wa_gradient_[pin];
+  };
+
+ private:
   WAwirelengthVars waVars_;
   std::shared_ptr<gpl::PlacerBaseCommon> pb_;
   utl::Logger* log_;
   int num_threads_;
-  const gpl::Clusters& clusters_;
+  std::vector<gpl::Net*> nets_;
+
+  int hpwl_ = 0;
+  float wa_ = 0;
+  float gamma_ = 1.;
+  std::unordered_map<gpl::Pin*, std::pair<float, float>> wa_gradient_;
 };
 
 }  // namespace epl
