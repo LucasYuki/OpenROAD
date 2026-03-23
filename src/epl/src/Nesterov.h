@@ -67,7 +67,7 @@ class NesterovOptimizer
       utl::Logger* log);
   ~NesterovOptimizer(){};
 
-  bool step();
+  bool step(float density_penalty, bool disable_wirelength = false, bool disable_density = false);
   const std::vector<std::vector<NesterovInst>>& nesterovInsts() const
   {
     return inst_ed_vec_;

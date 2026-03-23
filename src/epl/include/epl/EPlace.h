@@ -40,11 +40,19 @@ class EPlace
   EPlace();
   ~EPlace();
 
-  void clear();
   void init(odb::dbDatabase* db, utl::Logger* logger);
-  bool initEPlace(float density, bool uniform_density);
-  void place(int threads, float density, bool uniform_density, int iterations);
+  void clear();
+
+  void set_debug(bool draw_bins, bool disable_wirelength, bool disable_density);
+  void place(int threads,
+             float density,
+             bool uniform_density,
+             float density_penalty,
+             int iterations);
   void randomPlace(int threads);
+
+ private:
+  bool initEPlace(float density, bool uniform_density);
 
  private:
   bool initPlacer();
@@ -52,6 +60,7 @@ class EPlace
  private:
   odb::dbDatabase* db_;
   utl::Logger* log_;
+  std::unique_ptr<Graphics> gui_;
 
   std::shared_ptr<NesterovOptimizer> nesterov_;
 
@@ -60,6 +69,11 @@ class EPlace
 
   std::shared_ptr<gpl::PlacerBaseCommon> pbc_;
   std::vector<std::shared_ptr<gpl::PlacerBase>> pbVec_;
+
+  bool debug_ = false;
+  bool draw_bins_ = false;
+  bool disable_wirelength_ = false;
+  bool disable_density_ = false;
 };
 
 }  // namespace epl

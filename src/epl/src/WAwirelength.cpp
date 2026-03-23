@@ -57,12 +57,6 @@ void WAwirelength::update()
       y_a_pos[i] = std::exp((pin->cy() - y_max) * gamma_inv);
       y_a_neg[i] = std::exp(-(pin->cy() - y_min) * gamma_inv);
 
-      // std::cout << "i: " << i << std::endl;
-      // std::cout << "x_a_pos[i]: " << x_a_pos[i] << std::endl;
-      // std::cout << "x_a_neg[i]: " << x_a_neg[i] << std::endl;
-      // std::cout << "y_a_pos[i]: " << y_a_pos[i] << std::endl;
-      // std::cout << "y_a_neg[i]: " << y_a_neg[i] << std::endl;
-
       x_b_pos += x_a_pos[i];
       x_b_neg += x_a_neg[i];
       y_b_pos += y_a_pos[i];
@@ -75,15 +69,6 @@ void WAwirelength::update()
 
       i++;
     }
-    // std::cout << "x_b_pos: " << x_b_pos << std::endl;
-    // std::cout << "x_b_neg: " << x_b_neg << std::endl;
-    // std::cout << "y_b_pos: " << y_b_pos << std::endl;
-    // std::cout << "y_b_neg: " << y_b_neg << std::endl;
-
-    // std::cout << "x_c_pos: " << x_c_pos << std::endl;
-    // std::cout << "x_c_neg: " << x_c_neg << std::endl;
-    // std::cout << "y_c_pos: " << y_c_pos << std::endl;
-    // std::cout << "y_c_neg: " << y_c_neg << std::endl;
 
     wa_ += (x_c_pos / x_b_pos - x_c_neg / x_b_neg)
            + (y_c_pos / y_b_pos - y_c_neg / y_b_neg);

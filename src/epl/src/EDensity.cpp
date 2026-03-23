@@ -35,17 +35,10 @@ void EDensity::init()
   initFillers();
   initGrid();
 
-  std::mt19937 randVal(0);
-  std::uniform_int_distribution<> distr_x(
-      pb_->getDie().coreLx() + pb_->getDie().coreDx() / 4,
-      pb_->getDie().coreUx() - pb_->getDie().coreDx() / 4);
-  std::uniform_int_distribution<> distr_y(
-      pb_->getDie().coreLy() + pb_->getDie().coreDy() / 4,
-      pb_->getDie().coreUy() - pb_->getDie().coreDy() / 4);
   for (auto& inst : pb_->placeInsts()) {
     place_instances_.push_back(inst);
-    int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
-    inst->setCenterLocation(pos_x, pos_y);
+    inst->setCenterLocation(pb_->getRegionBBox().xCenter(),
+                            pb_->getRegionBBox().yCenter());
   }
   for (auto& inst : fillers_) {
     place_instances_.push_back(&inst);
@@ -59,10 +52,10 @@ void EDensity::initFillers()
   // Calculate filler area
   const int64_t place_area = pb_->placeInstsArea();
   const int64_t fixed_area = pb_->nonPlaceInstsArea();
-  const int64_t core_area = pb_->getDie().coreArea();
+  const int64_t region_area = pb_->getRegionArea();
 
   double curr_density
-      = static_cast<double>(place_area + fixed_area) / core_area;
+      = static_cast<double>(place_area + fixed_area) / region_area;
   if (edVars_.uniform_density) {
     log_->info(utl::EPL, 4, "Using uniform density", curr_density);
     target_density_ = curr_density;
@@ -82,7 +75,7 @@ void EDensity::initFillers()
              "Original target density:",
              target_density_);
 
-  filler_area_ = (target_density_ - curr_density) * core_area;
+  filler_area_ = (target_density_ - curr_density) * region_area;
   if (filler_area_ == 0) {
     return;
   }
@@ -96,7 +89,7 @@ void EDensity::initFillers()
   // Filler size is "the average size of the mid 80% of the movable cells"
   auto insts = pb_->placeInsts();
   int n_insts = insts.size();
-  std::vector<int> size_x(n_insts), size_y(n_insts);
+  std::vector<int> size_x, size_y;
   int curr_idx = 0;
   for (auto& inst : insts) {
     if (inst->isMacro()) {
@@ -126,9 +119,9 @@ void EDensity::initFillers()
   int n_fillers = filler_area_ / (filler_size_x * filler_size_y);
   std::mt19937 randVal(0);
   std::uniform_int_distribution<> distr_x(
-      pb_->getDie().coreLx(), pb_->getDie().coreUx() - filler_size_x);
+      pb_->getRegionBBox().xMin(), pb_->getRegionBBox().xMax() - filler_size_x);
   std::uniform_int_distribution<> distr_y(
-      pb_->getDie().coreLy(), pb_->getDie().coreUy() - filler_size_y);
+      pb_->getRegionBBox().yMin(), pb_->getRegionBBox().xMax() - filler_size_y);
   for (int i = 0; i < n_fillers; i++) {
     int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
     fillers_.push_back(gpl::Instance(
@@ -144,7 +137,7 @@ void EDensity::initFillers()
   // Re-update the target density
   filler_area_ = n_fillers * (filler_size_x * filler_size_y);
   target_density_ = (place_area + fixed_area + filler_area_)
-                    / static_cast<double>(core_area);
+                    / static_cast<double>(region_area);
   log_->info(utl::EPL,
              8,
              "{:27} {:10.3f} um^2",
@@ -160,7 +153,7 @@ void EDensity::initFillers()
 void EDensity::initGrid()
 {
   // Number of bins in the grid should be approximately the number of instances
-  double ratio = pb_->getDie().coreDx() / pb_->getDie().coreDy();
+  double ratio = pb_->getRegionBBox().dx() / pb_->getRegionBBox().dy();
   int n_movable_intances = pb_->placeInsts().size() + fillers_.size();
   double y = std::sqrt(n_movable_intances / ratio);
   double x = y * ratio;
@@ -168,8 +161,8 @@ void EDensity::initGrid()
   // Change this approximation to a better one later
   int binCntX = std::pow(2, std::ceil(std::log2(x)));
   int binCntY = std::pow(2, std::ceil(std::log2(y)));
-  float binSizeX = pb_->getDie().coreDx() / static_cast<float>(binCntX);
-  float binSizeY = pb_->getDie().coreDy() / static_cast<float>(binCntY);
+  float binSizeX = pb_->getRegionBBox().dx() / static_cast<float>(binCntX);
+  float binSizeY = pb_->getRegionBBox().dy() / static_cast<float>(binCntY);
 
   grid_ = std::make_unique<Grid>(
       log_, binCntX, binCntY, binSizeX, binSizeY, pb_->getRegionBBox());

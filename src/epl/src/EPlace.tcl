@@ -19,21 +19,20 @@
 # too users in the global namespace.
 namespace eval epl {
 
-
 sta::define_cmd_args "eplace_place" { \
-    [-density] \
-    [-iterations]
+    [-density target_density] \
+    [-iterations max_iterations] \
+    [-density_penalty density_penalty]
 }
 
 proc eplace_place { args } {
   sta::parse_key_args "global_placement" args \
-    keys {-density -iterations} \
+    keys {-density -iterations -density_penalty} \
     flags {}
   
   # density settings
   set target_density 0
   set uniform_mode 1
-  set iterations 100
 
   if { [info exists keys(-density)] } {
     set target_density $keys(-density)
@@ -48,13 +47,41 @@ proc eplace_place { args } {
     }
   }
 
+  set iterations 100
   if { [info exists keys(-iterations)] } {
     set iterations $keys(-iterations)
   }
 
-  epl::eplace_place_cmd $target_density $uniform_mode $iterations
+  set density_penalty 10
+  if { [info exists keys(-density_penalty)] } {
+    set density_penalty $keys(-density_penalty)
+  }
+
+  epl::eplace_place_cmd $target_density $uniform_mode $density_penalty $iterations
 }
 
+sta::define_cmd_args "eplace_debug" { \
+    [-draw_bins] \
+    [-disable_wirelength] \
+    [-disable_density]
+}
+
+proc eplace_debug { args } {
+  sta::parse_key_args "global_placement" args \
+    keys {} \
+    flags {-draw_bins \
+      -use_only_wirelength \
+      -use_only_density}
+
+  set draw_bins [info exists flags(-draw_bins)]
+  set disable_wirelength [info exists flags(-disable_wirelength)]
+  set disable_density [info exists flags(-disable_density)]
+  if { $disable_wirelength && $disable_density } {
+    utl::error EPL 14 "Cannot disable wirelength and density at the same time"
+  }
+
+  eplace_debug_cmd $draw_bins $disable_wirelength $disable_density
+}
 
 sta::define_cmd_args "eplace_random_placement" {}
 proc eplace_random_placement { args } {

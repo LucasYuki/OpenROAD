@@ -35,6 +35,17 @@ void EPlace::init(odb::dbDatabase* db, utl::Logger* logger)
   log_ = logger;
 }
 
+void EPlace::clear()
+{
+  // clear instances
+  nesterov_.reset();
+  wa_wirelength_.reset();
+  e_density_vec_.clear();
+  pbc_.reset();
+  pbVec_.clear();
+  gui_.reset();
+}
+
 bool EPlace::initEPlace(float density, bool uniform_density)
 {
   if (nesterov_) {
@@ -99,19 +110,20 @@ bool EPlace::initPlacer()
   return true;
 }
 
-void EPlace::clear()
+void EPlace::set_debug(bool draw_bins,
+                       bool disable_wirelength,
+                       bool disable_density)
 {
-  // clear instances
-  nesterov_.reset();
-  wa_wirelength_.reset();
-  e_density_vec_.clear();
-  pbc_.reset();
-  pbVec_.clear();
+  debug_ = true;
+  draw_bins_ = draw_bins;
+  disable_wirelength_ = disable_wirelength;
+  disable_density_ = disable_density;
 }
 
 void EPlace::place(int threads,
                    float density,
                    bool uniform_density,
+                   float density_penalty,
                    int iterations)
 {
   debugPrint(log_, EPL, "place", 1, "place: number of threads {}", threads);
@@ -119,15 +131,19 @@ void EPlace::place(int threads,
     return;
   }
 
-  Graphics gui(log_);
-  bool draw_bins = true;
-  gui.debug(
-      this, pbc_, wa_wirelength_, nesterov_, pbVec_, e_density_vec_, draw_bins);
-  if (gui.enabled()) {
+  if (debug_ && gui::Gui::enabled()) {
+    gui_ = std::make_unique<Graphics>(log_);
+    gui_->debug(this,
+                pbc_,
+                wa_wirelength_,
+                nesterov_,
+                pbVec_,
+                e_density_vec_,
+                draw_bins_);
     for (auto ed : e_density_vec_) {
       ed->updateForce();
     }
-    gui.cellPlot(true);
+    gui_->cellPlot(true);
   }
 
   debugPrint(log_,
@@ -149,7 +165,7 @@ void EPlace::place(int threads,
     for (auto ed : e_density_vec_) {
       ed->updateForce();
     }
-    nesterov_->step();
+    nesterov_->step(density_penalty, disable_wirelength_, disable_density_);
 
     // eDensity density calc
     for (auto ed : e_density_vec_) {
@@ -158,8 +174,8 @@ void EPlace::place(int threads,
     std::cout << "WA: " << wa_wirelength_->getWA() << std::endl;
     std::cout << "HPWL: " << wa_wirelength_->getHPWL() << std::endl;
 
-    if (gui.enabled()) {
-      gui.cellPlot(true);
+    if (gui_ && gui_->enabled()) {
+      gui_->cellPlot(true);
     }
   }
 
@@ -172,6 +188,8 @@ void EPlace::place(int threads,
     inst->dbSetLocation();
     inst->dbSetPlaced();
   }
+
+  gui_.reset();
 }
 
 void EPlace::randomPlace(int threads)
