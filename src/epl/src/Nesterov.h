@@ -22,7 +22,7 @@ class NesterovInst
     u_x_ = v_x_ = inst_->cx();
     u_y_ = v_y_ = inst_->cy();
   };
-  ~NesterovInst(){};
+  ~NesterovInst() {};
 
   gpl::Instance* gplInst() const { return inst_; };
   std::pair<float, float> const getForce()
@@ -65,9 +65,12 @@ class NesterovOptimizer
       const std::shared_ptr<WAwirelength>& wa_wirelength,
       const std::vector<std::shared_ptr<EDensity>>& e_density_vec,
       utl::Logger* log);
-  ~NesterovOptimizer(){};
+  ~NesterovOptimizer() {};
 
-  bool step(float density_penalty, bool disable_wirelength = false, bool disable_density = false);
+  bool step(float density_penalty,
+            bool disable_wirelength = false,
+            bool disable_density = false,
+            bool use_density_field = false);
   const std::vector<std::vector<NesterovInst>>& nesterovInsts() const
   {
     return inst_ed_vec_;

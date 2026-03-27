@@ -35,10 +35,15 @@ void EDensity::init()
   initFillers();
   initGrid();
 
+  std::mt19937 randVal(0);
+  std::uniform_int_distribution<> distr_x(
+      pb_->getRegionBBox().xCenter()-500, pb_->getRegionBBox().xCenter()+500);
+  std::uniform_int_distribution<> distr_y(
+      pb_->getRegionBBox().yCenter()-500, pb_->getRegionBBox().yCenter()+500);
   for (auto& inst : pb_->placeInsts()) {
     place_instances_.push_back(inst);
-    inst->setCenterLocation(pb_->getRegionBBox().xCenter(),
-                            pb_->getRegionBBox().yCenter());
+    int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
+    inst->setCenterLocation(pos_x, pos_y);
   }
   for (auto& inst : fillers_) {
     place_instances_.push_back(&inst);
@@ -76,9 +81,6 @@ void EDensity::initFillers()
              target_density_);
 
   filler_area_ = (target_density_ - curr_density) * region_area;
-  if (filler_area_ == 0) {
-    return;
-  }
   log_->info(utl::EPL,
              6,
              "{:27} {:10.3f}",
@@ -102,40 +104,43 @@ void EDensity::initFillers()
   std::sort(size_x.begin(), size_x.end());
   std::sort(size_y.begin(), size_y.end());
 
-  int64_t filler_size_x = 0, filler_size_y = 0;
   int start_idx = n_insts * 0.1, end_idx = n_insts * 0.9;
   if (start_idx == end_idx) {
     start_idx = 0;
     end_idx = n_insts;
   }
   for (curr_idx = start_idx; curr_idx < end_idx; curr_idx++) {
-    filler_size_x += size_x[curr_idx];
-    filler_size_y += size_y[curr_idx];
+    filler_size_x_ += size_x[curr_idx];
+    filler_size_y_ += size_y[curr_idx];
   }
-  filler_size_x = std::round(filler_size_x / (end_idx - start_idx));
-  filler_size_y = std::round(filler_size_y / (end_idx - start_idx));
+  filler_size_x_ = std::round(filler_size_x_ / (end_idx - start_idx));
+  filler_size_y_ = std::round(filler_size_y_ / (end_idx - start_idx));
+
+  if (filler_area_ == 0) {
+    return;
+  }
 
   // Create fillers
-  int n_fillers = filler_area_ / (filler_size_x * filler_size_y);
+  int n_fillers = filler_area_ / (filler_size_x_ * filler_size_y_);
   std::mt19937 randVal(0);
   std::uniform_int_distribution<> distr_x(
-      pb_->getRegionBBox().xMin(), pb_->getRegionBBox().xMax() - filler_size_x);
+      pb_->getRegionBBox().xMin(), pb_->getRegionBBox().xMax() - filler_size_x_);
   std::uniform_int_distribution<> distr_y(
-      pb_->getRegionBBox().yMin(), pb_->getRegionBBox().xMax() - filler_size_y);
+      pb_->getRegionBBox().yMin(), pb_->getRegionBBox().xMax() - filler_size_y_);
   for (int i = 0; i < n_fillers; i++) {
     int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
     fillers_.push_back(gpl::Instance(
-        pos_x, pos_y, pos_x + filler_size_x, pos_y + filler_size_y, false));
+        pos_x, pos_y, pos_x + filler_size_x_, pos_y + filler_size_y_, false));
   }
   log_->info(utl::EPL,
              7,
              "{} fillers inserted of size ({}, {}) um",
              n_fillers,
-             pb_->db()->getChip()->getBlock()->dbuToMicrons(filler_size_x),
-             pb_->db()->getChip()->getBlock()->dbuToMicrons(filler_size_y));
+             pb_->db()->getChip()->getBlock()->dbuToMicrons(filler_size_x_),
+             pb_->db()->getChip()->getBlock()->dbuToMicrons(filler_size_y_));
 
   // Re-update the target density
-  filler_area_ = n_fillers * (filler_size_x * filler_size_y);
+  filler_area_ = n_fillers * (filler_size_x_ * filler_size_y_);
   target_density_ = (place_area + fixed_area + filler_area_)
                     / static_cast<double>(region_area);
   log_->info(utl::EPL,
@@ -159,8 +164,8 @@ void EDensity::initGrid()
   double x = y * ratio;
 
   // Change this approximation to a better one later
-  int binCntX = std::pow(2, std::ceil(std::log2(x)));
-  int binCntY = std::pow(2, std::ceil(std::log2(y)));
+  int binCntX = std::pow(2, std::floor(std::log2(x)));
+  int binCntY = std::pow(2, std::floor(std::log2(y)));
   float binSizeX = pb_->getRegionBBox().dx() / static_cast<float>(binCntX);
   float binSizeY = pb_->getRegionBBox().dy() / static_cast<float>(binCntY);
 

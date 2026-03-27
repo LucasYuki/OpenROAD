@@ -70,8 +70,8 @@ proc eplace_debug { args } {
   sta::parse_key_args "global_placement" args \
     keys {} \
     flags {-draw_bins \
-      -use_only_wirelength \
-      -use_only_density}
+      -disable_wirelength \
+      -disable_density}
 
   set draw_bins [info exists flags(-draw_bins)]
   set disable_wirelength [info exists flags(-disable_wirelength)]

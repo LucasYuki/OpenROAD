@@ -131,6 +131,7 @@ void EPlace::place(int threads,
     return;
   }
 
+  int gif_key = 0;
   if (debug_ && gui::Gui::enabled()) {
     gui_ = std::make_unique<Graphics>(log_);
     gui_->debug(this,
@@ -143,7 +144,8 @@ void EPlace::place(int threads,
     for (auto ed : e_density_vec_) {
       ed->updateForce();
     }
-    gui_->cellPlot(true);
+    gui_->cellPlot(false);
+    gif_key = gui_->gifStart("ePlace.gif");
   }
 
   debugPrint(log_,
@@ -175,7 +177,12 @@ void EPlace::place(int threads,
     std::cout << "HPWL: " << wa_wirelength_->getHPWL() << std::endl;
 
     if (gui_ && gui_->enabled()) {
-      gui_->cellPlot(true);
+      gui_->cellPlot(iterations%10 == 0);
+      odb::Rect region;
+      odb::Rect bbox = pbc_->db()->getChip()->getBlock()->getBBox()->getBox();
+      int max_dim = std::max(bbox.dx(), bbox.dy());
+      double dbu_per_pixel = static_cast<double>(max_dim) / 1000.0;
+      gui_->gifAddFrame(gif_key, region, 500, dbu_per_pixel, 20);
     }
   }
 
@@ -189,6 +196,11 @@ void EPlace::place(int threads,
     inst->dbSetPlaced();
   }
 
+  if (gui_ && gui_->enabled()) {
+    gui_->gifEnd(gif_key);
+    gui_->setDebugOn(false);
+    gui_->cellPlot(false);
+  }
   gui_.reset();
 }
 

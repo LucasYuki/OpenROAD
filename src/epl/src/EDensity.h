@@ -42,6 +42,7 @@ class EDensity
 
   const std::vector<gpl::Instance*>& placeInsts() { return place_instances_; };
   const std::vector<gpl::Instance>& fillers() { return fillers_; };
+  int64_t defaultFillerArea() { return filler_size_x_*filler_size_y_; };
   void printInfo();
 
   const Grid* grid() { return grid_.get(); };
@@ -64,6 +65,7 @@ class EDensity
 
   double target_density_;
   int64_t filler_area_;
+  int64_t filler_size_x_ = 0, filler_size_y_ = 0;
   std::vector<gpl::Instance> fillers_;
   std::vector<gpl::Instance*> place_instances_;
 };

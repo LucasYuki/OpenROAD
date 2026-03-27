@@ -52,16 +52,26 @@ std::pair<float, float> NesterovOptimizer::snapPosition(
 
 bool NesterovOptimizer::step(float density_penalty,
                              bool disable_wirelength,
-                             bool disable_density)
+                             bool disable_density,
+                             bool use_density_field)
 {
   // update the force on each instance
   int idx = 0;
   for (auto& ed : e_density_vec_) {
+    float filler_area = 1;
+    if (use_density_field) {
+      filler_area = ed->defaultFillerArea();
+    }
     for (auto& inst : inst_ed_vec_[idx++]) {
       // Density Force
       float force_e_x = 0, force_e_y = 0;
       if (!disable_density) {
         std::tie(force_e_x, force_e_y) = ed->getElectroForce(inst.gplInst());
+        if (use_density_field) {
+          float area_ratio = filler_area / inst.gplInst()->getArea();
+          force_e_x = force_e_x * area_ratio;
+          force_e_y = force_e_y * area_ratio;
+        }
       }
 
       // WA force
@@ -75,6 +85,8 @@ bool NesterovOptimizer::step(float density_penalty,
       }
 
       // Compute the total force
+      // botar opção de normalizar pelas fillers?
+
       float force_x = force_wa_x + density_penalty * force_e_x;
       float force_y = force_wa_y + density_penalty * force_e_y;
       inst.setForce(force_x, force_y);
