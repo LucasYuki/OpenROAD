@@ -144,7 +144,7 @@ void EPlace::place(int threads,
     for (auto ed : e_density_vec_) {
       ed->updateForce();
     }
-    gui_->cellPlot(false);
+    gui_->cellPlot(true);
     gif_key = gui_->gifStart("ePlace.gif");
   }
 
@@ -160,24 +160,27 @@ void EPlace::place(int threads,
 
   wa_wirelength_->setGamma(1.0);
   // bool debug = true;
-  for (int i = 0; i < iterations; i++) {
+  int lst_step = 0;
+  for (int i = 0; i < iterations;) {
     debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
     wa_wirelength_->update();
-    // eDensity force calc
+    // eDensity gradient calc
     for (auto ed : e_density_vec_) {
       ed->updateForce();
     }
-    nesterov_->step(density_penalty, disable_wirelength_, disable_density_);
+    updateGradient(density_penalty, disable_wirelength_, disable_density_);
+    std::cout << "total cost: " << cost_ << " WA: " << wa_wirelength_->getWA()
+              << " density: " << density_cost_ << std::endl;
+    lst_step = i;
+    i = nesterov_->step(i);
 
     // eDensity density calc
     for (auto ed : e_density_vec_) {
       ed->updateDensity();
     }
-    std::cout << "WA: " << wa_wirelength_->getWA() << std::endl;
-    std::cout << "HPWL: " << wa_wirelength_->getHPWL() << std::endl;
 
-    if (gui_ && gui_->enabled()) {
-      gui_->cellPlot(iterations%10 == 0);
+    if (gui_ && gui_->enabled() && (lst_step != i)) {
+      gui_->cellPlot(true);
       odb::Rect region;
       odb::Rect bbox = pbc_->db()->getChip()->getBlock()->getBBox()->getBox();
       int max_dim = std::max(bbox.dx(), bbox.dy());
@@ -202,6 +205,61 @@ void EPlace::place(int threads,
     gui_->cellPlot(false);
   }
   gui_.reset();
+}
+
+void EPlace::updateGradient(float density_penalty,
+                            bool disable_wirelength,
+                            bool disable_density,
+                            bool use_density_field,
+                            bool use_preconditioning)
+{
+  // update the gradient on each instance
+  density_cost_ = 0;
+  int idx = 0;
+  for (auto& ed : e_density_vec_) {
+    float filler_area = 1;
+    if (use_density_field) {
+      filler_area = ed->defaultFillerArea();
+    }
+    for (auto& inst : nesterov_->nesterovInsts()[idx++]) {
+      // Density Gradient
+      float force_e_x = 0, force_e_y = 0;
+      float preconditioner = 0;
+      if (!disable_density) {
+        std::tie(force_e_x, force_e_y) = ed->getElectroForce(inst.gplInst());
+        if (use_density_field) {
+          float area_ratio = filler_area / inst.gplInst()->getArea();
+          force_e_x = force_e_x * area_ratio;
+          force_e_y = force_e_y * area_ratio;
+        }
+        preconditioner = density_penalty * inst.gplInst()->getArea();
+      }
+
+      // WA gradient
+      float gradient_wa_x = 0, gradient_wa_y = 0;
+      if (!disable_wirelength) {
+        for (auto* pin : inst.gplInst()->getPins()) {
+          auto [tmp_x, tmp_y] = wa_wirelength_->getGradient(pin);
+          gradient_wa_x = tmp_x;
+          gradient_wa_y = tmp_y;
+          preconditioner += pin->getNet()->getPins().size();
+        }
+      }
+
+      // Compute the total gradient
+      float gradient_x = gradient_wa_x - density_penalty * force_e_x;
+      float gradient_y = gradient_wa_y - density_penalty * force_e_y;
+      if (use_preconditioning) {
+        gradient_x *= preconditioner;
+        gradient_y *= preconditioner;
+      }
+      inst.setGradient(gradient_x, gradient_y);
+
+      // calculate cost
+      density_cost_ += ed->getPotentialEnergy(inst.gplInst());
+    }
+  }
+  cost_ = wa_wirelength_->getWA() + density_penalty *  density_cost_;
 }
 
 void EPlace::randomPlace(int threads)

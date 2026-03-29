@@ -53,6 +53,11 @@ class EPlace
 
  private:
   bool initEPlace(float density, bool uniform_density);
+  void updateGradient(float density_penalty,
+                      bool disable_wirelength = false,
+                      bool disable_density = false,
+                      bool use_density_field = false,
+                      bool use_preconditioning = false);
 
  private:
   bool initPlacer();
@@ -74,6 +79,9 @@ class EPlace
   bool draw_bins_ = false;
   bool disable_wirelength_ = false;
   bool disable_density_ = false;
+
+  float cost_ = 0;
+  float density_cost_ = 0;
 };
 
 }  // namespace epl

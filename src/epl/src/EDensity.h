@@ -40,6 +40,11 @@ class EDensity
     return grid_->getElectroForce(inst);
   };
 
+  float getPotentialEnergy(gpl::Instance* inst) const
+  {
+    return grid_->getPotentialEnergy(inst);
+  };
+
   const std::vector<gpl::Instance*>& placeInsts() { return place_instances_; };
   const std::vector<gpl::Instance>& fillers() { return fillers_; };
   int64_t defaultFillerArea() { return filler_size_x_*filler_size_y_; };

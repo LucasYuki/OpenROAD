@@ -50,63 +50,72 @@ std::pair<float, float> NesterovOptimizer::snapPosition(
   return std::make_pair((xlo + xhi) / 2, (ylo + yhi) / 2);
 }
 
-bool NesterovOptimizer::step(float density_penalty,
-                             bool disable_wirelength,
-                             bool disable_density,
-                             bool use_density_field)
+float NesterovOptimizer::stepLength(float pos_diff)
 {
-  // update the force on each instance
-  int idx = 0;
-  for (auto& ed : e_density_vec_) {
-    float filler_area = 1;
-    if (use_density_field) {
-      filler_area = ed->defaultFillerArea();
-    }
-    for (auto& inst : inst_ed_vec_[idx++]) {
-      // Density Force
-      float force_e_x = 0, force_e_y = 0;
-      if (!disable_density) {
-        std::tie(force_e_x, force_e_y) = ed->getElectroForce(inst.gplInst());
-        if (use_density_field) {
-          float area_ratio = filler_area / inst.gplInst()->getArea();
-          force_e_x = force_e_x * area_ratio;
-          force_e_y = force_e_y * area_ratio;
-        }
-      }
-
-      // WA force
-      float force_wa_x = 0, force_wa_y = 0;
-      if (!disable_wirelength) {
-        for (auto* pin : inst.gplInst()->getPins()) {
-          auto [tmp_x, tmp_y] = wa_wirelength_->getGradient(pin);
-          force_wa_x -= tmp_x;
-          force_wa_y -= tmp_y;
-        }
-      }
-
-      // Compute the total force
-      // botar opção de normalizar pelas fillers?
-
-      float force_x = force_wa_x + density_penalty * force_e_x;
-      float force_y = force_wa_y + density_penalty * force_e_y;
-      inst.setForce(force_x, force_y);
+  float grad_diff = 0;
+  for (auto& ed_insts : inst_ed_vec_) {
+    for (auto& inst : ed_insts) {
+      auto [x, y] = inst.getPos();
+      auto [x_old, y_old] = inst.getOldPos();
+      pos_diff += std::abs(x - x_old) + std::abs(y - y_old);
+      auto [gx, gy] = inst.getGradient();
+      auto [gx_old, gy_old] = inst.getOldGradient();
+      grad_diff += std::abs(gx - gx_old) + std::abs(gy - gy_old);
     }
   }
+  std::cout << "pos_diff: " << pos_diff << " grad_diff: " << grad_diff
+            << std::endl;
+  return pos_diff / grad_diff;
+}
+
+int NesterovOptimizer::step(int curr_iter)
+{
+  curr_a_ = (1 + std::sqrt(1 + lst_a_ * lst_a_)) / 2;
+
+  float epsilon = 0.95;
+  curr_step_length_ = stepLength();
+  if (lst_iter_ == -1) {
+    // initialize
+    lst_step_length_ = 0;  // shouldn't backtrack in the first pass
+    lst_a_ = 1;
+    curr_step_length_ = stepLength(500);
+  }
+  bool backtrack = lst_step_length_ > (epsilon * curr_step_length_);
+  std::cout << lst_step_length_ << " " << curr_step_length_ << " " << backtrack
+            << std::endl;
 
   // Update the location
-  idx = 0;
+  int idx = 0;
   for (auto& ed_insts : inst_ed_vec_) {
     auto bbox = e_density_vec_[idx++]->getRegionBBox();
     for (auto& inst : ed_insts) {
+      if (!backtrack) {
+        inst.commitValues();
+      }
       auto [x, y] = inst.getPos();
-      auto [fx, fy] = inst.getForce();
-      float step_size = 100;
-      auto [new_x, new_y] = snapPosition(
-          bbox, x + step_size * fx, y + step_size * fy, inst.gplInst());
-      inst.setPos(new_x, new_y);
+      auto [fx, fy] = inst.getGradient();
+      auto [x_ref_new_, y_ref_new_] = snapPosition(bbox,
+                                                   x - curr_step_length_ * fx,
+                                                   y - curr_step_length_ * fy,
+                                                   inst.gplInst());
+      inst.setRef(x_ref_new_, y_ref_new_);
+      auto [x_ref_old, y_ref_old] = inst.getOldRef();
+      auto [x_new_, y_new_] = snapPosition(
+          bbox,
+          x_ref_new_ + (lst_a_ - 1) * (x_ref_new_ - x_ref_old) / curr_a_,
+          y_ref_new_ + (lst_a_ - 1) * (y_ref_new_ - y_ref_old) / curr_a_,
+          inst.gplInst());
+      inst.setPos(x_new_, y_new_);
     }
   }
-  return true;
+
+  if (backtrack) {
+    return curr_iter;
+  }
+  lst_step_length_ = curr_step_length_;
+  lst_a_ = curr_a_;
+  lst_iter_ = curr_iter;
+  return curr_iter + 1;
 }
 
 }  // namespace epl

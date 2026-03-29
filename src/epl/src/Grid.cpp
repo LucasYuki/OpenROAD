@@ -123,6 +123,23 @@ std::pair<float, float> Grid::getElectroForce(gpl::Instance* inst) const
   return std::make_pair(force_x * scaling, force_y * scaling);
 }
 
+float Grid::getPotentialEnergy(gpl::Instance* inst) const
+{
+  std::pair<int, int> idxX = getMinMaxIdxX(inst);
+  std::pair<int, int> idxY = getMinMaxIdxY(inst);
+  const auto [scaling, inst_rect] = smoothScaleInst(inst, idxX, idxY);
+
+  float energy = 0;
+  for (int x = idxX.first; x < idxX.second; x++) {
+    for (int y = idxY.first; y < idxY.second; y++) {
+      float intersect_ratio = float(inst_rect.intersect(getBin(x, y)).area())
+                              / getBin(x, y).area();
+      energy += electroPhi_[x][y] * intersect_ratio;
+    }
+  }
+  return energy;
+}
+
 std::pair<int, int> Grid::getMinMaxIdxX(const gpl::Instance* inst) const
 {
   int lowerIdx = (inst->lx() - region_.xMin()) / binSizeX_;

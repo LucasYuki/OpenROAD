@@ -32,6 +32,7 @@ class Grid : public gpl::FFT
   void addFixedInst(const gpl::Instance* inst);
   void addMovableInst(const gpl::Instance* inst);
   std::pair<float, float> getElectroForce(gpl::Instance* inst) const;
+  float getPotentialEnergy(gpl::Instance* inst) const;
   float getDensity(int x, int y) const { return binArea_[x][y] / getBin(x, y).area(); };
   float total_overflow() const;
 
