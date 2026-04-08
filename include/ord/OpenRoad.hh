@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -132,6 +130,10 @@ namespace est {
 class EstimateParasitics;
 }
 
+namespace web {
+class WebServer;
+}
+
 namespace ord {
 
 class dbVerilogNetwork;
@@ -186,6 +188,7 @@ class OpenRoad
   {
     return estimate_parasitics_;
   }
+  web::WebServer* getWebServer() { return web_server_; }
 
   // Return the bounding box of the db rows.
   odb::Rect getCore();
@@ -290,6 +293,7 @@ class OpenRoad
   dft::Dft* dft_ = nullptr;
   epl::EPlace* eplace_ = nullptr;
   est::EstimateParasitics* estimate_parasitics_ = nullptr;
+  web::WebServer* web_server_ = nullptr;
   utl::CallBackHandler* callback_handler_ = nullptr;
 
   int threads_ = 1;

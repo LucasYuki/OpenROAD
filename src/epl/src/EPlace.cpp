@@ -100,7 +100,7 @@ bool EPlace::initPlacer()
   }
 
   // Init PlacerBase
-  pbVec_.push_back(std::make_shared<gpl::PlacerBase>(db_, pbc_, log_));
+  pbVec_.push_back(std::make_shared<gpl::PlacerBase>(db_, pbc_, log_, false));
   for (auto pd : db_->getChip()->getBlock()->getPowerDomains()) {
     if (pd->getGroup()) {
       pbVec_.push_back(

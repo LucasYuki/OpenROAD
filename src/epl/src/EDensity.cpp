@@ -193,7 +193,7 @@ void EDensity::updateForce()
 
 void EDensity::printInfo()
 {
-  pb_->printInfo();
+  pb_->printInfo(false);
   log_->info(utl::EPL, 13, "Number of fillers: {}", fillers_.size());
 
   for (auto inst : place_instances_) {

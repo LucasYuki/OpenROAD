@@ -33,23 +33,23 @@ class Grid : public gpl::FFT
   void addMovableInst(const gpl::Instance* inst);
   std::pair<float, float> getElectroForce(gpl::Instance* inst) const;
   float getPotentialEnergy(gpl::Instance* inst) const;
-  float getDensity(int x, int y) const { return binArea_[x][y] / getBin(x, y).area(); };
+  float getDensity(int x, int y) const { return bin_area_[x][y] / getBin(x, y).area(); };
   float total_overflow() const;
 
   void setTargetDensity(float density) { target_density_ = density; };
 
   const odb::Rect getBin(int x, int y) const
   {
-    return odb::Rect(region_.xMin() + std::round(x * binSizeX_),
-                     region_.yMin() + std::round(y * binSizeY_),
-                     region_.xMin() + std::round((x + 1) * binSizeX_),
-                     region_.yMin() + std::round((y + 1) * binSizeY_));
+    return odb::Rect(region_.xMin() + std::round(x * bin_size_x_),
+                     region_.yMin() + std::round(y * bin_size_y_),
+                     region_.xMin() + std::round((x + 1) * bin_size_x_),
+                     region_.yMin() + std::round((y + 1) * bin_size_y_));
   }
 
-  int binCntX() const { return binCntX_; };
-  int binCntY() const { return binCntY_; };
-  float binSizeX() const { return binSizeX_; };
-  float binSizeY() const { return binSizeY_; };
+  int binCntX() const { return bin_cnt_X_; };
+  int binCntY() const { return bin_cnt_y_; };
+  float binSizeX() const { return bin_size_x_; };
+  float binSizeY() const { return bin_size_y_; };
 
  private:
   std::pair<int, int> getMinMaxIdxX(const gpl::Instance* inst) const;
@@ -62,9 +62,9 @@ class Grid : public gpl::FFT
  private:
   utl::Logger* log_;
   odb::Rect region_;
-  float** binArea_ = nullptr;
-  int64_t** binAreaFixed_ = nullptr;
-  int64_t** binAreaFixedMacro_ = nullptr;
+  float** bin_area_ = nullptr;
+  int64_t** bin_area_fixed_ = nullptr;
+  int64_t** bin_area_fixed_macro_ = nullptr;
   float target_density_ = 0;
 };
 }  // namespace epl

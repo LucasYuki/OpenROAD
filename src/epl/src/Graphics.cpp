@@ -113,7 +113,7 @@ void Graphics::initHeatmap()
         }
       });
 
-  setBlock(pbc_->db()->getChip()->getBlock());
+  setChip(pbc_->db()->getChip());
   registerHeatMap();
 }
 
@@ -163,7 +163,7 @@ void Graphics::drawForce(gui::Painter& painter)
     int max_len = std::numeric_limits<int>::max();
     for (int x = 0; x < grid->binCntX(); x++) {
       for (int y = 0; y < grid->binCntY(); y++) {
-        auto [fx, fy] = grid->FFT::getElectroForce(x, y);
+        auto [fx, fy] = grid->FFT::getElectroField(x, y);
         auto bin = grid->getBin(x, y);
         efMax = std::max(efMax, std::hypot(fx, fy));
         max_len = std::min({max_len, bin.dx(), bin.dy()});
@@ -172,7 +172,7 @@ void Graphics::drawForce(gui::Painter& painter)
 
     for (int x = 0; x < grid->binCntX(); x++) {
       for (int y = 0; y < grid->binCntY(); y++) {
-        auto [fx, fy] = grid->FFT::getElectroForce(x, y);
+        auto [fx, fy] = grid->FFT::getElectroField(x, y);
         auto bin = grid->getBin(x, y);
         float f = std::hypot(fx, fy);
         float ratio = f / efMax;
@@ -458,7 +458,7 @@ void Graphics::addIter(const int iter, const double overflow)
   if (!gui::Gui::enabled()) {
     return;
   }
-  odb::dbBlock* block = pbc_->db()->getChip()->getBlock();
+  // odb::dbBlock* block = pbc_->db()->getChip()->getBlock();
   // main_chart_->addPoint(iter, {block->dbuToMicrons(nbc_->getHpwl()),
   // overflow});
 

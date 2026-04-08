@@ -36,7 +36,11 @@
 #include "odb/db.h"
 #include "odb/dbSet.h"
 // User Code Begin Includes
+#include <algorithm>
 #include <cstdlib>
+#include <iterator>
+#include <ranges>
+#include <string>
 
 #include "dbCommon.h"
 #include "dbHashTable.hpp"
@@ -44,7 +48,9 @@
 #include "dbTechLayerAntennaRule.h"
 #include "dbTechLayerSpacingRule.h"
 #include "dbTechMinCutOrAreaRule.h"
+#include "dbVector.h"
 #include "odb/dbObject.h"
+#include "odb/dbTypes.h"
 #include "odb/lefout.h"
 #include "spdlog/fmt/ostr.h"
 #include "utl/Logger.h"
@@ -54,6 +60,7 @@ template class dbTable<_dbTechLayer>;
 
 bool _dbTechLayer::operator==(const _dbTechLayer& rhs) const
 {
+  // NOLINTBEGIN(readability-simplify-boolean-expr)
   if (flags_.num_masks != rhs.flags_.num_masks) {
     return false;
   }
@@ -351,6 +358,7 @@ bool _dbTechLayer::operator==(const _dbTechLayer& rhs) const
 
   // User Code End ==
   return true;
+  // NOLINTEND(readability-simplify-boolean-expr)
 }
 
 bool _dbTechLayer::operator<(const _dbTechLayer& rhs) const
@@ -1206,6 +1214,21 @@ bool dbTechLayer::isRectOnlyExceptNonCorePins() const
 }
 
 // User Code Begin dbTechLayerPublicMethods
+
+dbTechLayerAntennaRule* dbTechLayer::getOrCreateAntennaModel(int oxide_idx)
+{
+  if (oxide_idx == 2) {
+    auto rule = getOxide2AntennaRule();
+    return rule ? rule : createOxide2AntennaRule();
+  }
+  if (oxide_idx == 1) {
+    auto rule = getDefaultAntennaRule();
+    return rule ? rule : createDefaultAntennaRule();
+  }
+  getImpl()->getLogger()->warn(
+      utl::ODB, 1118, "Unsupported oxide index: {}", oxide_idx);
+  return nullptr;
+}
 
 void dbTechLayer::setLef58Type(LEF58_TYPE type)
 {

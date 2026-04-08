@@ -20,6 +20,7 @@
 #include "dbChipInst.h"
 #include "dbChipRegionInst.h"
 #include "dbTech.h"
+#include "odb/dbObject.h"
 #include "odb/geom.h"
 #include "utl/Logger.h"
 // User Code End Includes
@@ -28,6 +29,7 @@ template class dbTable<_dbChipRegion>;
 
 bool _dbChipRegion::operator==(const _dbChipRegion& rhs) const
 {
+  // NOLINTBEGIN(readability-simplify-boolean-expr)
   if (name_ != rhs.name_) {
     return false;
   }
@@ -51,6 +53,7 @@ bool _dbChipRegion::operator==(const _dbChipRegion& rhs) const
   }
 
   return true;
+  // NOLINTEND(readability-simplify-boolean-expr)
 }
 
 bool _dbChipRegion::operator<(const _dbChipRegion& rhs) const

@@ -707,8 +707,10 @@ void lefinReader::layer(LefParser::lefiLayer* layer)
       } else if (!strcmp(layer->propName(iii), "LEF58_MINWIDTH")) {
         MinWidthParser parser(l, this);
         parser.parse(layer->propValue(iii));
-      } else if (!strcmp(layer->propName(iii), "LEF57_ANTENNAGATEPLUSDIFF")) {
-        AntennaGatePlusDiffParser parser(layer, this);
+      } else if (!strcmp(layer->propName(iii), "LEF57_ANTENNAGATEPLUSDIFF")
+                 || !strcmp(layer->propName(iii),
+                            "LEF58_ANTENNAGATEPLUSDIFF")) {
+        AntennaGatePlusDiffParser parser(l, this);
         parser.parse(layer->propValue(iii));
       } else if (!strcmp(layer->propName(iii), "LEF58_VOLTAGESPACING")) {
         lefTechLayerVoltageSpacing parser(l, this);
@@ -743,8 +745,10 @@ void lefinReader::layer(LefParser::lefiLayer* layer)
       } else if (!strcmp(layer->propName(iii), "LEF58_MAXSPACING")) {
         MaxSpacingParser parser(l, this);
         parser.parse(layer->propValue(iii));
-      } else if (!strcmp(layer->propName(iii), "LEF57_ANTENNAGATEPLUSDIFF")) {
-        AntennaGatePlusDiffParser parser(layer, this);
+      } else if (!strcmp(layer->propName(iii), "LEF57_ANTENNAGATEPLUSDIFF")
+                 || !strcmp(layer->propName(iii),
+                            "LEF58_ANTENNAGATEPLUSDIFF")) {
+        AntennaGatePlusDiffParser parser(l, this);
         parser.parse(layer->propValue(iii));
       } else {
         supported = false;
@@ -1010,8 +1014,7 @@ void lefinReader::layer(LefParser::lefiLayer* layer)
 
   if (layer->numAntennaModel() > 0) {
     for (j = 0; j < std::min(layer->numAntennaModel(), 2); j++) {
-      cur_ant_rule = (j == 1) ? l->createOxide2AntennaRule()
-                              : l->createDefaultAntennaRule();
+      cur_ant_rule = l->getOrCreateAntennaModel(/*oxide_idx=*/j + 1);
       cur_model = layer->antennaModel(j);
       if (cur_model->hasAntennaAreaFactor()) {
         cur_ant_rule->setAreaFactor(cur_model->antennaAreaFactor(),
@@ -1482,7 +1485,7 @@ void lefinReader::nonDefault(LefParser::lefiNonDefault* rule)
 
 void lefinReader::obstruction(LefParser::lefiObstruction* obs)
 {
-  if ((master_ == nullptr) || (skip_obstructions_ == true)) {
+  if ((master_ == nullptr) || (skip_obstructions_)) {
     return;
   }
 
@@ -1847,7 +1850,7 @@ void lefinReader::spacingBegin(void* /* unused: ptr */)
 
 void lefinReader::spacing(LefParser::lefiSpacing* spacing)
 {
-  if (create_tech_ == false) {
+  if (!create_tech_) {
     return;
   }
 

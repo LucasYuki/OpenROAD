@@ -79,7 +79,6 @@
 #include "rsz/MakeResizer.hh"
 #include "rsz/Resizer.hh"
 #include "sta/VerilogReader.hh"
-#include "sta/VerilogWriter.hh"
 #include "stt/MakeSteinerTreeBuilder.h"
 #include "tap/MakeTapcell.h"
 #include "tap/tapcell.h"
@@ -90,6 +89,8 @@
 #include "utl/Progress.h"
 #include "utl/ScopedTemporaryFile.h"
 #include "utl/decode.h"
+#include "web/MakeWeb.h"
+#include "web/web.h"
 #include "epl/MakeEPlace.h"
 
 namespace ord {
@@ -148,6 +149,7 @@ OpenRoad::~OpenRoad()
   delete dft_;
   epl::deleteEPlace(eplace_);
   delete estimate_parasitics_;
+  delete web_server_;
   delete logger_;
   delete verilog_reader_;
   delete callback_handler_;
@@ -236,8 +238,7 @@ void OpenRoad::init(Tcl_Interp* tcl_interp,
                                   estimate_parasitics_);
   tapcell_ = new tap::Tapcell(db_, logger_);
   partitionMgr_ = new par::PartitionMgr(db_, getDbNetwork(), sta_, logger_);
-  macro_placer_
-      = new mpl::MacroPlacer(getDbNetwork(), db_, sta_, logger_, partitionMgr_);
+  macro_placer_ = new mpl::MacroPlacer(db_, sta_, logger_, partitionMgr_);
   extractor_ = new rcx::Ext(db_, logger_, getVersion());
   distributer_ = new dst::Distributed(logger_);
   detailed_router_ = new drt::TritonRoute(
@@ -258,6 +259,7 @@ void OpenRoad::init(Tcl_Interp* tcl_interp,
   icewall_ = new pad::ICeWall(db_, logger_);
   dft_ = new dft::Dft(db_, sta_, logger_);
   example_ = new exa::Example(db_, logger_);
+  web_server_ = new web::WebServer(db_, sta_, logger_, tcl_interp);
   eplace_ = epl::makeEPlace();
 
   // Init components.
@@ -298,6 +300,7 @@ void OpenRoad::init(Tcl_Interp* tcl_interp,
   stt::initSteinerTreeBuilder(tcl_interp);
   dft::initDft(tcl_interp);
   est::initTcl(tcl_interp);
+  web::initWeb(tcl_interp);
   epl::initEPlace(eplace_, db_, logger_, tcl_interp);
 
   // Import exported commands to global namespace.
@@ -665,10 +668,7 @@ void OpenRoad::setThreadCount(int threads, bool print_info)
   }
 
   // place limits on tools with threads
-  // sta_->setThreadCount(threads_);
-
-  // Temporary until some issues can be resolved related to multi-mode.
-  sta_->setThreadCount(1);
+  sta_->setThreadCount(threads_);
 }
 
 void OpenRoad::setThreadCount(const char* threads, bool print_info)

@@ -29,38 +29,38 @@ Grid::Grid(utl::Logger* log,
              binCntY,
              binSizeX,
              binSizeY);
-  binArea_ = new float*[binCntX_];
-  binAreaFixed_ = new int64_t*[binCntX_];
-  binAreaFixedMacro_ = new int64_t*[binCntX_];
+  bin_area_ = new float*[bin_cnt_X_];
+  bin_area_fixed_ = new int64_t*[bin_cnt_X_];
+  bin_area_fixed_macro_ = new int64_t*[bin_cnt_X_];
 
-  for (int x = 0; x < binCntX_; x++) {
-    binArea_[x] = new float[binCntY_];
-    binAreaFixed_[x] = new int64_t[binCntY_];
-    binAreaFixedMacro_[x] = new int64_t[binCntY_];
+  for (int x = 0; x < bin_cnt_X_; x++) {
+    bin_area_[x] = new float[bin_cnt_y_];
+    bin_area_fixed_[x] = new int64_t[bin_cnt_y_];
+    bin_area_fixed_macro_[x] = new int64_t[bin_cnt_y_];
 
-    for (int y = 0; y < binCntY_; y++) {
-      binArea_[x][y] = 0.0f;
-      binAreaFixed_[x][y] = 0;
-      binAreaFixedMacro_[x][y] = 0;
+    for (int y = 0; y < bin_cnt_y_; y++) {
+      bin_area_[x][y] = 0.0f;
+      bin_area_fixed_[x][y] = 0;
+      bin_area_fixed_macro_[x][y] = 0;
     }
   }
 }
 
 Grid::~Grid()
 {
-  for (int x = 0; x < binCntX_; x++) {
-    delete[] binAreaFixed_[x];
-    delete[] binAreaFixedMacro_[x];
+  for (int x = 0; x < bin_cnt_X_; x++) {
+    delete[] bin_area_fixed_[x];
+    delete[] bin_area_fixed_macro_[x];
   }
-  delete[] binAreaFixed_;
-  delete[] binAreaFixedMacro_;
+  delete[] bin_area_fixed_;
+  delete[] bin_area_fixed_macro_;
 }
 
 void Grid::doFFT()
 {
-  for (int x = 0; x < binCntX_; x++) {
-    for (int y = 0; y < binCntY_; y++) {
-      binDensity_[x][y] = binArea_[x][y] / getBin(x, y).area();
+  for (int x = 0; x < bin_cnt_X_; x++) {
+    for (int y = 0; y < bin_cnt_y_; y++) {
+      bin_density_[x][y] = bin_area_[x][y] / getBin(x, y).area();
     }
   }
   gpl::FFT::doFFT();
@@ -68,10 +68,10 @@ void Grid::doFFT()
 
 void Grid::clearMovable()
 {
-  for (int x = 0; x < binCntX_; x++) {
-    for (int y = 0; y < binCntY_; y++) {
-      binArea_[x][y]
-          = (binAreaFixed_[x][y] + binAreaFixedMacro_[x][y] * target_density_);
+  for (int x = 0; x < bin_cnt_X_; x++) {
+    for (int y = 0; y < bin_cnt_y_; y++) {
+      bin_area_[x][y]
+          = (bin_area_fixed_[x][y] + bin_area_fixed_macro_[x][y] * target_density_);
     }
   }
 }
@@ -81,9 +81,9 @@ void Grid::addFixedInst(const gpl::Instance* inst)
   std::pair<int, int> idxX = getMinMaxIdxX(inst);
   std::pair<int, int> idxY = getMinMaxIdxY(inst);
   odb::Rect inst_rect{inst->lx(), inst->ly(), inst->ux(), inst->uy()};
-  int64_t** bin_area = binAreaFixed_;
+  int64_t** bin_area = bin_area_fixed_;
   if (inst->isMacro()) {
-    bin_area = binAreaFixedMacro_;
+    bin_area = bin_area_fixed_macro_;
   }
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
@@ -100,7 +100,7 @@ void Grid::addMovableInst(const gpl::Instance* inst)
 
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
-      binArea_[x][y] += inst_rect.intersect(getBin(x, y)).area() * scaling;
+      bin_area_[x][y] += inst_rect.intersect(getBin(x, y)).area() * scaling;
     }
   }
 }
@@ -116,8 +116,8 @@ std::pair<float, float> Grid::getElectroForce(gpl::Instance* inst) const
     for (int y = idxY.first; y < idxY.second; y++) {
       float intersect_ratio = float(inst_rect.intersect(getBin(x, y)).area())
                               / getBin(x, y).area();
-      force_x += electroForceX_[x][y] * intersect_ratio;
-      force_y += electroForceY_[x][y] * intersect_ratio;
+      force_x += electro_field_x_[x][y] * intersect_ratio;
+      force_y += electro_field_y_[x][y] * intersect_ratio;
     }
   }
   return std::make_pair(force_x * scaling, force_y * scaling);
@@ -134,7 +134,7 @@ float Grid::getPotentialEnergy(gpl::Instance* inst) const
     for (int y = idxY.first; y < idxY.second; y++) {
       float intersect_ratio = float(inst_rect.intersect(getBin(x, y)).area())
                               / getBin(x, y).area();
-      energy += electroPhi_[x][y] * intersect_ratio;
+      energy += electro_phi_[x][y] * intersect_ratio;
     }
   }
   return energy;
@@ -142,18 +142,18 @@ float Grid::getPotentialEnergy(gpl::Instance* inst) const
 
 std::pair<int, int> Grid::getMinMaxIdxX(const gpl::Instance* inst) const
 {
-  int lowerIdx = (inst->lx() - region_.xMin()) / binSizeX_;
-  int upperIdx = std::ceil((inst->ux() - region_.xMin()) / binSizeX_);
+  int lowerIdx = (inst->lx() - region_.xMin()) / bin_size_x_;
+  int upperIdx = std::ceil((inst->ux() - region_.xMin()) / bin_size_x_);
 
-  return std::make_pair(std::max(lowerIdx, 0), std::min(upperIdx, binCntX_));
+  return std::make_pair(std::max(lowerIdx, 0), std::min(upperIdx, bin_cnt_X_));
 }
 
 std::pair<int, int> Grid::getMinMaxIdxY(const gpl::Instance* inst) const
 {
-  int lowerIdx = (inst->ly() - region_.yMin()) / binSizeY_;
-  int upperIdx = std::ceil((inst->uy() - region_.yMin()) / binSizeY_);
+  int lowerIdx = (inst->ly() - region_.yMin()) / bin_size_y_;
+  int upperIdx = std::ceil((inst->uy() - region_.yMin()) / bin_size_y_);
 
-  return std::make_pair(std::max(lowerIdx, 0), std::min(upperIdx, binCntY_));
+  return std::make_pair(std::max(lowerIdx, 0), std::min(upperIdx, bin_cnt_y_));
 }
 
 std::pair<float, odb::Rect> Grid::smoothScaleInst(
@@ -165,25 +165,25 @@ std::pair<float, odb::Rect> Grid::smoothScaleInst(
 
   // Makes the instance at least the size of one bin
   odb::Rect inst_rect{inst->lx(), inst->ly(), inst->ux(), inst->uy()};
-  if (inst_rect.dx() < binSizeX_) {
-    int new_xlo = inst_rect.xCenter() - static_cast<int>(binSizeX_ / 2);
+  if (inst_rect.dx() < bin_size_x_) {
+    int new_xlo = inst_rect.xCenter() - static_cast<int>(bin_size_x_ / 2);
     new_xlo = std::max(new_xlo, region_.xMin());
 
-    int new_xhi = new_xlo + binSizeX_;
+    int new_xhi = new_xlo + bin_size_x_;
     if (new_xhi > region_.xMax()) {
-      new_xlo = region_.xMax() - binSizeX_;
+      new_xlo = region_.xMax() - bin_size_x_;
       new_xhi = region_.xMax();
     }
     inst_rect.set_xlo(new_xlo);
     inst_rect.set_xhi(new_xhi);
   }
-  if (inst_rect.dy() < binSizeY_) {
-    int new_ylo = inst_rect.yCenter() - static_cast<int>(binSizeY_ / 2);
+  if (inst_rect.dy() < bin_size_y_) {
+    int new_ylo = inst_rect.yCenter() - static_cast<int>(bin_size_y_ / 2);
     new_ylo = std::max(new_ylo, region_.yMin());
 
-    int new_yhi = inst_rect.yMin() + binSizeY_;
+    int new_yhi = inst_rect.yMin() + bin_size_y_;
     if (new_yhi > region_.yMax()) {
-      new_ylo = region_.yMax() - binSizeY_;
+      new_ylo = region_.yMax() - bin_size_y_;
       new_yhi = region_.yMax();
     }
     inst_rect.set_ylo(new_ylo);

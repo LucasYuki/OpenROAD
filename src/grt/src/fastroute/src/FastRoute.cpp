@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <tuple>
@@ -36,6 +37,7 @@ FastRouteCore::FastRouteCore(odb::dbDatabase* db,
       congestion_report_iter_step_(0),
       x_range_(0),
       y_range_(0),
+      worst_fanout_(0),
       num_adjust_(0),
       v_capacity_(0),
       h_capacity_(0),
@@ -246,7 +248,8 @@ FrNet* FastRouteCore::addNet(odb::dbNet* db_net,
                              int min_layer,
                              int max_layer,
                              float slack,
-                             std::vector<int8_t>* edge_cost_per_layer)
+                             std::vector<int8_t>* edge_cost_per_layer,
+                             bool routed)
 {
   int netID;
   bool exists;
@@ -278,7 +281,7 @@ FrNet* FastRouteCore::addNet(odb::dbNet* db_net,
              edge_cost_per_layer);
   // Don't add local nets to the list of ids that will be routed. It is only
   // necessary to add them to make mergeNet work with local nets.
-  if (!is_local) {
+  if (!is_local && !routed) {
     net_ids_.push_back(netID);
   }
 
@@ -824,16 +827,98 @@ void FastRouteCore::updateEdge2DAnd3DUsage(int x1,
   int8_t edge_cost = net->getEdgeCost();
 
   if (y1 == y2) {  // horizontal edge
-    graph2d_.updateUsageH({x1, x2}, y1, net, used * edge_cost);
     for (int x = x1; x < x2; x++) {
+      graph2d_.updateUsageH(x, y1, net, used * edge_cost);
       h_edges_3D_[k][y1][x].usage += used * layer_edge_cost;
     }
   } else if (x1 == x2) {  // vertical edge
-    graph2d_.updateUsageV(x1, {y1, y2}, net, used * edge_cost);
     for (int y = y1; y < y2; y++) {
+      graph2d_.updateUsageV(x1, y, net, used * edge_cost);
       v_edges_3D_[k][y][x1].usage += used * layer_edge_cost;
     }
   }
+}
+
+void FastRouteCore::addTreeEdge(int x1,
+                                int y1,
+                                int x2,
+                                int y2,
+                                int layer,
+                                odb::dbNet* db_net)
+{
+  int net_id;
+  bool exists;
+  getNetId(db_net, net_id, exists);
+  if (!exists) {
+    return;
+  }
+
+  FrNet* net = nets_[net_id];
+  const int k = layer - 1;
+  const int8_t layer_edge_cost = net->getLayerEdgeCost(k);
+  const int8_t edge_cost = net->getEdgeCost();
+
+  std::vector<TreeEdge>& treeedges = sttrees_[net_id].edges;
+  TreeEdge new_edge;
+  if (x1 == x2) {
+    for (int y = y1; y < y2; y++) {
+      graph2d_.addUsageV(x1, y, edge_cost);
+      v_edges_3D_[k][y][x1].usage += layer_edge_cost;
+      new_edge.route.grids.push_back(GPoint3D(x1, y, k));
+    }
+    new_edge.route.grids.push_back(GPoint3D(x2, y2, k));
+  } else if (y1 == y2) {
+    for (int x = x1; x < x2; x++) {
+      graph2d_.addUsageH(x, y1, edge_cost);
+      h_edges_3D_[k][y1][x].usage += layer_edge_cost;
+      new_edge.route.grids.push_back(GPoint3D(x, y1, k));
+    }
+    new_edge.route.grids.push_back(GPoint3D(x2, y1, k));
+  } else {
+    logger_->error(
+        GRT, 216, "Cannot add tree edge: edge is not vertical or horizontal.");
+  }
+
+  new_edge.route.routelen = new_edge.route.grids.size() - 1;
+
+  treeedges.push_back(std::move(new_edge));
+}
+
+bool FastRouteCore::hasAvailableResources(int x1,
+                                          int y1,
+                                          int x2,
+                                          int y2,
+                                          int layer,
+                                          odb::dbNet* db_net)
+{
+  const int k = layer - 1;
+
+  int net_id;
+  bool exists;
+  getNetId(db_net, net_id, exists);
+  const int8_t layer_edge_cost
+      = exists ? nets_[net_id]->getLayerEdgeCost(k) : 1;
+  const int8_t edge_cost = exists ? nets_[net_id]->getEdgeCost() : 1;
+
+  if (y1 == y2) {  // horizontal edge
+    for (int x = x1; x < x2; x++) {
+      if (h_edges_3D_[k][y1][x].cap - h_edges_3D_[k][y1][x].usage
+              < layer_edge_cost
+          || graph2d_.getCapH(x, y1) - graph2d_.getUsageH(x, y1) < edge_cost) {
+        return false;
+      }
+    }
+  } else if (x1 == x2) {  // vertical edge
+    for (int y = y1; y < y2; y++) {
+      if (v_edges_3D_[k][y][x1].cap - v_edges_3D_[k][y][x1].usage
+              < layer_edge_cost
+          || graph2d_.getCapV(x1, y) - graph2d_.getUsageV(x1, y) < edge_cost) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 void FastRouteCore::initAuxVar()
@@ -1030,6 +1115,40 @@ void FastRouteCore::getPlanarRoute(odb::dbNet* db_net, GRoute& route)
   }
 }
 
+void FastRouteCore::convertGridsToSegments(
+    const std::vector<GPoint3D>& grids,
+    int grid_count,
+    std::unordered_set<GSegment, GSegmentHash>& net_segs,
+    GRoute& route)
+{
+  int lastX = (tile_size_ * (grids[0].x + 0.5)) + x_corner_;
+  int lastY = (tile_size_ * (grids[0].y + 0.5)) + y_corner_;
+  int lastL = grids[0].layer;
+
+  for (int i = 1; i <= grid_count; i++) {
+    const int xreal = (tile_size_ * (grids[i].x + 0.5)) + x_corner_;
+    const int yreal = (tile_size_ * (grids[i].y + 0.5)) + y_corner_;
+    const int currentL = grids[i].layer;
+
+    if (lastX == xreal && lastY == yreal && lastL == currentL) {
+      continue;
+    }
+
+    GSegment segment
+        = GSegment(lastX, lastY, lastL + 1, xreal, yreal, currentL + 1);
+    segment.setIs3DRoute(true);
+
+    if (net_segs.find(segment) == net_segs.end()) {
+      net_segs.insert(segment);
+      route.push_back(segment);
+    }
+
+    lastX = xreal;
+    lastY = yreal;
+    lastL = currentL;
+  }
+}
+
 void FastRouteCore::get3DRoute(odb::dbNet* db_net, GRoute& route)
 {
   int netID;
@@ -1054,10 +1173,9 @@ void FastRouteCore::get3DRoute(odb::dbNet* db_net, GRoute& route)
       std::vector<GPoint3D> filled_grids;
 
       // Handle vias for node1_alias (start node)
-      if (treenodes[node1_alias].hID == edgeID
+      if (node1_alias < num_terminals || treenodes[node1_alias].hID == edgeID
           || (edgeID == treenodes[node1_alias].lID
-              && treenodes[node1_alias].hID == BIG_INT
-              && node1_alias < num_terminals)) {
+              && treenodes[node1_alias].hID == BIG_INT)) {
         int16_t bottom_layer = treenodes[node1_alias].botL;
         int16_t top_layer = treenodes[node1_alias].topL;
         int16_t edge_init_layer = grids[0].layer;
@@ -1087,10 +1205,9 @@ void FastRouteCore::get3DRoute(odb::dbNet* db_net, GRoute& route)
       }
 
       // Handle vias for node2_alias (end node)
-      if (treenodes[node2_alias].hID == edgeID
+      if (node2_alias < num_terminals || treenodes[node2_alias].hID == edgeID
           || (edgeID == treenodes[node2_alias].lID
-              && treenodes[node2_alias].hID == BIG_INT
-              && node2_alias < num_terminals)) {
+              && treenodes[node2_alias].hID == BIG_INT)) {
         int16_t bottom_layer = treenodes[node2_alias].botL;
         int16_t top_layer = treenodes[node2_alias].topL;
         if (node2_alias < num_terminals) {
@@ -1123,39 +1240,23 @@ void FastRouteCore::get3DRoute(odb::dbNet* db_net, GRoute& route)
         }
       }
 
-      int lastX = (tile_size_ * (filled_grids[0].x + 0.5)) + x_corner_;
-      int lastY = (tile_size_ * (filled_grids[0].y + 0.5)) + y_corner_;
-      int lastL = filled_grids[0].layer;
-
-      for (int i = 1; i < filled_grids.size(); i++) {
-        const int xreal = (tile_size_ * (filled_grids[i].x + 0.5)) + x_corner_;
-        const int yreal = (tile_size_ * (filled_grids[i].y + 0.5)) + y_corner_;
-        const int currentL = filled_grids[i].layer;
-
-        // Prevent adding segments that are effectively zero-length vias on the
-        // same layer
-        if (lastX == xreal && lastY == yreal && lastL == currentL) {
-          // Skip this segment as it's a redundant via on the same layer
-          lastX = xreal;
-          lastY = yreal;
-          lastL = currentL;
-          continue;
-        }
-
-        GSegment segment
-            = GSegment(lastX, lastY, lastL + 1, xreal, yreal, currentL + 1);
-        segment.setIs3DRoute(true);
-
-        // Only add segment if it's not a duplicate
-        if (net_segs.find(segment) == net_segs.end()) {
-          net_segs.insert(segment);
-          route.push_back(segment);
-        }
-
-        lastX = xreal;
-        lastY = yreal;
-        lastL = currentL;
-      }
+      convertGridsToSegments(
+          filled_grids, filled_grids.size() - 1, net_segs, route);
+    } else if (treeedge->route.routelen > 0) {
+      // Handle zero-length edges (len == 0) that carry via route grids.
+      // These arise in two situations:
+      //   (a) fillVIA created a via stack for co-located terminal pins on
+      //       different layers (e.g. two pins in the same gcell on layers 2
+      //       and 3).
+      //   (b) ensurePinCoverage appended a new TreeEdge with a via route to
+      //       reach an uncovered pin.
+      // In both cases len is 0 and n1a/n2a are not set by layerAssignment
+      // (which only processes len>0 edges), so the grids are converted
+      // directly to GSegments without the pin-via-stack logic used above.
+      // Without this branch the via is silently dropped, leaving RSZ unable
+      // to build a connected tree (RSZ-0074).
+      convertGridsToSegments(
+          treeedge->route.grids, treeedge->route.routelen, net_segs, route);
     }
   }
 }
@@ -1333,6 +1434,11 @@ NetRouteMap FastRouteCore::run()
   }
 
   graph2d_.clearUsed();
+  // Rebuild used grids in graph2d during incremental GRT to account for
+  // segments created during merge nets.
+  if (is_incremental_grt_) {
+    graph2d_.rebuildUsedGrids();
+  }
   preProcessTechLayers();
 
   int tUsage;
@@ -2160,6 +2266,32 @@ void FastRouteCore::StTreeVisualization(const StTree& stree,
   fastrouteRender()->setStTreeValues(stree);
   fastrouteRender()->setTreeStructure(TreeStructure::steinerTreeByFastroute);
   fastrouteRender()->redrawAndPause();
+}
+
+void FastRouteCore::writeCongestionMap(const std::string& filename)
+{
+  std::ofstream cong_file;
+  cong_file.open(filename);
+  cong_file << "x,y,l,capacity,reduction,usage,overflow\n";
+  int total_overflow = 0;
+  for (int l = 0; l < num_layers_; l++) {
+    for (int x = 0; x < x_grid_; x++) {
+      for (int y = 0; y < y_grid_; y++) {
+        const int cap
+            = h_edges_3D_[l][y][x].real_cap + v_edges_3D_[l][y][x].real_cap;
+        const int red = h_edges_3D_[l][y][x].red + v_edges_3D_[l][y][x].red;
+        const int usage
+            = h_edges_3D_[l][y][x].usage + v_edges_3D_[l][y][x].usage;
+        const int overflow = std::max(0, usage - (cap - red));
+        total_overflow += overflow;
+
+        cong_file << x << "," << y << "," << l << "," << (int) cap << ","
+                  << (int) red << "," << usage << "," << overflow << "\n";
+      }
+    }
+  }
+  cong_file << "Total overflow: " << total_overflow << "\n";
+  cong_file.close();
 }
 
 ////////////////////////////////////////////////////////////////

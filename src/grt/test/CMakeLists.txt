@@ -8,6 +8,7 @@ or_integration_tests(
     clock_route_alpha
     clock_route_error1
     clock_route_error2
+    colocated_pins
     congestion1
     congestion2
     congestion3
@@ -30,6 +31,8 @@ or_integration_tests(
     gcd_cugr
     gcd_flute
     increase_capacity1
+    incremental_update_net
+    infinite_cap
     inst_pin_out_of_die
     invalid_pin_placement
     invalid_routing_layer

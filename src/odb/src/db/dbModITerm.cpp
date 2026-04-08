@@ -24,6 +24,8 @@
 
 #include "dbCommon.h"
 #include "odb/dbBlockCallBackObj.h"
+#include "odb/dbObject.h"
+#include "odb/dbSet.h"
 #include "utl/Logger.h"
 // User Code End Includes
 namespace odb {
@@ -31,6 +33,7 @@ template class dbTable<_dbModITerm>;
 
 bool _dbModITerm::operator==(const _dbModITerm& rhs) const
 {
+  // NOLINTBEGIN(readability-simplify-boolean-expr)
   if (name_ != rhs.name_) {
     return false;
   }
@@ -57,6 +60,7 @@ bool _dbModITerm::operator==(const _dbModITerm& rhs) const
   }
 
   return true;
+  // NOLINTEND(readability-simplify-boolean-expr)
 }
 
 bool _dbModITerm::operator<(const _dbModITerm& rhs) const

@@ -47,7 +47,7 @@ bool rtl_macro_placer_cmd(const int max_num_macro,
                           const float fence_weight,
                           const float boundary_weight,
                           const float notch_weight,
-                          const float macro_blockage_weight,
+                          const float soft_blockage_weight,
                           const float target_util,
                           const float min_ar,
                           const char* report_directory,
@@ -79,7 +79,7 @@ bool rtl_macro_placer_cmd(const int max_num_macro,
                              fence_weight,
                              boundary_weight,
                              notch_weight,
-                             macro_blockage_weight,
+                             soft_blockage_weight,
                              target_util,
                              min_ar,
                              report_directory,
@@ -137,14 +137,19 @@ add_guidance_region(odb::dbInst* macro,
 
 void
 set_macro_halo(odb::dbInst* macro, 
-               float width, 
-               float height) 
+               float left, 
+               float bottom,
+               float right,
+               float top) 
 {
   auto block = ord::OpenRoad::openRoad()->getDb()->getChip()->getBlock();
-  int width_dbu = block->micronsToDbu(width);
-  int height_dbu = block->micronsToDbu(height);
+  int left_dbu = block->micronsToDbu(left);
+  int bottom_dbu = block->micronsToDbu(bottom);
+  int right_dbu = block->micronsToDbu(right);
+  int top_dbu = block->micronsToDbu(top);
 
-  getMacroPlacer()->setMacroHalo(macro, width_dbu, height_dbu);
+
+  getMacroPlacer()->setMacroHalo(macro, left_dbu, bottom_dbu, right_dbu, top_dbu);
 }
 
 void
