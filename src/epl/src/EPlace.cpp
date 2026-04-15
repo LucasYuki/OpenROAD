@@ -161,31 +161,42 @@ void EPlace::place(int threads,
   wa_wirelength_->setGamma(1.0);
   // bool debug = true;
   int lst_step = 0;
-  for (int i = 0; i < iterations;) {
-    debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", i);
+  int max_backtracking = 50;
+  int curr_backtracking = 0;
+  int iter = 0; 
+  while (iter <= iterations) {
+    debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", iter);
     wa_wirelength_->update();
     // eDensity gradient calc
-    for (auto ed : e_density_vec_) {
+    for (auto& ed : e_density_vec_) {
       ed->updateForce();
     }
     updateGradient(density_penalty, disable_wirelength_, disable_density_);
     std::cout << "total cost: " << cost_ << " WA: " << wa_wirelength_->getWA()
               << " density: " << density_cost_ << std::endl;
-    lst_step = i;
-    i = nesterov_->step(i);
+    lst_step = iter;
+    iter = nesterov_->step(iter);
 
     // eDensity density calc
-    for (auto ed : e_density_vec_) {
+    for (auto& ed : e_density_vec_) {
       ed->updateDensity();
     }
 
-    if (gui_ && gui_->enabled() && (lst_step != i)) {
+    if (gui_ && gui_->enabled() && (lst_step != iter)) {
       gui_->cellPlot(true);
       odb::Rect region;
       odb::Rect bbox = pbc_->db()->getChip()->getBlock()->getBBox()->getBox();
       int max_dim = std::max(bbox.dx(), bbox.dy());
       double dbu_per_pixel = static_cast<double>(max_dim) / 1000.0;
       gui_->gifAddFrame(gif_key, region, 500, dbu_per_pixel, 20);
+    }
+    if (lst_step == iter) {
+      curr_backtracking++;
+      if (curr_backtracking >= max_backtracking) {
+        break;
+      }
+    } else {
+      curr_backtracking = 0;
     }
   }
 
@@ -259,7 +270,7 @@ void EPlace::updateGradient(float density_penalty,
       density_cost_ += ed->getPotentialEnergy(inst.gplInst());
     }
   }
-  cost_ = wa_wirelength_->getWA() + density_penalty *  density_cost_;
+  cost_ = wa_wirelength_->getWA() + density_penalty * density_cost_;
 }
 
 void EPlace::randomPlace(int threads)

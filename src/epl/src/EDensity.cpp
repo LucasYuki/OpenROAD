@@ -24,7 +24,6 @@ void EDensity::clear()
   filler_area_ = 0;
   fillers_.clear();
   place_instances_.clear();
-  return;
 }
 
 void EDensity::init()
@@ -101,8 +100,8 @@ void EDensity::initFillers()
     size_y.push_back(inst->dy());
   }
   n_insts = size_x.size();
-  std::sort(size_x.begin(), size_x.end());
-  std::sort(size_y.begin(), size_y.end());
+  std::ranges::sort(size_x);
+  std::ranges::sort(size_y);
 
   int start_idx = n_insts * 0.1, end_idx = n_insts * 0.9;
   if (start_idx == end_idx) {
