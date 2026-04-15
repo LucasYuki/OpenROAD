@@ -242,16 +242,16 @@ void EPlace::updateGradient(float density_penalty,
           auto [tmp_x, tmp_y] = wa_wirelength_->getGradient(pin);
           gradient_wa_x = tmp_x;
           gradient_wa_y = tmp_y;
-          preconditioner += pin->getNet()->getPins().size();
         }
+        preconditioner += inst.gplInst()->getPins().size();
       }
 
       // Compute the total gradient
       float gradient_x = gradient_wa_x - density_penalty * force_e_x;
       float gradient_y = gradient_wa_y - density_penalty * force_e_y;
       if (use_preconditioning) {
-        gradient_x *= preconditioner;
-        gradient_y *= preconditioner;
+        gradient_x /= preconditioner;
+        gradient_y /= preconditioner;
       }
       inst.setGradient(gradient_x, gradient_y);
 

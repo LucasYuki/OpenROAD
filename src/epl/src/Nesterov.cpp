@@ -74,13 +74,10 @@ int NesterovOptimizer::step(int curr_iter)
 
   float epsilon = 0.95;
   curr_step_length_ = stepLength();
-  if (lst_iter_ == -1) {
-    // initialize
-    lst_step_length_ = 0;  // shouldn't backtrack in the first pass
-    lst_a_ = 1;
+  if (curr_step_length_ == 0) {
     curr_step_length_ = stepLength(500);
   }
-  bool backtrack = lst_step_length_ > (epsilon * curr_step_length_);
+  bool backtrack = curr_step_length_ > (epsilon * lst_step_length_);
   std::cout << lst_step_length_ << " " << curr_step_length_ << " " << backtrack
             << std::endl;
 
@@ -109,10 +106,10 @@ int NesterovOptimizer::step(int curr_iter)
     }
   }
 
+  lst_step_length_ = curr_step_length_;
   if (backtrack) {
     return curr_iter;
   }
-  lst_step_length_ = curr_step_length_;
   lst_a_ = curr_a_;
   lst_iter_ = curr_iter;
   return curr_iter + 1;
