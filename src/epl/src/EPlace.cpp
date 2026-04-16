@@ -164,8 +164,9 @@ void EPlace::place(int threads,
   int max_backtracking = 50;
   int curr_backtracking = 0;
   int iter = 0; 
-  while (iter <= iterations) {
-    debugPrint(log_, EPL, "place", 1, "nesterov_step: {}", iter);
+  float curr_overflow = e_density_vec_[0]->grid()->total_overflow();
+  while (iter <= iterations && curr_overflow > 0.1) {
+    debugPrint(log_, EPL, "place", 1, "nesterov_step: {}, overflow: {}", iter, curr_overflow);
     wa_wirelength_->update();
     // eDensity gradient calc
     for (auto& ed : e_density_vec_) {
@@ -183,7 +184,7 @@ void EPlace::place(int threads,
     }
 
     if (gui_ && gui_->enabled() && (lst_step != iter)) {
-      gui_->cellPlot(true);
+      gui_->cellPlot(false);
       odb::Rect region;
       odb::Rect bbox = pbc_->db()->getChip()->getBlock()->getBBox()->getBox();
       int max_dim = std::max(bbox.dx(), bbox.dy());
@@ -196,9 +197,11 @@ void EPlace::place(int threads,
         break;
       }
     } else {
+      curr_overflow = e_density_vec_[0]->grid()->total_overflow();
       curr_backtracking = 0;
     }
   }
+  debugPrint(log_, EPL, "place", 1, "nesterov ended in nesterov_step: {}, overflow: {}", iter, curr_overflow);
 
   // update_db
   auto insts = pbc_->placeInsts();

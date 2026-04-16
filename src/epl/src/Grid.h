@@ -63,6 +63,7 @@ class Grid : public gpl::FFT
   utl::Logger* log_;
   odb::Rect region_;
   float** bin_area_ = nullptr;
+  float** bin_area_filler_ = nullptr;
   int64_t** bin_area_fixed_ = nullptr;
   int64_t** bin_area_fixed_macro_ = nullptr;
   float target_density_ = 0;

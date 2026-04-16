@@ -30,16 +30,19 @@ Grid::Grid(utl::Logger* log,
              binSizeX,
              binSizeY);
   bin_area_ = new float*[bin_cnt_X_];
+  bin_area_filler_ = new float*[bin_cnt_X_];
   bin_area_fixed_ = new int64_t*[bin_cnt_X_];
   bin_area_fixed_macro_ = new int64_t*[bin_cnt_X_];
 
   for (int x = 0; x < bin_cnt_X_; x++) {
     bin_area_[x] = new float[bin_cnt_y_];
+    bin_area_filler_[x] = new float[bin_cnt_y_];
     bin_area_fixed_[x] = new int64_t[bin_cnt_y_];
     bin_area_fixed_macro_[x] = new int64_t[bin_cnt_y_];
 
     for (int y = 0; y < bin_cnt_y_; y++) {
       bin_area_[x][y] = 0.0f;
+      bin_area_filler_[x][y] = 0.0f;
       bin_area_fixed_[x][y] = 0;
       bin_area_fixed_macro_[x][y] = 0;
     }
@@ -49,9 +52,13 @@ Grid::Grid(utl::Logger* log,
 Grid::~Grid()
 {
   for (int x = 0; x < bin_cnt_X_; x++) {
+    delete[] bin_area_[x];
+    delete[] bin_area_filler_[x];
     delete[] bin_area_fixed_[x];
     delete[] bin_area_fixed_macro_[x];
   }
+  delete[] bin_area_;
+  delete[] bin_area_filler_;
   delete[] bin_area_fixed_;
   delete[] bin_area_fixed_macro_;
 }
@@ -70,8 +77,9 @@ void Grid::clearMovable()
 {
   for (int x = 0; x < bin_cnt_X_; x++) {
     for (int y = 0; y < bin_cnt_y_; y++) {
-      bin_area_[x][y]
-          = (bin_area_fixed_[x][y] + bin_area_fixed_macro_[x][y] * target_density_);
+      bin_area_[x][y] = (bin_area_fixed_[x][y]
+                         + bin_area_fixed_macro_[x][y] * target_density_);
+      bin_area_filler_[x][y] = 0;
     }
   }
 }
@@ -97,10 +105,13 @@ void Grid::addMovableInst(const gpl::Instance* inst)
   std::pair<int, int> idxX = getMinMaxIdxX(inst);
   std::pair<int, int> idxY = getMinMaxIdxY(inst);
   const auto [scaling, inst_rect] = smoothScaleInst(inst, idxX, idxY);
+  float filler = inst->isInstance() ? 0 : 1.;
 
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
-      bin_area_[x][y] += inst_rect.intersect(getBin(x, y)).area() * scaling;
+      float area = inst_rect.intersect(getBin(x, y)).area() * scaling;
+      bin_area_[x][y] += area;
+      bin_area_filler_[x][y] += area * filler;
     }
   }
 }
@@ -197,6 +208,26 @@ std::pair<float, odb::Rect> Grid::smoothScaleInst(
   }
 
   return std::make_pair(scaling, inst_rect);
+}
+
+float Grid::total_overflow() const
+{
+  float total_overflow = 0;
+  for (int x = 0; x < bin_cnt_X_; x++) {
+    for (int y = 0; y < bin_cnt_y_; y++) {
+      float target_area = getBin(x, y).area() * target_density_;
+      float inst_overflow = std::max(
+          (bin_area_[x][y] - bin_area_filler_[x][y]) - target_area, 0.f);
+      float fixed_overflow
+          = std::max((bin_area_fixed_[x][y]
+                      + bin_area_fixed_macro_[x][y] * target_density_)
+                         - target_area,
+                     0.f);
+      total_overflow += inst_overflow;
+      total_overflow -= fixed_overflow;
+    }
+  }
+  return total_overflow / region_.area();
 }
 
 }  // namespace epl
