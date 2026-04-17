@@ -78,8 +78,9 @@ int NesterovOptimizer::step(int curr_iter)
     curr_step_length_ = stepLength(500);
   }
   bool backtrack = lst_step_length_ > (epsilon * curr_step_length_);
-  std::cout << "lst_step_length_: " << lst_step_length_ << " curr_step_length_: " << curr_step_length_ << " backtrack: " << backtrack
-            << std::endl;
+  std::cout << "lst_step_length_: " << lst_step_length_
+            << " curr_step_length_: " << curr_step_length_
+            << " backtrack: " << backtrack << std::endl;
 
   // Update the location
   int idx = 0;

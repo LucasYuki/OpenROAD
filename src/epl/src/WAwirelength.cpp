@@ -42,7 +42,7 @@ void WAwirelength::update()
       y_min = std::min(y_min, pin->cy());
       y_max = std::max(y_max, pin->cy());
     }
-    hpwl_ += (x_max - x_min) + (y_max - y_min); 
+    hpwl_ += (x_max - x_min) + (y_max - y_min);
 
     float x_a_pos[n_pins], x_a_neg[n_pins];
     float y_a_pos[n_pins], y_a_neg[n_pins];

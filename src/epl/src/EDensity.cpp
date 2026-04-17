@@ -35,10 +35,10 @@ void EDensity::init()
   initGrid();
 
   std::mt19937 randVal(0);
-  std::uniform_int_distribution<> distr_x(
-      pb_->getRegionBBox().xCenter()-500, pb_->getRegionBBox().xCenter()+500);
-  std::uniform_int_distribution<> distr_y(
-      pb_->getRegionBBox().yCenter()-500, pb_->getRegionBBox().yCenter()+500);
+  std::uniform_int_distribution<> distr_x(pb_->getRegionBBox().xCenter() - 500,
+                                          pb_->getRegionBBox().xCenter() + 500);
+  std::uniform_int_distribution<> distr_y(pb_->getRegionBBox().yCenter() - 500,
+                                          pb_->getRegionBBox().yCenter() + 500);
   for (auto& inst : pb_->placeInsts()) {
     place_instances_.push_back(inst);
     int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
@@ -123,9 +123,11 @@ void EDensity::initFillers()
   int n_fillers = filler_area_ / (filler_size_x_ * filler_size_y_);
   std::mt19937 randVal(0);
   std::uniform_int_distribution<> distr_x(
-      pb_->getRegionBBox().xMin(), pb_->getRegionBBox().xMax() - filler_size_x_);
+      pb_->getRegionBBox().xMin(),
+      pb_->getRegionBBox().xMax() - filler_size_x_);
   std::uniform_int_distribution<> distr_y(
-      pb_->getRegionBBox().yMin(), pb_->getRegionBBox().xMax() - filler_size_y_);
+      pb_->getRegionBBox().yMin(),
+      pb_->getRegionBBox().xMax() - filler_size_y_);
   for (int i = 0; i < n_fillers; i++) {
     int pos_x = distr_x(randVal), pos_y = distr_y(randVal);
     fillers_.push_back(gpl::Instance(

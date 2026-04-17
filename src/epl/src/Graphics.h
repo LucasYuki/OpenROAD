@@ -74,7 +74,7 @@ class Graphics : public gui::Renderer, public gui::HeatMapDataSource
                      int image_width_px = 500)
   {
     addFrameLabelImpl(bbox, label, label_name, image_width_px);
-  } 
+  }
   void gifAddFrame(int key,
                    const odb::Rect& region = odb::Rect(),
                    int width_px = 0,
