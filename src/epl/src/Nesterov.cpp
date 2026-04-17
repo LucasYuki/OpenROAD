@@ -68,7 +68,7 @@ float NesterovOptimizer::stepLength(float pos_diff)
   return pos_diff / grad_diff;
 }
 
-int NesterovOptimizer::step(int curr_iter)
+int NesterovOptimizer::step()
 {
   curr_a_ = (1 + std::sqrt(1 + lst_a_ * lst_a_)) / 2;
 
@@ -108,12 +108,10 @@ int NesterovOptimizer::step(int curr_iter)
   }
 
   lst_step_length_ = curr_step_length_;
-  if (backtrack) {
-    return curr_iter;
+  if (!backtrack) {
+    lst_a_ = curr_a_;
   }
-  lst_a_ = curr_a_;
-  lst_iter_ = curr_iter;
-  return curr_iter + 1;
+  return backtrack;
 }
 
 }  // namespace epl

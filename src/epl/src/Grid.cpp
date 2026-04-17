@@ -148,7 +148,7 @@ float Grid::getPotentialEnergy(gpl::Instance* inst) const
       energy += electro_phi_[x][y] * intersect_ratio;
     }
   }
-  return energy;
+  return energy * scaling;
 }
 
 std::pair<int, int> Grid::getMinMaxIdxX(const gpl::Instance* inst) const

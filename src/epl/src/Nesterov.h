@@ -91,7 +91,7 @@ class NesterovOptimizer
       utl::Logger* log);
   ~NesterovOptimizer(){};
 
-  int step(int curr_iter);
+  int step();
   std::vector<std::vector<NesterovInst>>& nesterovInsts()
   {
     return inst_ed_vec_;
@@ -113,9 +113,8 @@ class NesterovOptimizer
   std::vector<std::vector<NesterovInst>> inst_ed_vec_;
   float curr_step_length_ = 0;
   float lst_step_length_ = 0;
-  int lst_iter_ = -1;
-  float lst_a_ = 1;
   float curr_a_ = 1;
+  float lst_a_ = 1;
 };
 
 }  // namespace epl
