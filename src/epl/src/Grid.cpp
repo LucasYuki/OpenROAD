@@ -106,8 +106,11 @@ void Grid::addMovableInst(const gpl::Instance* inst)
   std::pair<int, int> idxX = getMinMaxIdxX(inst);
   std::pair<int, int> idxY = getMinMaxIdxY(inst);
   const auto [scaling, inst_rect] = smoothScaleInst(inst, idxX, idxY);
-  float filler = inst->isInstance() ? 0 : 1.f;
-  total_inst_area_ += static_cast<int64_t>(filler*scaling * inst_rect.area());
+  float filler = 1.f;
+  if (inst->isInstance()) {
+    filler = 0.f;
+    total_inst_area_ += static_cast<int64_t>(scaling * inst_rect.area());
+  }
 
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
