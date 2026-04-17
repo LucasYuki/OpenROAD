@@ -22,12 +22,12 @@ namespace eval epl {
 sta::define_cmd_args "eplace_place" { \
     [-density target_density] \
     [-iterations max_iterations] \
-    [-density_penalty density_penalty]
+    [-dhpwl_ref dhpwl_ref]
 }
 
 proc eplace_place { args } {
   sta::parse_key_args "global_placement" args \
-    keys {-density -iterations -density_penalty} \
+    keys {-density -iterations -dhpwl_ref} \
     flags {}
   
   # density settings
@@ -52,12 +52,12 @@ proc eplace_place { args } {
     set iterations $keys(-iterations)
   }
 
-  set density_penalty 10
-  if { [info exists keys(-density_penalty)] } {
-    set density_penalty $keys(-density_penalty)
+  set dhpwl_ref 1000000
+  if { [info exists keys(-dhpwl_ref)] } {
+    set dhpwl_ref $keys(-dhpwl_ref)
   }
 
-  epl::eplace_place_cmd $target_density $uniform_mode $density_penalty $iterations
+  epl::eplace_place_cmd $target_density $uniform_mode $dhpwl_ref $iterations
 }
 
 sta::define_cmd_args "eplace_debug" { \

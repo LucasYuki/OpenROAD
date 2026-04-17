@@ -33,7 +33,10 @@ class Grid : public gpl::FFT
   void addMovableInst(const gpl::Instance* inst);
   std::pair<float, float> getElectroForce(gpl::Instance* inst) const;
   float getPotentialEnergy(gpl::Instance* inst) const;
-  float getDensity(int x, int y) const { return bin_area_[x][y] / getBin(x, y).area(); };
+  float getDensity(int x, int y) const
+  {
+    return bin_area_[x][y] / getBin(x, y).area();
+  };
   float total_overflow() const;
 
   void setTargetDensity(float density) { target_density_ = density; };
@@ -50,6 +53,7 @@ class Grid : public gpl::FFT
   int binCntY() const { return bin_cnt_y_; };
   float binSizeX() const { return bin_size_x_; };
   float binSizeY() const { return bin_size_y_; };
+  int64_t totalInstArea() const { return total_inst_area_; };
 
  private:
   std::pair<int, int> getMinMaxIdxX(const gpl::Instance* inst) const;
@@ -67,5 +71,6 @@ class Grid : public gpl::FFT
   int64_t** bin_area_fixed_ = nullptr;
   int64_t** bin_area_fixed_macro_ = nullptr;
   float target_density_ = 0;
+  int64_t total_inst_area_ = 0;
 };
 }  // namespace epl

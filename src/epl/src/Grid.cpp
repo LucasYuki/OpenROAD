@@ -82,6 +82,7 @@ void Grid::clearMovable()
       bin_area_filler_[x][y] = 0;
     }
   }
+  total_inst_area_ = 0;
 }
 
 void Grid::addFixedInst(const gpl::Instance* inst)
@@ -105,7 +106,8 @@ void Grid::addMovableInst(const gpl::Instance* inst)
   std::pair<int, int> idxX = getMinMaxIdxX(inst);
   std::pair<int, int> idxY = getMinMaxIdxY(inst);
   const auto [scaling, inst_rect] = smoothScaleInst(inst, idxX, idxY);
-  float filler = inst->isInstance() ? 0 : 1.;
+  float filler = inst->isInstance() ? 0 : 1.f;
+  total_inst_area_ += static_cast<int64_t>(filler*scaling * inst_rect.area());
 
   for (int x = idxX.first; x < idxX.second; x++) {
     for (int y = idxY.first; y < idxY.second; y++) {
@@ -227,7 +229,7 @@ float Grid::total_overflow() const
       total_overflow -= fixed_overflow;
     }
   }
-  return total_overflow / region_.area();
+  return total_overflow / total_inst_area_;
 }
 
 }  // namespace epl

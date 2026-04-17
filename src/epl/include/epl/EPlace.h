@@ -47,7 +47,7 @@ class EPlace
   void place(int threads,
              float density,
              bool uniform_density,
-             float density_penalty,
+             float dhpwl_ref,
              int iterations);
   void randomPlace(int threads);
 
@@ -57,7 +57,7 @@ class EPlace
                       bool disable_wirelength = false,
                       bool disable_density = false,
                       bool use_density_field = false,
-                      bool use_preconditioning = false);
+                      bool use_preconditioning = true);
 
  private:
   bool initPlacer();
@@ -82,6 +82,10 @@ class EPlace
 
   float cost_ = 0;
   float density_cost_ = 0;
+
+  float total_density_gradient_ = 0;
+  float total_wa_gradient_ = 0;
+  float last_hpwl_ = 0;
 };
 
 }  // namespace epl

@@ -36,11 +36,11 @@ using epl::EPlace;
 %inline %{
 
 void
-eplace_place_cmd(float density, bool uniform_density, float density_penalty, int iterations)
+eplace_place_cmd(float density, bool uniform_density, float dhpwl_ref, int iterations)
 {
   EPlace* eplace = getEPlace();
   int threads = ord::OpenRoad::openRoad()->getThreadCount();
-  eplace->place(threads, density, uniform_density, density_penalty, iterations);
+  eplace->place(threads, density, uniform_density, dhpwl_ref, iterations);
 }
 
 void

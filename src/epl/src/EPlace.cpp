@@ -123,7 +123,7 @@ void EPlace::set_debug(bool draw_bins,
 void EPlace::place(int threads,
                    float density,
                    bool uniform_density,
-                   float density_penalty,
+                   float dhpwl_ref,
                    int iterations)
 {
   debugPrint(log_, EPL, "place", 1, "place: number of threads {}", threads);
@@ -158,12 +158,18 @@ void EPlace::place(int threads,
              pbc_->getDie().coreUx(),
              pbc_->getDie().coreUy());
 
-  wa_wirelength_->setGamma(1.0);
+  float curr_overflow = e_density_vec_[0]->grid()->total_overflow();
+  wa_wirelength_->setGamma(
+      8.f * e_density_vec_[0]->grid()->binSizeX()
+      * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
+  updateGradient(0, false, false);
+  float density_penalty = 1e-5;  // total_wa_gradient_ /
+                                 // total_density_gradient_;
+  last_hpwl_ = wa_wirelength_->getHPWL();
 
-  int lst_step = 0;
+  // Main placement loop
   int max_backtracking = 50;
   int iter = 0;
-  float curr_overflow = e_density_vec_[0]->grid()->total_overflow();
   while (iter <= iterations && curr_overflow > 0.1) {
     debugPrint(log_,
                EPL,
@@ -189,12 +195,13 @@ void EPlace::place(int threads,
         break;
       }
     }
+
     std::cout << "total cost: " << cost_ << " WA: " << wa_wirelength_->getWA()
               << " energy scaled: " << density_cost_ * density_penalty
               << " energy: " << density_cost_ << std::endl;
 
-    if (gui_ && gui_->enabled() && (lst_step != iter)) {
-      gui_->cellPlot(true);
+    if (gui_ && gui_->enabled()) {
+      gui_->cellPlot(false);
       odb::Rect region;
       odb::Rect bbox = pbc_->db()->getChip()->getBlock()->getBBox()->getBox();
       int max_dim = std::max(bbox.dx(), bbox.dy());
@@ -202,7 +209,18 @@ void EPlace::place(int threads,
       gui_->gifAddFrame(gif_key, region, 500, dbu_per_pixel, 20);
     }
 
+    float density_penalty_mult = std::pow(
+        1.1f, -(wa_wirelength_->getHPWL() - last_hpwl_) / dhpwl_ref + 1.0f);
+    density_penalty_mult
+        = std::max(std::min(density_penalty_mult, 1.1f), 0.75f);
+    density_penalty = density_penalty * density_penalty_mult;
+    std::cout << "density_penalty: " << density_penalty
+              << " density_penalty_mult: " << density_penalty_mult << std::endl;
+    last_hpwl_ = wa_wirelength_->getHPWL();
     curr_overflow = e_density_vec_[0]->grid()->total_overflow();
+    wa_wirelength_->setGamma(
+        8.f * e_density_vec_[0]->grid()->binSizeX()
+        * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
     iter++;
   }
   debugPrint(log_,
@@ -246,6 +264,8 @@ void EPlace::updateGradient(float density_penalty,
   // update the gradient on each instance
   density_cost_ = 0;
   int idx = 0;
+  total_density_gradient_ = 0;
+  total_wa_gradient_ = 0;
   for (auto& ed : e_density_vec_) {
     float filler_area = 1;
     if (use_density_field) {
@@ -262,6 +282,7 @@ void EPlace::updateGradient(float density_penalty,
           force_e_x = force_e_x * area_ratio;
           force_e_y = force_e_y * area_ratio;
         }
+        total_density_gradient_ += std::abs(force_e_x) + std::abs(force_e_y);
         preconditioner = density_penalty * inst.gplInst()->getArea();
       }
 
@@ -273,6 +294,7 @@ void EPlace::updateGradient(float density_penalty,
           gradient_wa_x = tmp_x;
           gradient_wa_y = tmp_y;
         }
+        total_wa_gradient_ += std::abs(gradient_wa_x) + std::abs(gradient_wa_y);
         preconditioner += inst.gplInst()->getPins().size();
       }
 
