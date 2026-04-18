@@ -3,6 +3,8 @@
 #include "utl/Logger.h"
 namespace epl {
 
+using utl::EPL;
+
 NesterovOptimizer::NesterovOptimizer(
     const std::shared_ptr<WAwirelength>& wa_wirelength,
     const std::vector<std::shared_ptr<EDensity>>& e_density_vec,
@@ -50,9 +52,10 @@ std::pair<float, float> NesterovOptimizer::snapPosition(
   return std::make_pair((xlo + xhi) / 2, (ylo + yhi) / 2);
 }
 
-float NesterovOptimizer::stepLength(float pos_diff)
+float NesterovOptimizer::stepLength()
 {
   float grad_diff = 0;
+  float pos_diff = 0;
   for (auto& ed_insts : inst_ed_vec_) {
     for (auto& inst : ed_insts) {
       auto [x, y] = inst.getPos();
@@ -63,8 +66,17 @@ float NesterovOptimizer::stepLength(float pos_diff)
       grad_diff += std::abs(gx - gx_old) + std::abs(gy - gy_old);
     }
   }
-  std::cout << "pos_diff: " << pos_diff << " grad_diff: " << grad_diff
-            << std::endl;
+  debugPrint(log_,
+             EPL,
+             "Nesterov",
+             3,
+             "pos_diff: {} grad_diff: {}",
+             pos_diff,
+             grad_diff);
+
+  if (pos_diff == 0) {
+    pos_diff = e_density_vec_[0]->grid()->binSizeX() * 0.044;
+  }
   return pos_diff / grad_diff;
 }
 
@@ -74,13 +86,16 @@ int NesterovOptimizer::step()
 
   float epsilon = 0.95;
   curr_step_length_ = stepLength();
-  if (curr_step_length_ == 0) {
-    curr_step_length_ = stepLength(500);
-  }
   bool backtrack = lst_step_length_ > (epsilon * curr_step_length_);
-  std::cout << "lst_step_length_: " << lst_step_length_
-            << " curr_step_length_: " << curr_step_length_
-            << " backtrack: " << backtrack << std::endl;
+
+  debugPrint(log_,
+             EPL,
+             "Nesterov",
+             3,
+             "lst_step_length_: {} curr_step_length_: {} backtrack {}",
+             lst_step_length_,
+             curr_step_length_,
+             backtrack);
 
   // Update the location
   int idx = 0;

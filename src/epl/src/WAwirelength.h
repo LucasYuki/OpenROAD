@@ -47,7 +47,7 @@ class WAwirelength
   void update();
 
   void setGamma(float gamma) { gamma_ = gamma; };
-  float getGamma(float gamma) const { return gamma; };
+  float getGamma() const { return gamma_; };
   float getHPWL() const { return hpwl_; };
   float getWA() const { return wa_; };
 

@@ -102,7 +102,7 @@ class NesterovOptimizer
                                        gpl::Instance* inst) const;
 
  private:
-  float stepLength(float pos_diff = 0);
+  float stepLength();
   void init();
 
  private:

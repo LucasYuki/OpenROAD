@@ -22,7 +22,7 @@ void WAwirelength::update()
   hpwl_ = 0;
   wa_ = 0;
   const float gamma_inv = 1. / gamma_;
-  // std::cout << "gamma_inv: " << gamma_inv << std::endl;
+
   // using DreamPlace gradient formulation
   for (auto* net : nets_) {
     auto pins = net->getPins();
@@ -62,10 +62,10 @@ void WAwirelength::update()
       y_b_pos += y_a_pos[i];
       y_b_neg += y_a_neg[i];
 
-      x_c_pos += x_a_pos[i] * (pin->cx() - x_min);
-      x_c_neg += x_a_neg[i] * (pin->cx() - x_min);
-      y_c_pos += y_a_pos[i] * (pin->cy() - y_min);
-      y_c_neg += y_a_neg[i] * (pin->cy() - y_min);
+      x_c_pos += x_a_pos[i] * pin->cx();
+      x_c_neg += x_a_neg[i] * pin->cx();
+      y_c_pos += y_a_pos[i] * pin->cy();
+      y_c_neg += y_a_neg[i] * pin->cy();
 
       i++;
     }
@@ -76,21 +76,17 @@ void WAwirelength::update()
     for (auto* pin : pins) {
       float x_grad = 0;
       if (x_b_pos != 0) {
-        x_grad = ((1 + (pin->cx() - x_min) * gamma_inv) * x_b_pos
-                  - gamma_inv * x_c_pos)
+        x_grad = ((1 + pin->cx() * gamma_inv) * x_b_pos - gamma_inv * x_c_pos)
                      * x_a_pos[i] / x_b_pos / x_b_pos
-                 - ((1 - (pin->cx() - x_min) * gamma_inv) * x_b_neg
-                    + gamma_inv * x_c_neg)
+                 - ((1 - pin->cx() * gamma_inv) * x_b_neg + gamma_inv * x_c_neg)
                        * x_a_neg[i] / x_b_neg / x_b_neg;
       }
 
       float y_grad = 0;
       if (y_b_pos != 0) {
-        y_grad = ((1 + (pin->cy() - y_min) * gamma_inv) * y_b_pos
-                  - gamma_inv * y_c_pos)
+        y_grad = ((1 + pin->cy() * gamma_inv) * y_b_pos - gamma_inv * y_c_pos)
                      * y_a_pos[i] / y_b_pos / y_b_pos
-                 - ((1 - (pin->cy() - y_min) * gamma_inv) * y_b_neg
-                    + gamma_inv * y_c_neg)
+                 - ((1 - pin->cy() * gamma_inv) * y_b_neg + gamma_inv * y_c_neg)
                        * y_a_neg[i] / y_b_neg / y_b_neg;
       }
       wa_gradient_[pin] = std::make_pair(x_grad, y_grad);

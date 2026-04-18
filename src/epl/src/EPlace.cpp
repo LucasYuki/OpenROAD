@@ -95,7 +95,7 @@ bool EPlace::initPlacer()
 
   pbc_ = std::make_shared<gpl::PlacerBaseCommon>(db_, pbVars, log_);
   if (pbc_->placeInsts().size() == 0) {
-    log_->warn(EPL, 1, "No placeable instances - skipping placement.");
+    log_->warn(EPL, 15, "No placeable instances - skipping placement.");
     return false;
   }
 
@@ -163,25 +163,40 @@ void EPlace::place(int threads,
       8.f * e_density_vec_[0]->grid()->binSizeX()
       * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
   updateGradient(0, false, false);
-  float density_penalty = 1e-5;  // total_wa_gradient_ /
-                                 // total_density_gradient_;
+  float density_penalty = total_wa_gradient_ / total_density_gradient_ * 1e-4;
   last_hpwl_ = wa_wirelength_->getHPWL();
 
   // Main placement loop
   int max_backtracking = 50;
   int iter = 0;
+  log_->info(EPL,
+             16,
+             "Step | Overflow | HPWL (um) |    Cost    |     WA     |   Energy "
+             "  |   Penalty  |  wa_grad   | density grad");
   while (iter <= iterations && curr_overflow > 0.1) {
-    debugPrint(log_,
-               EPL,
-               "place",
-               1,
-               "nesterov_step: {}, overflow: {}",
-               iter,
-               curr_overflow);
+    if ((iter % 10) == 0) {
+      log_->info(
+          EPL,
+          17,
+          "{:4} | {:7.2f}% | {:.3e} | {:.4e} | {:.4e} | {:.4e} | {:.4e} | "
+          "{:.4e} | {:.4e}",
+          iter,
+          curr_overflow * 100,
+          wa_wirelength_->getHPWL() / db_->getDbuPerMicron(),
+          cost_,
+          wa_wirelength_->getWA(),
+          density_cost_,
+          density_penalty,
+          total_wa_gradient_,
+          total_density_gradient_);
+    }
 
     // Do a nesterov step
     int curr_backtracking = 0;
     bool backtraking = true;
+    if (disable_density_) {
+      wa_wirelength_->setGamma(80.f * e_density_vec_[0]->grid()->binSizeX());
+    }
     while (backtraking) {
       updateGradient(density_penalty, disable_wirelength_, disable_density_);
       backtraking = nesterov_->step();
@@ -195,10 +210,6 @@ void EPlace::place(int threads,
         break;
       }
     }
-
-    std::cout << "total cost: " << cost_ << " WA: " << wa_wirelength_->getWA()
-              << " energy scaled: " << density_cost_ * density_penalty
-              << " energy: " << density_cost_ << std::endl;
 
     if (gui_ && gui_->enabled()) {
       gui_->cellPlot(false);
@@ -214,22 +225,35 @@ void EPlace::place(int threads,
     density_penalty_mult
         = std::max(std::min(density_penalty_mult, 1.1f), 0.75f);
     density_penalty = density_penalty * density_penalty_mult;
-    std::cout << "density_penalty: " << density_penalty
-              << " density_penalty_mult: " << density_penalty_mult << std::endl;
+
     last_hpwl_ = wa_wirelength_->getHPWL();
     curr_overflow = e_density_vec_[0]->grid()->total_overflow();
     wa_wirelength_->setGamma(
         8.f * e_density_vec_[0]->grid()->binSizeX()
         * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
+    if (disable_density_) {
+      wa_wirelength_->setGamma(80.f * e_density_vec_[0]->grid()->binSizeX());
+    }
     iter++;
   }
-  debugPrint(log_,
-             EPL,
-             "place",
-             1,
-             "nesterov ended in nesterov_step: {}, overflow: {}",
+  log_->info(EPL, 18, "Final values:");
+  log_->info(EPL,
+             19,
+             "Step | Overflow | HPWL (um) |    Cost    |     WA     |   Energy "
+             "  |   Penalty  |  wa_grad   | density grad");
+  log_->info(EPL,
+             20,
+             "{:4} | {:7.2f}% | {:.3e} | {:.4e} | {:.4e} | {:.4e} | {:.4e} | "
+             "{:.4e} | {:.4e}",
              iter,
-             curr_overflow);
+             curr_overflow * 100,
+             wa_wirelength_->getHPWL() / db_->getDbuPerMicron(),
+             cost_,
+             wa_wirelength_->getWA(),
+             density_cost_,
+             density_penalty,
+             total_wa_gradient_,
+             total_density_gradient_);
 
   // update_db
   auto insts = pbc_->placeInsts();
@@ -291,8 +315,8 @@ void EPlace::updateGradient(float density_penalty,
       if (!disable_wirelength) {
         for (auto* pin : inst.gplInst()->getPins()) {
           auto [tmp_x, tmp_y] = wa_wirelength_->getGradient(pin);
-          gradient_wa_x = tmp_x;
-          gradient_wa_y = tmp_y;
+          gradient_wa_x += tmp_x;
+          gradient_wa_y += tmp_y;
         }
         total_wa_gradient_ += std::abs(gradient_wa_x) + std::abs(gradient_wa_y);
         preconditioner += inst.gplInst()->getPins().size();
