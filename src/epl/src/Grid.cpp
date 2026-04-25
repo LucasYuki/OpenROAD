@@ -22,13 +22,6 @@ Grid::Grid(utl::Logger* log,
            const odb::Rect region)
     : gpl::FFT(binCntX, binCntY, binSizeX, binSizeY), log_(log), region_(region)
 {
-  log_->info(utl::EPL,
-             11,
-             "Grid size: ({}, {}). Bin size: ({}, {}) um",
-             binCntX,
-             binCntY,
-             binSizeX,
-             binSizeY);
   bin_area_ = new float*[bin_cnt_X_];
   bin_area_filler_ = new float*[bin_cnt_X_];
   bin_area_fixed_ = new int64_t*[bin_cnt_X_];
@@ -83,6 +76,7 @@ void Grid::clearMovable()
     }
   }
   total_inst_area_ = 0;
+  total_inst_area_old_ = 0;
 }
 
 void Grid::addFixedInst(const gpl::Instance* inst)
@@ -110,6 +104,13 @@ void Grid::addMovableInst(const gpl::Instance* inst)
   if (inst->isInstance()) {
     filler = 0.f;
     total_inst_area_ += static_cast<int64_t>(scaling * inst_rect.area());
+    if (std::abs((scaling * inst_rect.area()) - inst->getArea()) > 10) {
+      std::cout << inst->dbInst()->getName() << " diff "
+                << scaling * inst_rect.area() - inst->getArea()
+                << " scaling * inst_rect.area()): "
+                << scaling * inst_rect.area()
+                << " inst->getArea(): " << inst->getArea() << std::endl;
+    }
   }
 
   for (int x = idxX.first; x < idxX.second; x++) {
@@ -223,12 +224,12 @@ float Grid::total_overflow() const
       float target_area = getBin(x, y).area() * target_density_;
       float inst_overflow = std::max(
           (bin_area_[x][y] - bin_area_filler_[x][y]) - target_area, 0.f);
+      total_overflow += inst_overflow;
       float fixed_overflow
           = std::max((bin_area_fixed_[x][y]
                       + bin_area_fixed_macro_[x][y] * target_density_)
                          - target_area,
                      0.f);
-      total_overflow += inst_overflow;
       total_overflow -= fixed_overflow;
     }
   }

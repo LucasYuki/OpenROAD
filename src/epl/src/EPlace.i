@@ -36,18 +36,25 @@ using epl::EPlace;
 %inline %{
 
 void
-eplace_place_cmd(float density, bool uniform_density, float dhpwl_ref, int iterations)
+eplace_place_cmd(float density, bool uniform_density, float dhpwl_ref, int iterations, float initial_density_penalty_mult, int info_interval)
 {
   EPlace* eplace = getEPlace();
   int threads = ord::OpenRoad::openRoad()->getThreadCount();
-  eplace->place(threads, density, uniform_density, dhpwl_ref, iterations);
+  eplace->place(threads, density, uniform_density, dhpwl_ref, iterations, initial_density_penalty_mult, info_interval);
 }
 
 void
-eplace_debug_cmd(bool draw_bins, bool disable_wirelength, bool disable_density)
+eplace_debug_cmd(bool draw_bins, bool disable_wirelength, bool disable_density, int pause_interval)
 {
   EPlace* eplace = getEPlace();
-  eplace->set_debug(draw_bins, disable_wirelength, disable_density);
+  eplace->set_debug(draw_bins, disable_wirelength, disable_density, pause_interval);
+}
+
+void
+calcualte_WaHPWL_cmd(float gamma)
+{
+  EPlace* eplace = getEPlace();
+  eplace->calcualteWaHPWL(gamma);
 }
 
 void

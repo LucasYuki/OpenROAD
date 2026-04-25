@@ -29,26 +29,17 @@ class Net;
 
 namespace epl {
 
-class WAwirelengthVars
-{
- public:
-  double target_density;
-  bool uniform_density = false;
-};
 class WAwirelength
 {
  public:
-  WAwirelength(WAwirelengthVars waVars,
-               std::shared_ptr<gpl::PlacerBaseCommon> pb,
-               utl::Logger* log,
-               int num_threads);
+  WAwirelength(utl::Logger* log, int num_threads);
 
   void clear();
-  void update();
+  void update(const std::vector<gpl::Net*>& nets);
 
   void setGamma(float gamma) { gamma_ = gamma; };
   float getGamma() const { return gamma_; };
-  float getHPWL() const { return hpwl_; };
+  int64_t getHPWL() const { return hpwl_; };
   float getWA() const { return wa_; };
 
   std::pair<float, float> getGradient(gpl::Pin* pin)
@@ -57,13 +48,10 @@ class WAwirelength
   };
 
  private:
-  WAwirelengthVars waVars_;
-  std::shared_ptr<gpl::PlacerBaseCommon> pb_;
   utl::Logger* log_;
   int num_threads_;
-  std::vector<gpl::Net*> nets_;
 
-  int hpwl_ = 0;
+  int64_t hpwl_ = 0;
   float wa_ = 0;
   float gamma_ = 1.;
   std::unordered_map<gpl::Pin*, std::pair<float, float>> wa_gradient_;

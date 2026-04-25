@@ -59,9 +59,8 @@ bool EPlace::initEPlace(float density, bool uniform_density)
 
   // Init wa_wirelength_
   debugPrint(log_, EPL, "initEPlace", 3, "Init wa_wirelength_");
-  WAwirelengthVars waVars;
   int threads = 1;
-  wa_wirelength_ = std::make_shared<WAwirelength>(waVars, pbc_, log_, threads);
+  wa_wirelength_ = std::make_shared<WAwirelength>(log_, threads);
 
   // Init e_density
   debugPrint(log_, EPL, "initEPlace", 1, "Init e_density");
@@ -112,24 +111,30 @@ bool EPlace::initPlacer()
 
 void EPlace::set_debug(bool draw_bins,
                        bool disable_wirelength,
-                       bool disable_density)
+                       bool disable_density,
+                       int pause_interval)
 {
   debug_ = true;
   draw_bins_ = draw_bins;
   disable_wirelength_ = disable_wirelength;
   disable_density_ = disable_density;
+  pause_interval_ = pause_interval;
 }
 
 void EPlace::place(int threads,
                    float density,
                    bool uniform_density,
                    float dhpwl_ref,
-                   int iterations)
+                   int iterations,
+                   float initial_density_penalty_mult,
+                   int info_interval)
 {
   debugPrint(log_, EPL, "place", 1, "place: number of threads {}", threads);
   if (!initEPlace(density, uniform_density)) {
     return;
   }
+  std::cout << "db_->getDbuPerMicron(): " << db_->getDbuPerMicron()
+            << std::endl;
 
   int gif_key = 0;
   if (debug_ && gui::Gui::enabled()) {
@@ -159,11 +164,17 @@ void EPlace::place(int threads,
              pbc_->getDie().coreUy());
 
   float curr_overflow = e_density_vec_[0]->grid()->total_overflow();
-  wa_wirelength_->setGamma(
-      8.f * e_density_vec_[0]->grid()->binSizeX()
-      * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
+  // epl:
+  // wa_wirelength_->setGamma(
+  //    8.f * e_density_vec_[0]->grid()->binSizeX()
+  //    * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
+  wa_wirelength_->setGamma(updateGamma(curr_overflow));
+
   updateGradient(0, false, false);
-  float density_penalty = total_wa_gradient_ / total_density_gradient_ * 1e-4;
+  // epl:
+  // float density_penalty = total_wa_gradient_ / total_density_gradient_;
+  float density_penalty = total_wa_gradient_ / total_density_gradient_
+                          * initial_density_penalty_mult;
   last_hpwl_ = wa_wirelength_->getHPWL();
 
   // Main placement loop
@@ -171,32 +182,33 @@ void EPlace::place(int threads,
   int iter = 0;
   log_->info(EPL,
              16,
-             "Step | Overflow | HPWL (um) |    Cost    |     WA     |   Energy "
+             "Step | Overflow | HPWL (um) |  WA (um)  |    Cost    |     WA    "
+             " |   Energy "
              "  |   Penalty  |  wa_grad   | density grad");
   while (iter <= iterations && curr_overflow > 0.1) {
-    if ((iter % 10) == 0) {
-      log_->info(
-          EPL,
-          17,
-          "{:4} | {:7.2f}% | {:.3e} | {:.4e} | {:.4e} | {:.4e} | {:.4e} | "
-          "{:.4e} | {:.4e}",
-          iter,
-          curr_overflow * 100,
-          wa_wirelength_->getHPWL() / db_->getDbuPerMicron(),
-          cost_,
-          wa_wirelength_->getWA(),
-          density_cost_,
-          density_penalty,
-          total_wa_gradient_,
-          total_density_gradient_);
+    if ((iter % info_interval) == 0) {
+      log_->info(EPL,
+                 17,
+                 "{:4} | {:7.2f}% | {:.3e} | {:.3e} | {:.4e} | {:.4e} | {:.4e} "
+                 "| {:.4e} | "
+                 "{:.4e} | {:.4e} | {:.4e}",
+                 iter,
+                 curr_overflow * 100,
+                 static_cast<float>(wa_wirelength_->getHPWL())
+                     / db_->getDbuPerMicron(),
+                 wa_wirelength_->getWA() / db_->getDbuPerMicron(),
+                 cost_,
+                 wa_wirelength_->getWA(),
+                 density_cost_,
+                 density_penalty,
+                 total_wa_gradient_,
+                 total_density_gradient_,
+                 nesterov_->currStepLength());
     }
 
     // Do a nesterov step
     int curr_backtracking = 0;
     bool backtraking = true;
-    if (disable_density_) {
-      wa_wirelength_->setGamma(80.f * e_density_vec_[0]->grid()->binSizeX());
-    }
     while (backtraking) {
       updateGradient(density_penalty, disable_wirelength_, disable_density_);
       backtraking = nesterov_->step();
@@ -206,13 +218,16 @@ void EPlace::place(int threads,
         ed->updateDensity();
       }
       curr_backtracking++;
-      if (curr_backtracking >= max_backtracking) {
+      if (curr_backtracking > max_backtracking) {
+        std::cout << "reached max backtracking: " << curr_backtracking
+                  << std::endl;
         break;
       }
     }
 
     if (gui_ && gui_->enabled()) {
-      gui_->cellPlot(false);
+      gui_->cellPlot((pause_interval_ > 0)
+                     && (iter % pause_interval_) == 0);  //(iter % 10) == 0);
       odb::Rect region;
       odb::Rect bbox = pbc_->db()->getChip()->getBlock()->getBBox()->getBox();
       int max_dim = std::max(bbox.dx(), bbox.dy());
@@ -220,40 +235,35 @@ void EPlace::place(int threads,
       gui_->gifAddFrame(gif_key, region, 500, dbu_per_pixel, 20);
     }
 
-    float density_penalty_mult = std::pow(
-        1.1f, -(wa_wirelength_->getHPWL() - last_hpwl_) / dhpwl_ref + 1.0f);
-    density_penalty_mult
-        = std::max(std::min(density_penalty_mult, 1.1f), 0.75f);
-    density_penalty = density_penalty * density_penalty_mult;
+    density_penalty = updateDensityPenalty(
+        density_penalty, wa_wirelength_->getHPWL(), last_hpwl_, dhpwl_ref);
 
-    last_hpwl_ = wa_wirelength_->getHPWL();
     curr_overflow = e_density_vec_[0]->grid()->total_overflow();
-    wa_wirelength_->setGamma(
-        8.f * e_density_vec_[0]->grid()->binSizeX()
-        * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
-    if (disable_density_) {
-      wa_wirelength_->setGamma(80.f * e_density_vec_[0]->grid()->binSizeX());
-    }
+    wa_wirelength_->setGamma(updateGamma(curr_overflow));
+    last_hpwl_ = wa_wirelength_->getHPWL();
     iter++;
   }
   log_->info(EPL, 18, "Final values:");
   log_->info(EPL,
              19,
-             "Step | Overflow | HPWL (um) |    Cost    |     WA     |   Energy "
+             "Step | Overflow | HPWL (um) |  WA (um)  |    Cost    |     WA    "
+             " |   Energy "
              "  |   Penalty  |  wa_grad   | density grad");
-  log_->info(EPL,
-             20,
-             "{:4} | {:7.2f}% | {:.3e} | {:.4e} | {:.4e} | {:.4e} | {:.4e} | "
-             "{:.4e} | {:.4e}",
-             iter,
-             curr_overflow * 100,
-             wa_wirelength_->getHPWL() / db_->getDbuPerMicron(),
-             cost_,
-             wa_wirelength_->getWA(),
-             density_cost_,
-             density_penalty,
-             total_wa_gradient_,
-             total_density_gradient_);
+  log_->info(
+      EPL,
+      20,
+      "{:4} | {:7.2f}% | {:.3e} | {:.3e} | {:.4e} | {:.4e} | {:.4e} | {:.4e} | "
+      "{:.4e} | {:.4e}",
+      iter,
+      curr_overflow * 100,
+      static_cast<float>(wa_wirelength_->getHPWL()) / db_->getDbuPerMicron(),
+      wa_wirelength_->getWA() / db_->getDbuPerMicron(),
+      cost_,
+      wa_wirelength_->getWA(),
+      density_cost_,
+      density_penalty,
+      total_wa_gradient_,
+      total_density_gradient_);
 
   // update_db
   auto insts = pbc_->placeInsts();
@@ -280,7 +290,7 @@ void EPlace::updateGradient(float density_penalty,
                             bool use_preconditioning)
 {
   // eDensity and wirelength gradients calc
-  wa_wirelength_->update();
+  wa_wirelength_->update(pbc_->getNets());
   for (auto& ed : e_density_vec_) {
     ed->updateForce();
   }
@@ -336,6 +346,65 @@ void EPlace::updateGradient(float density_penalty,
     }
   }
   cost_ = wa_wirelength_->getWA() + density_penalty * density_cost_;
+}
+
+float EPlace::updateDensityPenalty(float density_penalty,
+                                   float curr_hpwl,
+                                   float last_hpwl,
+                                   float dhpwl_ref)
+{
+  // epl:
+  // const float base_mult = 1.1f;
+  // const float min_mult = 0.75f;
+  const float base_mult = 1.1f;
+  const float min_mult = 0.95f;
+  float density_penalty_mult
+      = std::pow(base_mult, 1.f - (curr_hpwl - last_hpwl) / dhpwl_ref);
+  density_penalty_mult
+      = std::max(std::min(density_penalty_mult, base_mult), min_mult);
+  return density_penalty * density_penalty_mult;
+}
+
+float EPlace::updateGamma(float curr_overflow)
+{
+  // epl:
+  // wa_wirelength_->setGamma(
+  //  8.f * e_density_vec_[0]->grid()->binSizeX()
+  //  * std::pow(10.f, curr_overflow * 20.f / 9.f - 11.f / 9.f));
+  // if (disable_density_) {
+  //  wa_wirelength_->setGamma(80.f * e_density_vec_[0]->grid()->binSizeX());
+  // }
+  if (disable_density_) {
+    return 40.f * e_density_vec_[0]->grid()->binSizeX();
+  }
+  return pow(10.0, (curr_overflow - 0.1) * 20 / 9.0 - 1.0)
+         * (4 * e_density_vec_[0]->grid()->binSizeX());
+}
+
+void EPlace::calcualteWaHPWL(float gamma)
+{
+  initPlacer();
+  wa_wirelength_ = std::make_shared<WAwirelength>(log_, 1);
+
+  wa_wirelength_->update(pbc_->getNets());
+  float sumgrad = 0;
+  float sumgrad1 = 0;
+  for (auto net : pbc_->getNets()) {
+    for (auto pin : net->getPins()) {
+      auto grad = wa_wirelength_->getGradient(pin);
+      sumgrad += std::abs(grad.first);
+      sumgrad += std::abs(grad.second);
+      sumgrad1 += grad.first + grad.second;
+    }
+  }
+
+  log_->info(EPL,
+             21,
+             "Final WA-HPWL: {:.6f} Final WA-HPWL grad: {:.6f} Final WA-HPWL "
+             "gradsum: {:.6f}",
+             wa_wirelength_->getWA() / db_->getDbuPerMicron(),
+             sumgrad, sumgrad1);
+  clear();
 }
 
 void EPlace::randomPlace(int threads)

@@ -22,12 +22,14 @@ namespace eval epl {
 sta::define_cmd_args "eplace_place" { \
     [-density target_density] \
     [-iterations max_iterations] \
-    [-dhpwl_ref dhpwl_ref]
+    [-dhpwl_ref dhpwl_ref] \
+    [-initial_density_penalty_mult initial_density_penalty_mult] \
+    [-info_interval info_interval]
 }
 
 proc eplace_place { args } {
   sta::parse_key_args "global_placement" args \
-    keys {-density -iterations -dhpwl_ref} \
+    keys {-density -iterations -dhpwl_ref -initial_density_penalty_mult -info_interval} \
     flags {}
   
   # density settings
@@ -37,6 +39,7 @@ proc eplace_place { args } {
   if { [info exists keys(-density)] } {
     set target_density $keys(-density)
   }
+
   if { $target_density == "uniform" } {
     set uniform_mode 1
   } else {
@@ -45,6 +48,9 @@ proc eplace_place { args } {
     if { $target_density > 1.0 } {
       utl::error EPL 10 "Target density must be in \[0, 1\]."
     }
+    if { $target_density == 0 } {
+      set uniform_mode 1
+    }
   }
 
   set iterations 100
@@ -52,23 +58,34 @@ proc eplace_place { args } {
     set iterations $keys(-iterations)
   }
 
-  set dhpwl_ref 1000000
+  set dhpwl_ref 446000000
   if { [info exists keys(-dhpwl_ref)] } {
     set dhpwl_ref $keys(-dhpwl_ref)
   }
 
-  epl::eplace_place_cmd $target_density $uniform_mode $dhpwl_ref $iterations
+  set initial_density_penalty_mult 0.00008
+  if { [info exists keys(-initial_density_penalty_mult)] } {
+    set initial_density_penalty_mult $keys(-initial_density_penalty_mult)
+  }
+
+  set info_interval 10
+  if { [info exists keys(-info_interval)] } {
+    set info_interval $keys(-info_interval)
+  }
+
+  epl::eplace_place_cmd $target_density $uniform_mode $dhpwl_ref $iterations $initial_density_penalty_mult $info_interval
 }
 
 sta::define_cmd_args "eplace_debug" { \
     [-draw_bins] \
     [-disable_wirelength] \
     [-disable_density]
+    [-pause_interval pause_interval]
 }
 
 proc eplace_debug { args } {
   sta::parse_key_args "global_placement" args \
-    keys {} \
+    keys {-pause_interval} \
     flags {-draw_bins \
       -disable_wirelength \
       -disable_density}
@@ -80,7 +97,28 @@ proc eplace_debug { args } {
     utl::error EPL 14 "Cannot disable wirelength and density at the same time"
   }
 
-  eplace_debug_cmd $draw_bins $disable_wirelength $disable_density
+  set pause_interval 10
+  if { [info exists keys(-pause_interval)] } {
+    set pause_interval $keys(-pause_interval)
+  }
+
+  eplace_debug_cmd $draw_bins $disable_wirelength $disable_density $pause_interval
+}
+
+sta::define_cmd_args "calcualte_WaHPWL" { \
+    [-gamma gamma]
+}
+proc calcualte_WaHPWL { args } {
+  sta::parse_key_args "calcualte_WaHPWL" args \
+    keys {-gamma} \
+    flags {}
+  
+  set gamma 1
+  if { [info exists keys(-gamma)] } {
+    set gamma $keys(-gamma)
+  }
+
+  epl::calcualte_WaHPWL_cmd $gamma
 }
 
 sta::define_cmd_args "eplace_random_placement" {}

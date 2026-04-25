@@ -5,26 +5,19 @@
 
 namespace epl {
 
-WAwirelength::WAwirelength(WAwirelengthVars waVars,
-                           std::shared_ptr<gpl::PlacerBaseCommon> pb,
-                           utl::Logger* log,
-                           int num_threads)
-    : waVars_(waVars),
-      pb_(std::move(pb)),
-      log_(log),
-      num_threads_(num_threads),
-      nets_(pb_->getNets())
+WAwirelength::WAwirelength(utl::Logger* log, int num_threads)
+    : log_(log), num_threads_(num_threads)
 {
 }
 
-void WAwirelength::update()
+void WAwirelength::update(const std::vector<gpl::Net*>& nets)
 {
   hpwl_ = 0;
   wa_ = 0;
   const float gamma_inv = 1. / gamma_;
 
   // using DreamPlace gradient formulation
-  for (auto* net : nets_) {
+  for (auto* net : nets) {
     auto pins = net->getPins();
     int n_pins = pins.size();
     if (n_pins < 2) {
@@ -41,6 +34,11 @@ void WAwirelength::update()
       x_max = std::max(x_max, pin->cx());
       y_min = std::min(y_min, pin->cy());
       y_max = std::max(y_max, pin->cy());
+    }
+    if ((x_max - x_min) < 0 || (y_max - y_min) < 0) {
+      std::cout << "net: " << net->getDbNet()->getName() << " x_max: " << x_max
+                << " x_min: " << x_min << " y_max: " << y_max
+                << " y_min: " << y_min << std::endl;
     }
     hpwl_ += (x_max - x_min) + (y_max - y_min);
 

@@ -43,13 +43,19 @@ class EPlace
   void init(odb::dbDatabase* db, utl::Logger* logger);
   void clear();
 
-  void set_debug(bool draw_bins, bool disable_wirelength, bool disable_density);
+  void set_debug(bool draw_bins,
+                 bool disable_wirelength,
+                 bool disable_density,
+                 int pause_interval);
   void place(int threads,
              float density,
              bool uniform_density,
              float dhpwl_ref,
-             int iterations);
+             int iterations,
+             float initial_density_penalty_mult,
+             int info_interval);
   void randomPlace(int threads);
+  void calcualteWaHPWL(float gamma);
 
  private:
   bool initEPlace(float density, bool uniform_density);
@@ -58,6 +64,11 @@ class EPlace
                       bool disable_density = false,
                       bool use_density_field = false,
                       bool use_preconditioning = true);
+  float updateDensityPenalty(float density_penalty,
+                             float curr_hpwl,
+                             float last_hpwl,
+                             float dhpwl_ref);
+  float updateGamma(float curr_overflow);
 
  private:
   bool initPlacer();
@@ -79,13 +90,14 @@ class EPlace
   bool draw_bins_ = false;
   bool disable_wirelength_ = false;
   bool disable_density_ = false;
+  int pause_interval_ = -1;
 
   float cost_ = 0;
   float density_cost_ = 0;
 
   float total_density_gradient_ = 0;
   float total_wa_gradient_ = 0;
-  float last_hpwl_ = 0;
+  int64_t last_hpwl_ = 0;
 };
 
 }  // namespace epl

@@ -92,6 +92,7 @@ class NesterovOptimizer
   ~NesterovOptimizer(){};
 
   int step();
+  float currStepLength() { return curr_step_length_; }
   std::vector<std::vector<NesterovInst>>& nesterovInsts()
   {
     return inst_ed_vec_;
@@ -113,8 +114,9 @@ class NesterovOptimizer
   std::vector<std::vector<NesterovInst>> inst_ed_vec_;
   float curr_step_length_ = 0;
   float lst_step_length_ = 0;
-  float curr_a_ = 1;
+  float curr_a_ = std::numbers::phi_v<float>;
   float lst_a_ = 1;
+  bool backtracking_ = true;
 };
 
 }  // namespace epl
